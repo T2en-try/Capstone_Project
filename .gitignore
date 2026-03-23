@@ -1,7 +1,15 @@
 *.pth
 *.pt
 
+.vscode/
+.idea/
+
 __pycache__/
+*.pyc
+*.pyo
+*.pyd
 .env
 venv/
 env/
+
+Road-maintain.json

@@ -4,7 +4,12 @@ from datetime import datetime, timedelta
 import random 
 
 # เริ่มต้นการเชื่อมต่อ (ใช้ Project ID ของคุณ)
-ee.Initialize(project='sturdy-web-472311-a8')
+#ee.Initialize(project='sturdy-web-472311-a8')
+SERVICE_ACCOUNT = 'road-remaining-life-prediction@sturdy-web-472311-a8.iam.gserviceaccount.com'
+KEY_PATH = 'app/services/Road-maintain.json'
+
+credentials = ee.ServiceAccountCredentials(SERVICE_ACCOUNT, KEY_PATH)
+ee.Initialize(credentials, project='sturdy-web-472311-a8')
 
 def get_environment_data(lat, lon):
     """
