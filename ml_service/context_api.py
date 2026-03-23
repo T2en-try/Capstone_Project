@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 import random 
 
 # เริ่มต้นการเชื่อมต่อ (ใช้ Project ID ของคุณ)
-ee.Initialize(project='sturdy-web-472311-a8')
+# ee.Initialize(project='sturdy-web-472311-a8')
 
 def get_environment_data(lat, lon):
     """

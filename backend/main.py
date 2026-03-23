@@ -49,7 +49,8 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.ALLOWED_ORIGINS,
+    allow_origins=["*"],  # อนุญาตทุกแหล่งที่มา (ในเครื่อง Local ใช้แบบนี้ได้ครับ)
+    # allow_origins=settings.ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -60,6 +61,7 @@ app.add_middleware(
 
 ensure_upload_dir()
 app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads")
+
 
 
 # ─── Register Routers ─────────────────────────────────────────
