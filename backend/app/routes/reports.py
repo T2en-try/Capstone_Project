@@ -5,9 +5,17 @@ API Endpoints สำหรับจัดการรายงานสภาพ
 
 from typing import Optional
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, Request
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+# --- [NEW] Imports สำหรับ AI ---
+import cv2
+import torch
+import numpy as np
+from app.services.ai_model import extract_cv_features
+from app.services.context_api import get_environment_data, get_road_type, get_crowdsource_data
+# -----------------------------
 
 from app.database import get_db
 from app.models import RoadReport, ReportStatus
@@ -36,9 +44,10 @@ router = APIRouter(prefix="/api/reports", tags=["Reports"])
     responses={400: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
 )
 async def upload_report(
+    request: Request,
     image: UploadFile = File(..., description="รูปภาพถนน (jpg, png, webp)"),
-    latitude: Optional[float] = Form(None, description="ละติจูด (ไม่บังคับ, ระบบจะสกัดจาก EXIF ก่อน)"),
-    longitude: Optional[float] = Form(None, description="ลองจิจูด (ไม่บังคับ)"),
+    latitude: Optional[float] = Form(None, description="ละติจูดจากหน้าเว็บ"),
+    longitude: Optional[float] = Form(None, description="ลองจิจูดจากหน้าเว็บ"),
     description: Optional[str] = Form(None, description="คำอธิบายเพิ่มเติม"),
     reporter_name: Optional[str] = Form(None, description="ชื่อผู้รายงาน"),
     db: AsyncSession = Depends(get_db),
@@ -50,30 +59,68 @@ async def upload_report(
     1. ตรวจสอบและบันทึกไฟล์รูปภาพ
     2. สกัดพิกัด GPS จาก EXIF metadata ของรูปภาพ
     3. ถ้าไม่พบ GPS ใน EXIF จะใช้พิกัดที่ผู้ใช้ส่งมา (ถ้ามี)
-    4. บันทึกข้อมูลทั้งหมดลงฐานข้อมูล
+    4. ส่งข้อมูลให้ AI และดึงข้อมูลแวดล้อม
+    5. บันทึกข้อมูลทั้งหมดลงฐานข้อมูล
     """
     try:
         # 1. บันทึกไฟล์รูปภาพ
         file_info = await save_upload_file(image)
 
-        # 2. สกัดพิกัด GPS จาก EXIF
-        exif_lat, exif_lon = extract_gps_from_exif(file_info["contents"])
+        # 2. [Logic ใหม่] การตัดสินใจเรื่องพิกัด (Priority: Manual > EXIF)
+        final_lat = None
+        final_lon = None
+        gps_source = "none"
 
-        # 3. ตัดสินว่าจะใช้พิกัดจากแหล่งไหน
-        final_lat = exif_lat
-        final_lon = exif_lon
-        gps_source = "exif"
+        # เช็คก่อนว่า User ปักหมุดมาจากหน้าเว็บไหม
+        if latitude is not None and longitude is not None:
+            final_lat = latitude
+            final_lon = longitude
+            gps_source = "manual"
+            print(f"📍 ใช้พิกัดจากการปักหมุดเอง: {final_lat}, {final_lon}")
+        else:
+            # ถ้าไม่ได้ปักหมุดมา ค่อยไปลองแกะจาก EXIF
+            exif_lat, exif_lon = extract_gps_from_exif(file_info["contents"])
+            if exif_lat is not None and exif_lon is not None:
+                final_lat = exif_lat
+                final_lon = exif_lon
+                gps_source = "exif"
 
-        if final_lat is None or final_lon is None:
-            # ถ้าไม่พบ EXIF GPS → ใช้พิกัดที่ผู้ใช้ส่งมา
-            if latitude is not None and longitude is not None:
-                final_lat = latitude
-                final_lon = longitude
-                gps_source = "manual"
-            else:
-                gps_source = "none"
+        # 3. ส่งข้อมูลให้ AI และดึงข้อมูลแวดล้อม
+        ai_analysis = None
+        if hasattr(request.app.state, 'model') and request.app.state.model is not None:
+            print("🔍 AI กำลังทำงาน...")
+            
+            # 3.1 ประมวลผลภาพ (AI ทำงานได้แม้ไม่มีพิกัด)
+            img_cv = cv2.imread(file_info["path"])
+            img_rgb = cv2.cvtColor(img_cv, cv2.COLOR_BGR2RGB)
+            height, width, _ = img_rgb.shape
+            
+            # ใช้ YOLO หรือ Faster R-CNN ตามที่คุณเซ็ตไว้
+            image_tensor = torch.as_tensor(img_rgb.transpose(2, 0, 1), dtype=torch.float32).to(request.app.state.device) / 255.0
+            with torch.no_grad():
+                prediction = request.app.state.model([image_tensor])[0]
+            cv_features = extract_cv_features(prediction, width, height)
+            
+            # 3.2 [Safe GEE/GIS] ดึงข้อมูลแวดล้อม (ดักจับ Error เพื่อให้เพื่อนรันได้)
+            gee_data = {"rainfall_last_12m_mm": 0, "note": "GEE ไม่พร้อมใช้งาน"}
+            gis_data = {"thai_road_type": "ไม่ทราบประเภท"}
+            crowd_data = {"crowdsource_report_count_30d": 0}
 
-        # 4. สร้าง Record ในฐานข้อมูล
+            if final_lat and final_lon:
+                try:
+                    # ใส่ try-except คลุมไว้ ถ้าเพื่อนไม่ได้ login GEE ระบบจะไม่แครช
+                    gee_data = get_environment_data(final_lat, final_lon)
+                    gis_data = get_road_type(final_lat, final_lon)
+                    crowd_data = get_crowdsource_data(final_lat, final_lon)
+                except Exception as gee_err:
+                    print(f"⚠️ คำเตือน: ดึงข้อมูล GEE/GIS ไม่สำเร็จ (อาจยังไม่ล็อกอิน): {gee_err}")
+
+            ai_analysis = {
+                "cv_features": cv_features,
+                "context_data": {"gee": gee_data, "gis": gis_data, "crowdsource": crowd_data}
+            }
+
+        # 4. บันทึกข้อมูล
         report = RoadReport(
             image_filename=file_info["filename"],
             image_original_name=file_info["original_name"],
@@ -86,6 +133,7 @@ async def upload_report(
             description=description,
             reporter_name=reporter_name,
             status=ReportStatus.PENDING,
+            ai_result=ai_analysis
         )
         db.add(report)
         await db.commit()
@@ -93,20 +141,17 @@ async def upload_report(
 
         return UploadResponse(
             status="success",
-            message="อัปโหลดรูปภาพและสร้างรายงานสำเร็จ",
+            message="สร้างรายงานสำเร็จ",
             report=ReportResponse.model_validate(report),
-            gps_extracted=GPSData(
-                latitude=final_lat,
-                longitude=final_lon,
-                source=gps_source,
-            ),
+            gps_extracted=GPSData(latitude=final_lat, longitude=final_lon, source=gps_source),
+            ai_result=ai_analysis
         )
-
     except HTTPException:
         raise
     except Exception as e:
         await db.rollback()
-        raise HTTPException(status_code=500, detail=f"เกิดข้อผิดพลาดภายในระบบ: {str(e)}")
+        import traceback; traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ─── GET: ดึงรายการรายงานทั้งหมด (พร้อม Pagination) ──────────
@@ -123,11 +168,9 @@ async def get_reports(
     db: AsyncSession = Depends(get_db),
 ):
     """ดึงรายการรายงานทั้งหมด พร้อมระบบแบ่งหน้า และกรองตามสถานะ"""
-    # สร้าง query
     query = select(RoadReport)
     count_query = select(func.count(RoadReport.id))
 
-    # กรองตามสถานะ (ถ้ามี)
     if status:
         try:
             status_enum = ReportStatus(status)
@@ -136,11 +179,9 @@ async def get_reports(
         except ValueError:
             raise HTTPException(status_code=400, detail=f"สถานะไม่ถูกต้อง: {status}")
 
-    # นับจำนวนทั้งหมด
     total_result = await db.execute(count_query)
     total = total_result.scalar() or 0
 
-    # Pagination
     offset = (page - 1) * per_page
     query = query.order_by(RoadReport.created_at.desc()).offset(offset).limit(per_page)
 

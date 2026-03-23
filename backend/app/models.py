@@ -4,7 +4,7 @@ Road Report Backend - Database Models
 """
 
 from datetime import datetime, timezone
-from sqlalchemy import Column, Integer, String, Float, DateTime, Text, Enum as SAEnum
+from sqlalchemy import Column, Integer, String, Float, DateTime, JSON, Text, Enum as SAEnum 
 import enum
 
 from app.database import Base
@@ -52,6 +52,9 @@ class RoadReport(Base):
         nullable=False,
         comment="สถานะของรายงาน"
     )
+
+    # --- [NEW] ช่องเก็บผลลัพธ์ AI (เป็น JSON จะได้ยัดข้อมูลหลายๆ อย่างลงไปได้ในช่องเดียว) ---
+    ai_result = Column(JSON, nullable=True, comment="เก็บข้อมูล JSON จากการวิเคราะห์ของ AI")
 
     # Timestamps
     created_at = Column(

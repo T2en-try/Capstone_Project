@@ -5,6 +5,7 @@ Road Report Backend - Pydantic Schemas
 
 from datetime import datetime
 from typing import Optional
+from typing import Optional, Dict, Any
 from pydantic import BaseModel, Field
 
 
@@ -47,6 +48,7 @@ class ReportResponse(BaseModel):
     status: str
     created_at: datetime
     updated_at: datetime
+    ai_result: Optional[Dict[str, Any]] = None
 
     class Config:
         from_attributes = True
@@ -66,6 +68,7 @@ class UploadResponse(BaseModel):
     message: str
     report: ReportResponse
     gps_extracted: GPSData
+    ai_result: Optional[Dict[str, Any]] = None
 
 
 class ErrorResponse(BaseModel):
