@@ -16,7 +16,6 @@ engine = create_async_engine(
     connect_args={"check_same_thread": False},  # จำเป็นสำหรับ SQLite
 )
 
-# สร้าง Session Factory
 async_session = async_sessionmaker(
     engine,
     class_=AsyncSession,

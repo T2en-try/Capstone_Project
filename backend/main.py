@@ -14,6 +14,8 @@ from app.database import init_db
 from app.routes.reports import router as reports_router
 from app.services.file_service import ensure_upload_dir
 
+from app.services.ai_model import load_trained_model
+
 
 # ─── Lifespan Event: ทำงานตอนเริ่มต้น/ปิดเซิร์ฟเวอร์ ────────
 
@@ -24,6 +26,17 @@ async def lifespan(app: FastAPI):
     print("🚀 กำลังเริ่มต้นระบบ Road Report Backend...")
     await init_db()
     ensure_upload_dir()
+
+    print("🧠 กำลังโหลดสมอง AI เข้าสู่ระบบ...")
+    import os
+    MODEL_PATH = "faster_rcnn_road_damage_final.pth"
+    if os.path.exists(MODEL_PATH):
+        app.state.model, app.state.device = load_trained_model(MODEL_PATH)
+        print("✅ โมเดล AI พร้อมทำนาย!")
+    else:
+        print("⚠️ คำเตือน: ไม่พบไฟล์โมเดล AI ระบบจะทำงานแบบไม่มี AI")
+        app.state.model = None
+
     print("✅ ฐานข้อมูลพร้อมใช้งาน")
     print(f"📁 โฟลเดอร์อัปโหลด: {settings.UPLOAD_DIR}")
     yield

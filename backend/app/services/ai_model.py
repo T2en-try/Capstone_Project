@@ -2,7 +2,7 @@ import torch
 import torchvision
 from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
 
-# 1. กำหนดรายชื่อคลาสให้ตรงกับตอนเทรนเป๊ะๆ
+# 1. กำหนดรายชื่อคลาสให้ตรงกับตอนเทรน
 CLASSES = [
     'longitudinal crack', 'longitudinal crack wide',
     'transverse crack', 'transverse crack wide',
