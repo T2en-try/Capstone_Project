@@ -16,7 +16,8 @@
 3. ติดตั้งไลบรารี: `pip install -r requirements.txt`
 4. ไปที่ https://drive.google.com/drive/folders/1G45AjreZVy1xsrpG1CFhTak6aRH4UEVz 
 5. นำไฟล์ `faster_rcnn_road_damage_final.pth` ในโฟลเดอร์ `Model_Train` ที่โหลดมา ไปวางไว้ในโฟลเดอร์ `backend` (ให้อยู่ระดับเดียวกับ `main.py`)
-6. นำไฟล์ `Road-maintain.json` ในโฟลเดอร์ `Config` ที่โหลดมา ไปวางไว้ในโฟลเดอร์ `backend/app/services` (ให้อยู่ระดับเดียวกับ `context_api.py`)
-7. สั่งรันเซิร์ฟเวอร์ backend : `uvicorn main:app --reload`
-8. ไปที่ `cd frontend` รันคำสั่ง `npm install`
-9. สั่งรันเซิร์ฟเวอร์ frontend : `npm run dev`
+6. ไปที่ https://drive.google.com/drive/folders/1zAzuR9x3x1J0SX7VlAyF7U5d4IAIWycB
+7. นำไฟล์ `Road-maintain.json` ในโฟลเดอร์ `Config` ที่โหลดมา ไปวางไว้ในโฟลเดอร์ `backend/app/services` (ให้อยู่ระดับเดียวกับ `context_api.py`)
+8. สั่งรันเซิร์ฟเวอร์ backend : `uvicorn main:app --reload`
+9. ไปที่ `cd frontend` รันคำสั่ง `npm install`
+10. สั่งรันเซิร์ฟเวอร์ frontend : `npm run dev`
