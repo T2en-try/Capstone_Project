@@ -13,3 +13,12 @@ venv/
 env/
 
 Road-maintain.json
+
+node_modules/
+dist/
+build/
+
+uploads/
+images/
+
+.DS_Store
