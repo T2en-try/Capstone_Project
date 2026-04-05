@@ -4,7 +4,6 @@ from datetime import datetime, timedelta
 import random 
 
 # เริ่มต้นการเชื่อมต่อ (ใช้ Project ID ของคุณ)
-#ee.Initialize(project='sturdy-web-472311-a8')
 SERVICE_ACCOUNT = 'road-remaining-life-prediction@sturdy-web-472311-a8.iam.gserviceaccount.com'
 KEY_PATH = 'app/services/Road-maintain.json'
 
@@ -27,11 +26,12 @@ def get_environment_data(lat, lon):
 
     print(f"กำลังดึงข้อมูล GEE พิกัด {lat}, {lon}...")
 
-    # ตั้งค่าเริ่มต้นเป็น 0 เผื่อดึงข้อมูลไม่สำเร็จ
+    # ตั้งค่าเริ่มต้นเผื่อดึงข้อมูลไม่สำเร็จ
     nightlight = 0
     rainfall = 0
     soil_moisture = 0
     ndvi_value = 0
+    estimated_material = "ไม่ระบุ"
 
     # 1. Nightlight (ความพลุกพล่าน)
     try:
@@ -47,7 +47,7 @@ def get_environment_data(lat, lon):
     # 2. Rainfall (น้ำฝนสะสม)
     try:
         chirps = ee.ImageCollection('UCSB-CHG/CHIRPS/DAILY') \
-                   .filterBounds(point).filterDate(start_date_annual, end_date_annual).sum()
+                    .filterBounds(point).filterDate(start_date_annual, end_date_annual).sum()
         val = chirps.select('precipitation').reduceRegion(
             reducer=ee.Reducer.first(), geometry=point, scale=5000
         ).get('precipitation').getInfo()
@@ -69,7 +69,7 @@ def get_environment_data(lat, lon):
     # 4. NDVI (ดัชนีพืชพรรณ)
     try:
         modis_ndvi = ee.ImageCollection('MODIS/061/MOD13Q1') \
-                     .filterBounds(point).filterDate(start_date_ndvi, end_date_recent).mean()
+                      .filterBounds(point).filterDate(start_date_ndvi, end_date_recent).mean()
         val = modis_ndvi.select('NDVI').reduceRegion(
             reducer=ee.Reducer.first(), geometry=point, scale=250
         ).get('NDVI').getInfo()
@@ -77,12 +77,33 @@ def get_environment_data(lat, lon):
     except Exception as e:
         print(f"⚠️ ข้ามการดึง NDVI: {e}")
 
+    # 5. Surface Material (จำแนกคอนกรีต vs ยางมะตอย ด้วย Sentinel-2)
+    try:
+        s2 = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED') \
+               .filterBounds(point).filterDate(start_date_ndvi, end_date_recent) \
+               .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 20)).median()
+        val = s2.select('B4').reduceRegion(
+            reducer=ee.Reducer.first(), geometry=point, scale=10
+        ).get('B4').getInfo()
+        
+        if val:
+            # ใช้ NDVI เช็คก่อนว่าใช่ถนนแน่หรือเปล่า
+            if ndvi_value > 0.3:
+                estimated_material = "พื้นที่ป่า/ทางดิน (พืชพรรณหนาแน่น)"
+            elif val > 1500: # ถ้าสะท้อนแสงสว่างมาก = คอนกรีต
+                estimated_material = "คอนกรีต (Concrete)"
+            else: # ถ้าสะท้อนแสงน้อยดูดซับความร้อน = ยางมะตอย
+                estimated_material = "ยางมะตอย (Asphalt)"
+    except Exception as e:
+        print(f"⚠️ ข้ามการดึง Surface Material: {e}")
+
     return {
         "date_analyzed": today.strftime('%Y-%m-%d'),
         "nightlight_radiance": round(nightlight, 2),
         "rainfall_last_12m_mm": round(rainfall, 2),
         "soil_moisture_last_30d_mm": round(soil_moisture, 4),
-        "ndvi_index": round(ndvi_value, 4)
+        "ndvi_index": round(ndvi_value, 4),
+        "estimated_material": estimated_material  # <-- เพิ่มค่านี้ส่งออกไป
     }
 
 def get_road_type(lat, lon, radius_meters=10):
@@ -140,28 +161,15 @@ def get_crowdsource_data(lat, lon, radius_meters=50):
     """
     print(f"กำลังตรวจสอบประวัติการแจ้งเหตุในรัศมี {radius_meters} เมตร...")
     
-    # ---------------------------------------------------------
-    # Mock-up Data (จำลองว่าเราไปค้น Database แล้วเจอข้อมูลเหล่านี้)
-    # เราจะสุ่มตัวเลขขึ้นมาเพื่อทดสอบโมเดลก่อน
-    # ---------------------------------------------------------
-    
-    # 1. จำนวนครั้งที่มีคนแจ้งหลุม/ความเสียหายในบริเวณนี้ (รอบ 30 วัน)
-    # สมมติว่าพิกัดนี้มีโอกาส 70% ที่จะมีคนเคยแจ้ง
     has_reports = random.choice([True, True, True, True, True, True, True, False, False, False])
     
     if has_reports:
-        # สุ่มจำนวนคนที่แจ้ง (1-15 คน)
         report_count = random.randint(1, 15)
-        # สุ่มวันที่แจ้งล่าสุด (ย้อนหลังไป 0-30 วัน)
         days_since_last_report = random.randint(0, 30)
-        
-        # คำนวณความรุนแรงจากสายตาประชาชน (สุ่มค่า 1-5 ดาว)
-        # 1 = เฉยๆ, 5 = อันตรายมาก/เกิดอุบัติเหตุแล้ว
         avg_severity_score = round(random.uniform(2.5, 5.0), 1)
-        
     else:
         report_count = 0
-        days_since_last_report = 999 # ไม่มีใครแจ้งเลย
+        days_since_last_report = 999 
         avg_severity_score = 0.0
 
     return {
@@ -191,6 +199,7 @@ if __name__ == "__main__":
     print(f"\n--- 🌟 สรุปข้อมูล Feature Vector เตรียมเข้า Model 🌟 ---")
     print(f"พิกัด (Lat, Lon): {target_lat}, {target_lon}")
     print(f"[{'GIS':<12}] ประเภทถนน: {road_data['thai_road_type']} (OSM Tag: {road_data['osm_highway_type']})")
+    print(f"[{'GEE':<12}] วัสดุพื้นผิว (Surface): {gee_data['estimated_material']}")
     print(f"[{'GEE':<12}] ความพลุกพล่าน (Nightlight): {gee_data['nightlight_radiance']}")
     print(f"[{'GEE':<12}] ปริมาณฝน 1 ปี (Rainfall): {gee_data['rainfall_last_12m_mm']} mm")
     print(f"[{'GEE':<12}] ความชื้นดิน 30 วัน (Soil Moisture): {gee_data['soil_moisture_last_30d_mm']} mm")

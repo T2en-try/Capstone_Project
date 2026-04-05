@@ -82,8 +82,73 @@ def extract_cv_features(prediction_result, image_width, image_height, threshold=
     damage_ratio = round((total_area_px / image_area) * 100, 2)
 
     return {
-        "cv_damage_ratio_percent": float(damage_ratio), # แปลงเป็น float ปกติ
-        "cv_max_severity_score": int(max_severity),     # แปลงเป็น int ปกติ
+        "cv_damage_ratio_percent": float(damage_ratio), 
+        "cv_max_severity_score": int(max_severity),     
         "cv_total_defects_count": int(sum(damage_counts.values())),
-        "cv_details": {k: int(v) for k, v in damage_counts.items()} # แปลงค่าใน dict เป็น int
+        "cv_details": {k: int(v) for k, v in damage_counts.items()} 
+    }
+
+def perform_late_fusion(cv_features, context_data):
+    """
+    ฟังก์ชันทำ Late Fusion และตัดสินใจ (Decision Layer)
+    รวบรวมข้อมูลจาก Computer Vision และ Contextual Data (GEE, GIS, Crowdsource)
+    """
+    # 1. สกัดตัวเลขจากฝั่ง Computer Vision (CV)
+    cv_vector = [
+        cv_features.get("cv_damage_ratio_percent", 0.0),
+        cv_features.get("cv_max_severity_score", 0),
+        cv_features.get("cv_total_defects_count", 0)
+    ]
+
+    # 2. สกัดตัวเลขจากฝั่ง Contextual (ดึงจาก Key ล่าสุดใน Context_api.py)
+    gee = context_data.get("gee", {})
+    gis = context_data.get("gis", {})
+    crowd = context_data.get("crowdsource", {})
+
+    rainfall = float(gee.get("rainfall_last_12m_mm", 0.0))
+    soil_moisture = float(gee.get("soil_moisture_last_30d_mm", 0.0))
+    ndvi_index = float(gee.get("ndvi_index", 0.0))
+    road_material = gee.get("estimated_material", "ไม่ระบุ")
+    
+    # Crowdsource info
+    report_count = int(crowd.get("crowdsource_report_count_30d", 0))
+
+    # Encoding ประเภทถนนจาก GIS
+    road_type_map = {"highway": 3, "main": 2, "local": 1, "ไม่ทราบประเภท": 0}
+    road_type_encoded = road_type_map.get(gis.get("thai_road_type", "ไม่ทราบประเภท"), 0)
+
+    # 3. Decision Layer: คำนวณ Risk Score
+    # สมการพื้นฐาน: (CV Score) + (Rainfall weight) + (Crowdsource weight)
+    damage_score = (cv_vector[0] * 0.5) + (cv_vector[1] * 10) + (rainfall * 0.05) + (report_count * 2)
+
+    # --- [Logic พิเศษสำหรับข้อมูล GEE ใหม่] ---
+    
+    # เงื่อนไข 1: วัสดุพื้นผิว (ยางมะตอยอ่อนแอกว่าคอนกรีตเมื่อเจอน้ำ)
+    if road_material == "ยางมะตอย (Asphalt)" and rainfall > 1000:
+        damage_score += 15 # บวกเพิ่มเพราะเสี่ยงต่อการเกิดหลุมบ่อ (Pothole) สูง
+        
+    # เงื่อนไข 2: ความชื้นดิน (Soil Moisture สูงอาจหมายถึงชั้นรองพื้นทางอ่อนตัว)
+    if soil_moisture > 0.4:
+        damage_score += 10
+        
+    # เงื่อนไข 3: NDVI (พืชพรรณหนาแน่นอาจมีปัญหาเรื่องรากไม้ชอนไชใต้ถนน)
+    if ndvi_index > 0.25:
+        damage_score += 5
+
+    # 4. ฟันธงผลลัพธ์ (Final Classification)
+    if damage_score >= 50:
+        final_decision = "Critical (ต้องซ่อมแซมด่วน)"
+    elif damage_score >= 20:
+        final_decision = "Warning (ควรเฝ้าระวัง)"
+    else:
+        final_decision = "Good (สภาพปกติ)"
+
+    return {
+        "feature_vector": cv_vector + [rainfall, soil_moisture, ndvi_index, road_type_encoded],
+        "fusion_score": float(damage_score),
+        "final_decision": final_decision,
+        "analysis_meta": {
+            "is_high_risk_material": road_material == "ยางมะตอย (Asphalt)",
+            "environmental_impact_factor": "high" if rainfall > 1200 or soil_moisture > 0.4 else "normal"
+        }
     }

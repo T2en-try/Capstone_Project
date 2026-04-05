@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import cv2
 import torch
 import numpy as np
-from app.services.ai_model import extract_cv_features
+from app.services.ai_model import extract_cv_features, perform_late_fusion
 from app.services.context_api import get_environment_data, get_road_type, get_crowdsource_data
 # -----------------------------
 
@@ -115,9 +115,16 @@ async def upload_report(
                 except Exception as gee_err:
                     print(f"⚠️ คำเตือน: ดึงข้อมูล GEE/GIS ไม่สำเร็จ (อาจยังไม่ล็อกอิน): {gee_err}")
 
+            # [เพิ่มใหม่] นำข้อมูลแวดล้อมจัดใส่ Dict
+            context_data_dict = {"gee": gee_data, "gis": gis_data, "crowdsource": crowd_data}
+
+            # [เพิ่มใหม่] ส่งข้อมูลทั้ง 2 ขาเข้าสู่กระบวนการ Late Fusion
+            fusion_result = perform_late_fusion(cv_features, context_data_dict)
+
             ai_analysis = {
                 "cv_features": cv_features,
-                "context_data": {"gee": gee_data, "gis": gis_data, "crowdsource": crowd_data}
+                "context_data": context_data_dict,
+                "fusion_result": fusion_result
             }
 
         # 4. บันทึกข้อมูล

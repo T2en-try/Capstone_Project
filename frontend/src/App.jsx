@@ -42,7 +42,6 @@ function GpsPinModal({ pendingFile, onConfirm, onCancel }) {
   const [locating,  setLocating]  = useState(true);
   const [locError,  setLocError]  = useState(false);
 
-  // ขอพิกัด Device ทันทีที่ Modal เปิด
   useEffect(() => {
     if (!navigator.geolocation) {
       setLocating(false);
@@ -53,7 +52,7 @@ function GpsPinModal({ pendingFile, onConfirm, onCancel }) {
       (pos) => {
         const coord = [pos.coords.latitude, pos.coords.longitude];
         setDevicePos(coord);
-        setMarkerPos(coord); // วางหมุดเริ่มต้นที่ตำแหน่ง Device
+        setMarkerPos(coord);
         setLocating(false);
       },
       () => {
@@ -72,8 +71,6 @@ function GpsPinModal({ pendingFile, onConfirm, onCancel }) {
       style={{ background: 'rgba(2,6,23,0.85)', backdropFilter: 'blur(8px)' }}
     >
       <div className="bg-white rounded-[2rem] w-full max-w-lg shadow-2xl overflow-hidden flex flex-col" style={{ maxHeight: '92vh' }}>
-
-        {/* Header */}
         <div className="bg-gradient-to-br from-slate-800 to-slate-900 p-6 text-white">
           <div className="flex items-start gap-3">
             <div className="p-2.5 bg-amber-500/20 rounded-2xl shrink-0">
@@ -83,14 +80,10 @@ function GpsPinModal({ pendingFile, onConfirm, onCancel }) {
               <h2 className="text-lg font-black leading-tight">ไม่พบพิกัดในรูปภาพ</h2>
               <p className="text-[11px] text-slate-400 mt-0.5">กรุณาปักหมุดตำแหน่งที่ต้องการแจ้งซ่อมบนแผนที่</p>
             </div>
-            <button
-              onClick={onCancel}
-              className="p-2 rounded-xl text-slate-500 hover:text-white hover:bg-slate-700 transition-all shrink-0"
-            >
+            <button onClick={onCancel} className="p-2 rounded-xl text-slate-500 hover:text-white hover:bg-slate-700 transition-all shrink-0">
               <X size={18} />
             </button>
           </div>
-          {/* ชื่อไฟล์ */}
           <div className="mt-3 bg-slate-700/50 rounded-xl px-4 py-2.5 flex items-center gap-2 text-xs">
             <span className="text-slate-400">📁</span>
             <span className="text-slate-300 font-mono truncate">{pendingFile?.name}</span>
@@ -100,7 +93,6 @@ function GpsPinModal({ pendingFile, onConfirm, onCancel }) {
           </div>
         </div>
 
-        {/* Map */}
         <div className="relative" style={{ height: '340px' }}>
           {locating ? (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-100 gap-3">
@@ -108,16 +100,8 @@ function GpsPinModal({ pendingFile, onConfirm, onCancel }) {
               <p className="text-sm text-slate-500 font-medium">กำลังหาตำแหน่งของคุณ...</p>
             </div>
           ) : (
-            <MapContainer
-              center={center}
-              zoom={locError ? 11 : 15}
-              style={{ height: '100%', width: '100%' }}
-              zoomControl
-            >
-              <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              />
+            <MapContainer center={center} zoom={locError ? 11 : 15} style={{ height: '100%', width: '100%' }} zoomControl>
+              <TileLayer attribution='&copy; OpenStreetMap' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
               <MapClickHandler onMapClick={(lat, lon) => setMarkerPos([lat, lon])} />
               {markerPos && (
                 <>
@@ -129,57 +113,25 @@ function GpsPinModal({ pendingFile, onConfirm, onCancel }) {
               )}
             </MapContainer>
           )}
-
-          {/* hint ลอยบนแผนที่ */}
           {!locating && !markerPos && (
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-[1000]
-                            bg-slate-900/80 text-white text-xs px-4 py-2 rounded-full
-                            backdrop-blur-sm pointer-events-none whitespace-nowrap">
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-[1000] bg-slate-900/80 text-white text-xs px-4 py-2 rounded-full backdrop-blur-sm pointer-events-none whitespace-nowrap">
               👆 แตะบนแผนที่เพื่อปักหมุด
             </div>
           )}
         </div>
 
-        {/* Footer */}
         <div className="p-5 border-t border-slate-100 bg-slate-50">
-          {/* แสดงพิกัดที่เลือก */}
-          <div className={`mb-4 rounded-2xl px-4 py-3 flex items-center gap-2 text-sm transition-all
-                          ${markerPos
-                            ? 'bg-emerald-50 border border-emerald-200 text-emerald-700'
-                            : 'bg-slate-100 border border-slate-200 text-slate-400'}`}>
+          <div className={`mb-4 rounded-2xl px-4 py-3 flex items-center gap-2 text-sm transition-all ${markerPos ? 'bg-emerald-50 border border-emerald-200 text-emerald-700' : 'bg-slate-100 border border-slate-200 text-slate-400'}`}>
             <MapPin size={16} className={markerPos ? 'text-emerald-500 shrink-0' : 'text-slate-300 shrink-0'} />
-            {markerPos
-              ? <span className="font-mono font-bold text-sm">
-                  {markerPos[0].toFixed(6)}, {markerPos[1].toFixed(6)}
-                </span>
-              : <span className="italic text-[12px]">ยังไม่ได้ปักหมุด</span>
-            }
-            {locError && !markerPos && (
-              <span className="ml-auto text-[10px] text-amber-500 flex items-center gap-1 shrink-0">
-                <AlertCircle size={12} /> ไม่พบ GPS เครื่อง
-              </span>
-            )}
+            {markerPos ? <span className="font-mono font-bold text-sm">{markerPos[0].toFixed(6)}, {markerPos[1].toFixed(6)}</span> : <span className="italic text-[12px]">ยังไม่ได้ปักหมุด</span>}
+            {locError && !markerPos && <span className="ml-auto text-[10px] text-amber-500 flex items-center gap-1 shrink-0"><AlertCircle size={12} /> ไม่พบ GPS เครื่อง</span>}
           </div>
-
           <div className="flex gap-3">
-            <button
-              onClick={onCancel}
-              className="flex-1 py-3 rounded-2xl border border-slate-200 text-slate-500 font-bold text-sm
-                         hover:bg-slate-100 transition-all active:scale-95"
-            >
+            <button onClick={onCancel} className="flex-1 py-3 rounded-2xl border border-slate-200 text-slate-500 font-bold text-sm hover:bg-slate-100 transition-all active:scale-95">
               ยกเลิก
             </button>
-            <button
-              onClick={() => markerPos && onConfirm(markerPos[0], markerPos[1])}
-              disabled={!markerPos}
-              className={`flex-[2] py-3 rounded-2xl font-black text-sm transition-all active:scale-95
-                         flex items-center justify-center gap-2
-                         ${markerPos
-                           ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-200'
-                           : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}
-            >
-              <Navigation size={16} />
-              ยืนยันตำแหน่งและส่งรายงาน
+            <button onClick={() => markerPos && onConfirm(markerPos[0], markerPos[1])} disabled={!markerPos} className={`flex-[2] py-3 rounded-2xl font-black text-sm transition-all active:scale-95 flex items-center justify-center gap-2 ${markerPos ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-200' : 'bg-slate-200 text-slate-400 cursor-not-allowed'}`}>
+              <Navigation size={16} /> ยืนยันตำแหน่งและส่งรายงาน
             </button>
           </div>
         </div>
@@ -188,8 +140,7 @@ function GpsPinModal({ pendingFile, onConfirm, onCancel }) {
   );
 }
 
-// ─── Helper: อ่าน EXIF GPS จากไฟล์ฝั่ง Client (lightweight) ──
-// Return: true ถ้าพบ GPS IFD tag, null ถ้าไม่มี/ไม่ใช่ JPEG
+// ─── Helper: อ่าน EXIF GPS ──────────────────────────────────
 async function readExifGpsClient(file) {
   return new Promise((resolve) => {
     const reader = new FileReader();
@@ -197,24 +148,19 @@ async function readExifGpsClient(file) {
       try {
         const view = new DataView(e.target.result);
         if (view.getUint16(0) !== 0xFFD8) { resolve(null); return; }
-
         let offset = 2;
         while (offset < view.byteLength - 4) {
           const marker = view.getUint16(offset);
           const segLen = view.getUint16(offset + 2);
-
           if (marker === 0xFFE1) {
-            const h = String.fromCharCode(
-              view.getUint8(offset+4), view.getUint8(offset+5),
-              view.getUint8(offset+6), view.getUint8(offset+7)
-            );
+            const h = String.fromCharCode(view.getUint8(offset+4), view.getUint8(offset+5), view.getUint8(offset+6), view.getUint8(offset+7));
             if (h === 'Exif') {
-              const tiff        = offset + 10;
+              const tiff = offset + 10;
               const littleEndian = view.getUint16(tiff) === 0x4949;
               const getU16 = (o) => view.getUint16(o, littleEndian);
               const getU32 = (o) => view.getUint32(o, littleEndian);
-              const ifd0   = tiff + getU32(tiff + 4);
-              const count  = getU16(ifd0);
+              const ifd0 = tiff + getU32(tiff + 4);
+              const count = getU16(ifd0);
               for (let i = 0; i < count; i++) {
                 if (getU16(ifd0 + 2 + i * 12) === 0x8825) { resolve(true); return; }
               }
@@ -231,18 +177,17 @@ async function readExifGpsClient(file) {
   });
 }
 
-// ─── App ──────────────────────────────────────────────────────
+// ─── App Main Component ───────────────────────────────────────
 function App() {
-  const [reports,        setReports]        = useState([]);
-  const [stats,          setStats]          = useState(null);
+  const [reports,          setReports]        = useState([]);
+  const [stats,            setStats]          = useState(null);
   const [selectedReport, setSelectedReport] = useState(null);
-  const [isModalOpen,    setIsModalOpen]    = useState(false);
-  const [loading,        setLoading]        = useState(false);
-  const [searchQuery,    setSearchQuery]    = useState('');
+  const [isModalOpen,      setIsModalOpen]    = useState(false);
+  const [loading,          setLoading]        = useState(false);
+  const [searchQuery,      setSearchQuery]    = useState('');
   const [filterStatus,   setFilterStatus]   = useState('all');
-  const [aiResult,       setAiResult]       = useState(null);
+  const [aiResult,         setAiResult]       = useState(null);
 
-  // GPS Pin Modal state
   const [showPinModal, setShowPinModal] = useState(false);
   const [pendingFile,  setPendingFile]  = useState(null);
   const pendingFormRef = useRef(null);
@@ -262,7 +207,6 @@ function App() {
     } catch (err) { console.error("Fetch Error:", err); }
   };
 
-  // ส่ง report จริง (ใช้ร่วมทั้ง 2 กรณี)
   const submitReport = async (formPayload) => {
     setLoading(true);
     try {
@@ -281,7 +225,6 @@ function App() {
     }
   };
 
-  // User เลือกไฟล์
   const handleFileChange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -294,19 +237,15 @@ function App() {
     const hasGps = await readExifGpsClient(file);
 
     if (hasGps) {
-      // มี EXIF GPS → ส่งเลย (Backend จะสกัดพิกัดจาก EXIF เอง)
       await submitReport(base);
     } else {
-      // ไม่มีพิกัด → เปิด Modal ปักหมุด
       setPendingFile(file);
       pendingFormRef.current = base;
       setShowPinModal(true);
     }
-
-    e.target.value = ''; // reset input
+    e.target.value = ''; 
   };
 
-  // User กด "ยืนยันตำแหน่ง"
   const handlePinConfirm = async (lat, lon) => {
     setShowPinModal(false);
     const fd = pendingFormRef.current;
@@ -359,12 +298,9 @@ function App() {
 
   return (
     <div className="min-h-screen bg-slate-50 flex font-sans text-slate-900">
-
       {/* ─── Sidebar ─────────────────────────────────────────── */}
       <aside className="w-80 bg-slate-900 text-white p-6 hidden lg:flex flex-col shadow-2xl gap-4 overflow-y-auto">
-        <h1 className="text-2xl font-black flex items-center gap-2 text-transparent bg-clip-text
-                       bg-gradient-to-r from-blue-400 to-cyan-300 italic
-                       drop-shadow-[0_0_8px_rgba(56,189,248,0.5)]">
+        <h1 className="text-2xl font-black flex items-center gap-2 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-300 italic drop-shadow-[0_0_8px_rgba(56,189,248,0.5)]">
           <LayoutDashboard /> ROAD-PREDICT AI
         </h1>
 
@@ -372,33 +308,24 @@ function App() {
           <p className="text-xs text-blue-400 uppercase font-black tracking-widest">New Report / แจ้งซ่อม</p>
           <input
             type="text" placeholder="ชื่อผู้รายงาน"
-            className="w-full bg-slate-900 border border-slate-700 p-3 rounded-xl text-sm outline-none
-                       focus:border-blue-500 transition-all text-white"
+            className="w-full bg-slate-900 border border-slate-700 p-3 rounded-xl text-sm outline-none focus:border-blue-500 transition-all text-white"
             value={formData.reporter_name}
             onChange={(e) => setFormData({ ...formData, reporter_name: e.target.value })}
           />
           <textarea
             placeholder="รายละเอียดสภาพถนน..."
-            className="w-full bg-slate-900 border border-slate-700 p-3 rounded-xl text-sm h-24 outline-none
-                       focus:border-blue-500 transition-all resize-none text-white"
+            className="w-full bg-slate-900 border border-slate-700 p-3 rounded-xl text-sm h-24 outline-none focus:border-blue-500 transition-all resize-none text-white"
             value={formData.description}
             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
           />
-          <label className={`block w-full text-center py-3 rounded-xl font-bold cursor-pointer transition-all shadow-lg
-                            ${loading
-                              ? 'bg-slate-600 animate-pulse cursor-wait'
-                              : 'bg-blue-600 hover:bg-blue-500 active:scale-95 text-white'}`}>
+          <label className={`block w-full text-center py-3 rounded-xl font-bold cursor-pointer transition-all shadow-lg ${loading ? 'bg-slate-600 animate-pulse cursor-wait' : 'bg-blue-600 hover:bg-blue-500 active:scale-95 text-white'}`}>
             {loading ? "🤖 AI กำลังประมวลผล..." : "ถ่ายภาพ / เลือกรูปภาพ"}
             <input type="file" hidden onChange={handleFileChange} accept="image/*" disabled={loading} />
           </label>
-          <p className="text-[10px] text-slate-600 text-center leading-relaxed">
-            หากรูปไม่มีพิกัด GPS ระบบจะให้คุณปักหมุดตำแหน่งเอง
-          </p>
+          <p className="text-[10px] text-slate-600 text-center leading-relaxed">หากรูปไม่มีพิกัด GPS ระบบจะให้คุณปักหมุดตำแหน่งเอง</p>
         </div>
 
-        <div className="mt-auto text-[10px] text-slate-500 text-center">
-          Road Lifecycle Management System v1.0
-        </div>
+        <div className="mt-auto text-[10px] text-slate-500 text-center">Road Lifecycle Management System v1.0</div>
       </aside>
 
       {/* ─── Main Content ─────────────────────────────────────── */}
@@ -418,8 +345,7 @@ function App() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18}/>
             <input
               type="text" placeholder="ค้นหาจากชื่อหรือรายละเอียด..."
-              className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl shadow-sm
-                         focus:ring-2 focus:ring-blue-500 outline-none"
+              className="w-full pl-10 pr-4 py-2.5 bg-white border border-slate-200 rounded-xl shadow-sm focus:ring-2 focus:ring-blue-500 outline-none"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -471,12 +397,10 @@ function App() {
                   </td>
                   <td className="p-5 text-right">
                     <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => viewDetail(r.id)}
-                              className="p-2 text-blue-600 hover:bg-blue-100 rounded-xl transition-colors shadow-sm bg-white border border-slate-100">
+                      <button onClick={() => viewDetail(r.id)} className="p-2 text-blue-600 hover:bg-blue-100 rounded-xl transition-colors shadow-sm bg-white border border-slate-100">
                         <Info size={18}/>
                       </button>
-                      <button onClick={() => deleteReport(r.id)}
-                              className="p-2 text-red-400 hover:bg-red-50 rounded-xl transition-colors shadow-sm bg-white border border-slate-100">
+                      <button onClick={() => deleteReport(r.id)} className="p-2 text-red-400 hover:bg-red-50 rounded-xl transition-colors shadow-sm bg-white border border-slate-100">
                         <Trash2 size={18}/>
                       </button>
                     </div>
@@ -491,15 +415,9 @@ function App() {
       </main>
 
       {/* ─── GPS Pin Modal ───────────────────────────────────── */}
-      {showPinModal && (
-        <GpsPinModal
-          pendingFile={pendingFile}
-          onConfirm={handlePinConfirm}
-          onCancel={handlePinCancel}
-        />
-      )}
+      {showPinModal && <GpsPinModal pendingFile={pendingFile} onConfirm={handlePinConfirm} onCancel={handlePinCancel} />}
 
-      {/* ─── AI Result Modal ─────────────────────────────────── */}
+      {/* ─── AI Result Modal (ตอนอัปโหลดเสร็จ) ──────────────────── */}
       {aiResult && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-[60]">
           <div className="bg-white rounded-3xl max-w-lg w-full shadow-2xl overflow-hidden">
@@ -512,7 +430,7 @@ function App() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
                   <p className="text-xs text-slate-400 font-bold uppercase mb-1">พื้นที่เสียหาย</p>
-                  <p className="text-2xl font-black text-rose-500">{aiResult.cv_features?.cv_damage_ratio_percent}%</p>
+                  <p className="text-2xl font-black text-rose-500">{Number(aiResult.cv_features?.cv_damage_ratio_percent).toFixed(2)}%</p>
                 </div>
                 <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
                   <p className="text-xs text-slate-400 font-bold uppercase mb-1">ความรุนแรงสูงสุด</p>
@@ -523,14 +441,27 @@ function App() {
                 <p className="font-bold text-blue-800 mb-2 flex items-center gap-2"><MapPin size={16}/> ข้อมูลพื้นที่ (Context)</p>
                 <ul className="space-y-2 text-slate-600">
                   <li>🛣️ <span className="font-medium">ประเภทถนน:</span> {aiResult.context_data?.gis?.thai_road_type}</li>
+                  <li>🧱 <span className="font-medium">วัสดุพื้นผิว:</span> {aiResult.context_data?.gee?.estimated_material}</li>
+                  <li>💧 <span className="font-medium">ความชื้นดิน:</span> {aiResult.context_data?.gee?.soil_moisture_last_30d_mm}</li>
+                  <li>🌿 <span className="font-medium">ดัชนีพืชพรรณ (NDVI):</span> {aiResult.context_data?.gee?.ndvi_index}</li>
+                  <li>💡 <span className="font-medium">แสงสว่างกลางคืน:</span> {aiResult.context_data?.gee?.nightlight_radiance}</li>
                   <li>🌧️ <span className="font-medium">ฝนตกสะสม:</span> {aiResult.context_data?.gee?.rainfall_last_12m_mm} mm</li>
                   <li>👥 <span className="font-medium">แจ้งเหตุซ้ำ:</span> {aiResult.context_data?.crowdsource?.crowdsource_report_count_30d} ครั้ง</li>
                 </ul>
               </div>
+              
+              {/* ✅ โค้ดแสดงผล Late Fusion */}
+              {aiResult.fusion_result && (
+                <div className="bg-purple-50 p-4 rounded-2xl border border-purple-100 text-sm mt-3">
+                  <p className="font-bold text-purple-800 mb-1 flex items-center gap-2">🎯 สรุปผลประเมิน (Late Fusion)</p>
+                  <div className="text-xl font-black text-purple-600 mb-1">{aiResult.fusion_result.final_decision}</div>
+                  <p className="text-xs text-purple-400">คะแนนความเสี่ยงสุทธิ: {Number(aiResult.fusion_result.fusion_score).toFixed(2)}</p>
+                </div>
+              )}
+
             </div>
             <div className="p-4 bg-slate-50 border-t border-slate-100 text-center">
-              <button onClick={() => setAiResult(null)}
-                      className="bg-slate-900 text-white px-8 py-3 rounded-xl font-bold hover:bg-slate-800 transition-all active:scale-95">
+              <button onClick={() => setAiResult(null)} className="bg-slate-900 text-white px-8 py-3 rounded-xl font-bold hover:bg-slate-800 transition-all active:scale-95">
                 รับทราบและปิดหน้าต่าง
               </button>
             </div>
@@ -538,24 +469,18 @@ function App() {
         </div>
       )}
 
-      {/* ─── Detail Modal ────────────────────────────────────── */}
+      {/* ─── Detail Modal (กดดูย้อนหลัง) ────────────────────────── */}
       {isModalOpen && selectedReport && (
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-[2rem] max-w-4xl w-full shadow-2xl overflow-hidden relative">
-            <button onClick={() => setIsModalOpen(false)}
-                    className="absolute top-6 right-6 bg-slate-100 text-slate-500 p-2 rounded-full
-                               hover:bg-red-500 hover:text-white transition-all z-20 shadow-sm">
+            <button onClick={() => setIsModalOpen(false)} className="absolute top-6 right-6 bg-slate-100 text-slate-500 p-2 rounded-full hover:bg-red-500 hover:text-white transition-all z-20 shadow-sm">
               <X size={20}/>
             </button>
             <div className="flex flex-col md:flex-row max-h-[90vh] overflow-y-auto md:overflow-hidden">
               <div className="md:w-1/2 bg-slate-200 flex items-center justify-center relative min-h-[300px]">
                 {selectedReport?.image_filename
-                  ? <img src={`${BASE_URL}/uploads/${selectedReport.image_filename}`}
-                         className="w-full h-full object-cover" alt="Road damage"
-                         onError={(e) => { e.target.style.display='none'; }}/>
-                  : <div className="flex flex-col items-center text-slate-400 opacity-50">
-                      <p className="text-[10px] font-black uppercase tracking-[0.2em]">Image Not Found</p>
-                    </div>}
+                  ? <img src={`${BASE_URL}/uploads/${selectedReport.image_filename}`} className="w-full h-full object-cover" alt="Road damage" onError={(e) => { e.target.style.display='none'; }}/>
+                  : <div className="flex flex-col items-center text-slate-400 opacity-50"><p className="text-[10px] font-black uppercase tracking-[0.2em]">Image Not Found</p></div>}
                 <div className="absolute bottom-4 left-4">
                   <StatusBadge status={selectedReport.status} size="lg"/>
                 </div>
@@ -574,18 +499,14 @@ function App() {
                     value={selectedReport.latitude
                       ? <span className="flex items-center gap-2">
                           {selectedReport.latitude.toFixed(6)}, {selectedReport.longitude.toFixed(6)}
-                          <span className="text-[9px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-md uppercase border border-slate-200">
-                            {selectedReport.gps_source || 'Unknown'}
-                          </span>
+                          <span className="text-[9px] bg-slate-100 text-slate-500 px-2 py-0.5 rounded-md uppercase border border-slate-200">{selectedReport.gps_source || 'Unknown'}</span>
                         </span>
                       : "ไม่มีข้อมูล GPS"}
                   />
                   <div className="grid grid-cols-2 gap-3 mt-2">
                     <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 shadow-sm">
                       <p className="text-[10px] text-slate-400 font-bold uppercase mb-1 flex items-center gap-1"><Clock size={12}/> วันเวลาที่บันทึก</p>
-                      <p className="text-sm font-bold text-slate-700">
-                        {selectedReport.created_at ? new Date(selectedReport.created_at).toLocaleString('th-TH') : '-'}
-                      </p>
+                      <p className="text-sm font-bold text-slate-700">{selectedReport.created_at ? new Date(selectedReport.created_at).toLocaleString('th-TH') : '-'}</p>
                     </div>
                     <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 shadow-sm">
                       <p className="text-[10px] text-slate-400 font-bold uppercase mb-1 flex items-center gap-1"><FileDigit size={12}/> ข้อมูลไฟล์ภาพ</p>
@@ -596,9 +517,7 @@ function App() {
                     </div>
                   </div>
                   <div className="mt-2">
-                    <p className="text-[10px] text-slate-400 font-bold uppercase mb-2 tracking-widest flex items-center gap-2">
-                      <AlertCircle size={12}/> คำอธิบายเพิ่มเติม
-                    </p>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase mb-2 tracking-widest flex items-center gap-2"><AlertCircle size={12}/> คำอธิบายเพิ่มเติม</p>
                     <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 text-slate-600 text-sm italic leading-relaxed shadow-inner">
                       "{selectedReport.description || "ไม่มีคำอธิบายเพิ่มเติม"}"
                     </div>
@@ -607,13 +526,11 @@ function App() {
 
                 {selectedReport.ai_result && (
                   <div className="mt-4 border-t border-slate-100 pt-4">
-                    <p className="text-[10px] text-blue-500 font-black uppercase mb-3 tracking-widest flex items-center gap-2">
-                      <BrainCircuit size={14}/> ข้อมูลเชิงลึกจาก AI
-                    </p>
+                    <p className="text-[10px] text-blue-500 font-black uppercase mb-3 tracking-widest flex items-center gap-2"><BrainCircuit size={14}/> ข้อมูลเชิงลึกจาก AI</p>
                     <div className="grid grid-cols-2 gap-3 mb-3">
                       <div className="bg-rose-50 p-3 rounded-2xl border border-rose-100">
                         <p className="text-[10px] text-rose-400 font-bold uppercase mb-1">ความเสียหาย</p>
-                        <p className="text-xl font-black text-rose-600">{selectedReport.ai_result.cv_features?.cv_damage_ratio_percent}%</p>
+                        <p className="text-xl font-black text-rose-600">{Number(selectedReport.ai_result.cv_features?.cv_damage_ratio_percent).toFixed(2)}%</p>
                       </div>
                       <div className="bg-orange-50 p-3 rounded-2xl border border-orange-100">
                         <p className="text-[10px] text-orange-400 font-bold uppercase mb-1">ระดับความรุนแรง</p>
@@ -625,18 +542,24 @@ function App() {
                       <p>🌧️ <span className="font-bold">ฝนตกสะสม:</span> {selectedReport.ai_result.context_data?.gee?.rainfall_last_12m_mm} mm</p>
                       <p>👥 <span className="font-bold">ประวัติแจ้งซ้ำ:</span> {selectedReport.ai_result.context_data?.crowdsource?.crowdsource_report_count_30d} ครั้ง</p>
                     </div>
+
+                    {/* ✅ โค้ดแสดงผล Late Fusion */}
+                    {selectedReport.ai_result.fusion_result && (
+                      <div className="bg-purple-50 p-4 rounded-2xl border border-purple-100 text-sm mt-3">
+                        <p className="font-bold text-purple-800 mb-1 flex items-center gap-2">🎯 สรุปผลประเมิน (Late Fusion)</p>
+                        <div className="text-xl font-black text-purple-600 mb-1">{selectedReport.ai_result.fusion_result.final_decision}</div>
+                        <p className="text-xs text-purple-400">คะแนนความเสี่ยงสุทธิ: {Number(selectedReport.ai_result.fusion_result.fusion_score).toFixed(2)}</p>
+                      </div>
+                    )}
                   </div>
                 )}
 
-                <div className="pt-6 border-t border-slate-100">
+                <div className="pt-6 border-t border-slate-100 mt-6">
                   <p className="text-[10px] font-bold text-slate-400 uppercase mb-3 tracking-widest">Update Status</p>
                   <div className="flex flex-wrap gap-2">
                     {['pending','processing','completed','rejected'].map(s => (
                       <button key={s} onClick={() => updateStatus(selectedReport.id, s)}
-                              className={`px-4 py-2 rounded-xl text-[10px] font-black transition-all border
-                                         ${selectedReport.status===s
-                                           ? 'bg-slate-900 text-white border-slate-900 shadow-lg scale-105'
-                                           : 'bg-white text-slate-400 border-slate-100 hover:border-blue-300 hover:text-blue-500'}`}>
+                              className={`px-4 py-2 rounded-xl text-[10px] font-black transition-all border ${selectedReport.status===s ? 'bg-slate-900 text-white border-slate-900 shadow-lg scale-105' : 'bg-white text-slate-400 border-slate-100 hover:border-blue-300 hover:text-blue-500'}`}>
                         {s.toUpperCase()}
                       </button>
                     ))}
@@ -672,8 +595,7 @@ const StatusBadge = ({ status, size = 'sm' }) => {
     rejected:   'bg-rose-100 text-rose-700 ring-rose-600/20',
   };
   return (
-    <span className={`inline-flex items-center rounded-full font-bold uppercase tracking-wider ring-1 ring-inset ${styles[status]}
-                      ${size==='sm' ? 'px-2.5 py-1 text-[10px]' : 'px-4 py-1.5 text-xs shadow-lg backdrop-blur-md'}`}>
+    <span className={`inline-flex items-center rounded-full font-bold uppercase tracking-wider ring-1 ring-inset ${styles[status]} ${size==='sm' ? 'px-2.5 py-1 text-[10px]' : 'px-4 py-1.5 text-xs shadow-lg backdrop-blur-md'}`}>
       {status}
     </span>
   );
