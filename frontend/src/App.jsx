@@ -16,8 +16,9 @@ L.Icon.Default.mergeOptions({
   shadowUrl:     'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
-const BASE_URL       = "http://127.0.0.1:8000";
-const API_REPORTS    = `${BASE_URL}/api/reports`;
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '');
+const API_REPORTS = `${API_BASE_URL}/api/reports`;
+const UPLOADS_BASE_URL = API_BASE_URL;
 const DEFAULT_CENTER = [14.9798, 102.0977]; // นครราชสีมา (fallback)
 
 // ─── FlyTo helper ─────────────────────────────────────────────
@@ -479,7 +480,7 @@ function App() {
             <div className="flex flex-col md:flex-row max-h-[90vh] overflow-y-auto md:overflow-hidden">
               <div className="md:w-1/2 bg-slate-200 flex items-center justify-center relative min-h-[300px]">
                 {selectedReport?.image_filename
-                  ? <img src={`${BASE_URL}/uploads/${selectedReport.image_filename}`} className="w-full h-full object-cover" alt="Road damage" onError={(e) => { e.target.style.display='none'; }}/>
+                  ? <img src={`${UPLOADS_BASE_URL}/uploads/${selectedReport.image_filename}`} className="w-full h-full object-cover" alt="Road damage" onError={(e) => { e.target.style.display='none'; }}/>
                   : <div className="flex flex-col items-center text-slate-400 opacity-50"><p className="text-[10px] font-black uppercase tracking-[0.2em]">Image Not Found</p></div>}
                 <div className="absolute bottom-4 left-4">
                   <StatusBadge status={selectedReport.status} size="lg"/>

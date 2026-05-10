@@ -9,12 +9,12 @@ from sqlalchemy.orm import DeclarativeBase
 from app.config import settings
 
 
-# สร้าง Async Engine สำหรับ SQLite
-engine = create_async_engine(
-    settings.DATABASE_URL,
-    echo=False,
-    connect_args={"check_same_thread": False},  # จำเป็นสำหรับ SQLite
-)
+# สร้าง Async Engine และตั้งค่า `connect_args` เฉพาะเมื่อใช้ SQLite
+engine_kwargs = {"echo": False}
+if settings.DATABASE_URL.startswith("sqlite"):
+    engine_kwargs["connect_args"] = {"check_same_thread": False}
+
+engine = create_async_engine(settings.DATABASE_URL, **engine_kwargs)
 
 async_session = async_sessionmaker(
     engine,

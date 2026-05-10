@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgres:15-alpine
+    image: postgres:17-alpine
     container_name: road_db
     restart: always
     environment:
@@ -32,6 +32,8 @@ services:
     build: ./frontend
     container_name: road_frontend
     restart: always
+    environment:
+      VITE_DEV_PROXY_TARGET: http://backend:8000
     ports:               
       - "5173:5173"
     depends_on:
