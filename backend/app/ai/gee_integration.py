@@ -120,7 +120,8 @@ def get_road_type(lat, lon, radius_meters=10):
     """
     
     try:
-        response = requests.post(overpass_url, data={'data': overpass_query})
+        headers = {'User-Agent': 'RoadReport-CapstoneProject/1.0'}
+        response = requests.post(overpass_url, data={'data': overpass_query}, headers=headers)
         response.raise_for_status()
         data = response.json()
         
@@ -198,7 +199,8 @@ def get_poi_data(lat, lon, radius_meters=500):
     """
     
     try:
-        response = requests.post(overpass_url, data={'data': overpass_query})
+        headers = {'User-Agent': 'RoadReport-CapstoneProject/1.0'}
+        response = requests.post(overpass_url, data={'data': overpass_query}, headers=headers)
         response.raise_for_status()
         data = response.json()
         

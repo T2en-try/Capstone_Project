@@ -69,11 +69,55 @@ async def upload_report(
             
             try:
                 if final_lat and final_lon:
+                    # === Fetch Real Crowdsource Data ===
+                    from datetime import datetime, timedelta, timezone
+                    
+                    real_crowd_data = {
+                        "crowdsource_report_count_30d": 0,
+                        "days_since_last_report": 999,
+                        "user_severity_score_avg": 0.0
+                    }
+                    
+                    try:
+                        thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
+                        lat_offset = 0.00045 # ~50m
+                        lon_offset = 0.00045 # ~50m
+                        
+                        crowd_query = select(RoadReport).where(
+                            RoadReport.latitude.between(final_lat - lat_offset, final_lat + lat_offset),
+                            RoadReport.longitude.between(final_lon - lon_offset, final_lon + lon_offset),
+                            RoadReport.created_at >= thirty_days_ago
+                        ).order_by(RoadReport.created_at.desc())
+                        
+                        crowd_result = await db.execute(crowd_query)
+                        recent_reports = crowd_result.scalars().all()
+                        
+                        if recent_reports:
+                            real_crowd_data["crowdsource_report_count_30d"] = len(recent_reports)
+                            delta = datetime.now(timezone.utc) - recent_reports[0].created_at
+                            real_crowd_data["days_since_last_report"] = delta.days
+                            
+                            total_severity = 0
+                            valid_severity_count = 0
+                            for r in recent_reports:
+                                if r.ai_result and isinstance(r.ai_result, dict):
+                                    cv_data = r.ai_result.get("cv_features") or r.ai_result.get("ai_analysis")
+                                    if cv_data and "cv_max_severity_score" in cv_data:
+                                        total_severity += int(cv_data["cv_max_severity_score"])
+                                        valid_severity_count += 1
+                                        
+                            if valid_severity_count > 0:
+                                real_crowd_data["user_severity_score_avg"] = round(total_severity / valid_severity_count, 1)
+                                
+                    except Exception as e:
+                        print(f"⚠️ ไม่สามารถดึงข้อมูล Crowdsource จาก Database ได้: {e}")
+
                     # กรณีมีพิกัด: คำนวณแบบ Full Fusion (AI + GEE + GIS + Crowd)
                     ai_analysis = ai_engine.calculate_priority_index(
                         lat=final_lat, 
                         lon=final_lon, 
-                        image_path=file_info["path"]
+                        image_path=file_info["path"],
+                        real_crowd_data=real_crowd_data
                     )
                 else:
                     # กรณีไม่มีพิกัด: รันเฉพาะ AI Detection (Computer Vision Only)
