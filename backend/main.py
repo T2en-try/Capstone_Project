@@ -9,12 +9,13 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from app.config import settings
-from app.database import init_db
-from app.routes.reports import router as reports_router
-from app.services.file_service import ensure_upload_dir
+from app.core.config import settings
+from app.core.database import init_db
+from app.reports.router import router as reports_router
+from app.core.file_utils import ensure_upload_dir
 
-from app.services.ai_model import load_trained_model
+# --- [UPDATE] เปลี่ยนมาใช้ ai_engine ตัวใหม่แทน load_trained_model ---
+from app.ai.engine import ai_engine
 
 
 # ─── Lifespan Event: ทำงานตอนเริ่มต้น/ปิดเซิร์ฟเวอร์ ────────
@@ -27,15 +28,10 @@ async def lifespan(app: FastAPI):
     await init_db()
     ensure_upload_dir()
 
-    print("🧠 กำลังโหลดสมอง AI เข้าสู่ระบบ...")
-    import os
-    MODEL_PATH = "faster_rcnn_road_damage_final.pth"
-    if os.path.exists(MODEL_PATH):
-        app.state.model, app.state.device = load_trained_model(MODEL_PATH)
-        print("✅ โมเดล AI พร้อมทำนาย!")
-    else:
-        print("⚠️ คำเตือน: ไม่พบไฟล์โมเดล AI ระบบจะทำงานแบบไม่มี AI")
-        app.state.model = None
+    # --- [UPDATE] โหลดสมองกล RT-DETR ---
+    ai_engine.load_model()
+    # นำไปผูกกับ app.state ไว้ด้วยเผื่อระบบเก่าเรียกใช้งาน
+    app.state.model = ai_engine.model 
 
     print("✅ ฐานข้อมูลพร้อมใช้งาน")
     print(f"📁 โฟลเดอร์อัปโหลด: {settings.UPLOAD_DIR}")
@@ -51,9 +47,9 @@ app = FastAPI(
     description=(
         "## ระบบรายงานสภาพถนน\n\n"
         "API สำหรับรับรูปภาพถนนจากผู้ใช้ สกัดพิกัด GPS จาก EXIF "
-        "และบันทึกข้อมูลลงฐานข้อมูลเพื่อใช้ในการทำนายอายุการใช้งานถนน"
+        "และบันทึกข้อมูลลงฐานข้อมูลเพื่อใช้ในการทำนายอายุการใช้งานถนนด้วย AI (RT-DETR)"
     ),
-    version="1.0.0",
+    version="2.0.0",
     lifespan=lifespan,
 )
 
@@ -76,7 +72,6 @@ ensure_upload_dir()
 app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads")
 
 
-
 # ─── Register Routers ─────────────────────────────────────────
 
 app.include_router(reports_router)
@@ -87,7 +82,7 @@ app.include_router(reports_router)
 @app.get("/api/health", tags=["System"])
 async def health_check():
     """ตรวจสอบสถานะเซิร์ฟเวอร์"""
-    return {"status": "ok", "service": "Road Report Backend", "version": "1.0.0"}
+    return {"status": "ok", "service": "Road Report Backend", "version": "2.0.0"}
 
 
 # ─── Root ──────────────────────────────────────────────────────
@@ -96,7 +91,7 @@ async def health_check():
 async def root():
     """หน้าแรกของ API"""
     return {
-        "message": "Road Report API is running",
+        "message": "Road Report API is running smoothly!",
         "docs": "/docs",
         "redoc": "/redoc",
     }

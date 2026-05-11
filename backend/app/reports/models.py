@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from sqlalchemy import Column, Integer, String, Float, DateTime, JSON, Text, Enum as SAEnum 
 import enum
 
-from app.database import Base
+from app.core.database import Base
 
 
 class ReportStatus(str, enum.Enum):
