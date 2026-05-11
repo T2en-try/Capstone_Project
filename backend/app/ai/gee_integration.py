@@ -103,7 +103,7 @@ def get_environment_data(lat, lon):
         "rainfall_last_12m_mm": round(rainfall, 2),
         "soil_moisture_last_30d_mm": round(soil_moisture, 4),
         "ndvi_index": round(ndvi_value, 4),
-        "estimated_material": estimated_material  # <-- เพิ่มค่านี้ส่งออกไป
+        "estimated_material": estimated_material  
     }
 
 def get_road_type(lat, lon, radius_meters=10):
@@ -178,6 +178,53 @@ def get_crowdsource_data(lat, lon, radius_meters=50):
         "user_severity_score_avg": avg_severity_score
     }
 
+def get_poi_data(lat, lon, radius_meters=500):
+    """
+    ฟังก์ชันดึงข้อมูลสถานที่สำคัญ (โรงพยาบาล, โรงเรียน, ร้านสะดวกซื้อ/เซเว่น) 
+    ในรัศมีที่กำหนด เพื่อคำนวณผลกระทบต่อชุมชน (Community Impact)
+    """
+    print(f"กำลังตรวจสอบสถานที่สำคัญ (POIs) ในรัศมี {radius_meters} เมตร...")
+    
+    overpass_url = "http://overpass-api.de/api/interpreter"
+    
+    # Query หา โรงพยาบาล, คลินิก, โรงเรียน, มหาวิทยาลัย, เซเว่น/ซูเปอร์มาร์เก็ต
+    overpass_query = f"""
+    [out:json];
+    (
+      node(around:{radius_meters},{lat},{lon})["amenity"~"hospital|clinic|school|university"];
+      node(around:{radius_meters},{lat},{lon})["shop"~"supermarket|convenience|mall"];
+    );
+    out center;
+    """
+    
+    try:
+        response = requests.post(overpass_url, data={'data': overpass_query})
+        response.raise_for_status()
+        data = response.json()
+        
+        elements = data.get('elements', [])
+        poi_count = len(elements)
+        
+        # จัดกลุ่มประเภทสถานที่ที่เจอ
+        hospitals = sum(1 for el in elements if el.get('tags', {}).get('amenity') in ['hospital', 'clinic'])
+        schools = sum(1 for el in elements if el.get('tags', {}).get('amenity') in ['school', 'university'])
+        shops = sum(1 for el in elements if el.get('tags', {}).get('shop') in ['supermarket', 'convenience', 'mall'])
+        
+        # คำนวณคะแนน P_i เบื้องต้น (ถ่วงน้ำหนัก: รพ.=3, โรงเรียน=2, ร้านค้า=1)
+        pi_score = (hospitals * 3) + (schools * 2) + (shops * 1)
+        
+        return {
+            "total_pois_found": poi_count,
+            "hospitals_count": hospitals,
+            "schools_count": schools,
+            "shops_count": shops,
+            "community_impact_score_pi": pi_score
+        }
+        
+    except Exception as e:
+        print(f"เกิดข้อผิดพลาดในการดึงข้อมูล POIs: {e}")
+        return {"total_pois_found": 0, "hospitals_count": 0, "schools_count": 0, "shops_count": 0, "community_impact_score_pi": 0}
+
 # ==========================================
 # ทดสอบการเรียกใช้งานแบบครบวงจร (Full Pipeline)
 if __name__ == "__main__":
@@ -195,10 +242,14 @@ if __name__ == "__main__":
     # 3. ดึงข้อมูลแจ้งเหตุ (Crowdsource)
     crowd_data = get_crowdsource_data(target_lat, target_lon)
     
+    # 4. ดึงข้อมูลสถานที่สำคัญ (POIs)
+    poi_data = get_poi_data(target_lat, target_lon)
+    
     # --- รวมร่างข้อมูลทั้งหมดเป็น Attribute Vector ---
     print(f"\n--- 🌟 สรุปข้อมูล Feature Vector เตรียมเข้า Model 🌟 ---")
     print(f"พิกัด (Lat, Lon): {target_lat}, {target_lon}")
     print(f"[{'GIS':<12}] ประเภทถนน: {road_data['thai_road_type']} (OSM Tag: {road_data['osm_highway_type']})")
+    print(f"[{'GIS':<12}] ผลกระทบชุมชน (POIs): พบ {poi_data['total_pois_found']} แห่ง (รพ:{poi_data['hospitals_count']}, รร:{poi_data['schools_count']}, ร้านค้า:{poi_data['shops_count']}) -> Score: {poi_data['community_impact_score_pi']}")
     print(f"[{'GEE':<12}] วัสดุพื้นผิว (Surface): {gee_data['estimated_material']}")
     print(f"[{'GEE':<12}] ความพลุกพล่าน (Nightlight): {gee_data['nightlight_radiance']}")
     print(f"[{'GEE':<12}] ปริมาณฝน 1 ปี (Rainfall): {gee_data['rainfall_last_12m_mm']} mm")
@@ -213,4 +264,4 @@ if __name__ == "__main__":
     else:
          print(f"[{'Crowdsource':<12}] ไม่มีประวัติการแจ้งเหตุจากประชาชนในบริเวณนี้")
     
-    print("\n✅ ท่อข้อมูลพร้อม 100%! ขั้นตอนต่อไปคือการสร้างโมเดลมารับค่าเหล่านี้ครับ 🚀")
+    print("\n✅ ท่อข้อมูลพร้อม 100%! ขั้นตอนต่อไปคือการสร้าง API รวมร่างกับโมเดล RT-DETR ครับ 🚀")
