@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
+import imageCompression from 'browser-image-compression';
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -70,17 +71,36 @@ export default function DashboardPage() {
     const file = e.target.files[0];
     if (!file) return;
 
+    setLoading(true);
+
+    // 1. Check EXIF from the original uncompressed file first
+    const hasGps = await readExifGpsClient(file);
+
+    // 2. Compress the image to save bandwidth and backend storage
+    let compressedFile = file;
+    try {
+      const options = {
+        maxSizeMB: 1,
+        maxWidthOrHeight: 1920,
+        useWebWorker: true,
+        preserveExif: true // Attempt to preserve GPS data
+      };
+      compressedFile = await imageCompression(file, options);
+    } catch (err) {
+      console.error("Image compression failed, falling back to original:", err);
+    }
+
+    // 3. Build the payload
     const base = new FormData();
-    base.append('image',         file);
+    base.append('image', new File([compressedFile], file.name, { type: compressedFile.type || file.type }));
     base.append('description',   formData.description);
     base.append('reporter_name', formData.reporter_name);
-
-    const hasGps = await readExifGpsClient(file);
 
     if (hasGps) {
       await submitReport(base);
     } else {
-      setPendingFile(file);
+      setLoading(false); // Hide loading spinner before opening the modal
+      setPendingFile(compressedFile);
       pendingFormRef.current = base;
       setShowPinModal(true);
     }

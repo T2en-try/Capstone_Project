@@ -43,6 +43,18 @@ class PRIIGSAIEngine:
 
         results = self.model.predict(source=image_path, conf=threshold, verbose=False)
         
+        # วาด Bounding Box และบันทึกรูปภาพ
+        annotated_filename = None
+        try:
+            annotated_img = results[0].plot()
+            base_dir, filename = os.path.split(image_path)
+            name, ext = os.path.splitext(filename)
+            annotated_filename = f"{name}_annotated{ext}"
+            annotated_path = os.path.join(base_dir, annotated_filename)
+            cv2.imwrite(annotated_path, annotated_img)
+        except Exception as e:
+            print(f"⚠️ ไม่สามารถสร้างภาพ Bounding Box ได้: {e}")
+        
         total_area_px = 0
         max_severity = 0
         damage_counts = {cls: 0 for cls in CLASSES}
@@ -68,15 +80,16 @@ class PRIIGSAIEngine:
             "cv_damage_ratio_percent": float(damage_ratio), 
             "cv_max_severity_score": int(max_severity),     
             "cv_total_defects_count": int(sum(damage_counts.values())),
-            "cv_details": {k: int(v) for k, v in damage_counts.items()} 
+            "cv_details": {k: int(v) for k, v in damage_counts.items()},
+            "annotated_image_filename": annotated_filename
         }
 
-    def calculate_priority_index(self, lat: float, lon: float, image_path: str):
+    def calculate_priority_index(self, lat: float, lon: float, image_path: str, real_crowd_data: dict = None):
         """ทำ Late Fusion เพื่อหา Final Decision และ Risk Score"""
         cv_features = self.predict_damage(image_path)
         gee = get_environment_data(lat, lon)
         gis = get_road_type(lat, lon)
-        crowd = get_crowdsource_data(lat, lon)
+        crowd = real_crowd_data if real_crowd_data else get_crowdsource_data(lat, lon)
         
         cv_vector = [
             cv_features.get("cv_damage_ratio_percent", 0.0),

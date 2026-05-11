@@ -1,11 +1,17 @@
-import React from 'react';
-import { X, User, MapPin, Clock, FileDigit, AlertCircle, BrainCircuit } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, User, MapPin, Clock, FileDigit, AlertCircle, BrainCircuit, AlertTriangle, Scan, Activity, Image as ImageIcon } from 'lucide-react';
 import StatusBadge from '../../components/ui/StatusBadge';
 import DetailItem from '../../components/ui/DetailItem';
 import { BASE_URL } from '../../services/api';
+import { normalizeAiResult } from '../../utils/aiNormalization';
 
 export default function ReportDetailModal({ isOpen, report, onClose, onUpdateStatus }) {
   if (!isOpen || !report) return null;
+
+  const aiResult = normalizeAiResult(report.ai_result);
+  const [showAiImage, setShowAiImage] = useState(false);
+  const hasAiImage = aiResult?.annotatedImage != null;
+  const currentImage = (showAiImage && hasAiImage) ? aiResult.annotatedImage : report.image_filename;
 
   return (
     <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-4 z-50">
@@ -14,11 +20,29 @@ export default function ReportDetailModal({ isOpen, report, onClose, onUpdateSta
           <X size={20}/>
         </button>
         <div className="flex flex-col md:flex-row max-h-[90vh] overflow-y-auto md:overflow-hidden">
-          <div className="md:w-1/2 bg-slate-200 flex items-center justify-center relative min-h-[300px]">
-            {report?.image_filename
-              ? <img src={`${BASE_URL}/uploads/${report.image_filename}`} className="w-full h-full object-cover" alt="Road damage" onError={(e) => { e.target.style.display='none'; }}/>
+          <div className="md:w-1/2 bg-slate-900 flex items-center justify-center relative min-h-[300px] overflow-hidden">
+            {currentImage
+              ? <img src={`${BASE_URL}/uploads/${currentImage}`} className="w-full h-full object-cover opacity-90 transition-opacity" alt="Road damage" onError={(e) => { e.target.style.display='none'; }}/>
               : <div className="flex flex-col items-center text-slate-400 opacity-50"><p className="text-[10px] font-black uppercase tracking-[0.2em]">Image Not Found</p></div>}
-            <div className="absolute bottom-4 left-4">
+            
+            {hasAiImage && (
+              <div className="absolute top-4 left-4 flex bg-black/60 backdrop-blur-md rounded-lg p-1 border border-white/10 shadow-xl z-10">
+                <button 
+                  onClick={() => setShowAiImage(false)}
+                  className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-md flex items-center gap-1.5 transition-all ${!showAiImage ? 'bg-white text-black' : 'text-slate-300 hover:text-white'}`}
+                >
+                  <ImageIcon size={12} /> Original
+                </button>
+                <button 
+                  onClick={() => setShowAiImage(true)}
+                  className={`px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider rounded-md flex items-center gap-1.5 transition-all ${showAiImage ? 'bg-blue-500 text-white' : 'text-slate-300 hover:text-white'}`}
+                >
+                  <Scan size={12} /> AI Detection
+                </button>
+              </div>
+            )}
+            
+            <div className="absolute bottom-4 left-4 z-10">
               <StatusBadge status={report.status} size="lg"/>
             </div>
           </div>
@@ -61,31 +85,57 @@ export default function ReportDetailModal({ isOpen, report, onClose, onUpdateSta
               </div>
             </div>
 
-            {report.ai_result && (
+            {aiResult && (
               <div className="mt-4 border-t border-slate-100 pt-4">
-                <p className="text-[10px] text-blue-500 font-black uppercase mb-3 tracking-widest flex items-center gap-2"><BrainCircuit size={14}/> ข้อมูลเชิงลึกจาก AI</p>
+                <div className="flex items-center gap-2 mb-3">
+                  <p className="text-[10px] text-blue-500 font-black uppercase tracking-widest flex items-center gap-2">
+                    <BrainCircuit size={14}/> ข้อมูลเชิงลึกจาก AI
+                  </p>
+                  {aiResult.isPartial && (
+                    <span className="bg-amber-500/20 text-amber-600 text-[9px] font-bold py-0.5 px-2 rounded-md border border-amber-400/30 flex items-center gap-1">
+                      <AlertTriangle size={10} /> CV Only
+                    </span>
+                  )}
+                </div>
                 <div className="grid grid-cols-2 gap-3 mb-3">
                   <div className="bg-rose-50 p-3 rounded-2xl border border-rose-100">
                     <p className="text-[10px] text-rose-400 font-bold uppercase mb-1">ความเสียหาย</p>
-                    <p className="text-xl font-black text-rose-600">{Number(report.ai_result.cv_features?.cv_damage_ratio_percent).toFixed(2)}%</p>
+                    <p className="text-xl font-black text-rose-600">{Number(aiResult.cvFeatures?.cv_damage_ratio_percent || 0).toFixed(2)}%</p>
                   </div>
                   <div className="bg-orange-50 p-3 rounded-2xl border border-orange-100">
                     <p className="text-[10px] text-orange-400 font-bold uppercase mb-1">ระดับความรุนแรง</p>
-                    <p className="text-xl font-black text-orange-600">Lv.{report.ai_result.cv_features?.cv_max_severity_score}</p>
+                    <p className="text-xl font-black text-orange-600">Lv.{aiResult.cvFeatures?.cv_max_severity_score || 0}</p>
                   </div>
                 </div>
-                <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100 text-xs text-blue-800 space-y-1.5">
-                  <p>🛣️ <span className="font-bold">ประเภทถนน:</span> {report.ai_result.context_data?.gis?.thai_road_type}</p>
-                  <p>🌧️ <span className="font-bold">ฝนตกสะสม:</span> {report.ai_result.context_data?.gee?.rainfall_last_12m_mm} mm</p>
-                  <p>👥 <span className="font-bold">ประวัติแจ้งซ้ำ:</span> {report.ai_result.context_data?.crowdsource?.crowdsource_report_count_30d} ครั้ง</p>
-                </div>
 
-                {/* ✅ โค้ดแสดงผล Late Fusion */}
-                {report.ai_result.fusion_result && (
+                {/* Breakdown */}
+                {aiResult.cvFeatures?.cv_details && Object.keys(aiResult.cvFeatures.cv_details).length > 0 && (
+                  <div className="bg-white p-3 rounded-2xl border border-slate-100 mb-3">
+                    <p className="text-[10px] text-slate-400 font-bold uppercase mb-2 flex items-center gap-1.5"><Activity size={12} /> รายละเอียดรอยร้าว (Defects)</p>
+                    <div className="flex flex-wrap gap-2">
+                      {Object.entries(aiResult.cvFeatures.cv_details).map(([cls, count]) => count > 0 && (
+                        <span key={cls} className="bg-slate-100 text-slate-600 px-2 py-1 rounded-md text-[10px] font-bold border border-slate-200">
+                          {cls}: <span className="text-rose-500">{count}</span>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                
+                {aiResult.contextData && (
+                  <div className="bg-blue-50 p-4 rounded-2xl border border-blue-100 text-xs text-blue-800 space-y-1.5">
+                    <p>🛣️ <span className="font-bold">ประเภทถนน:</span> {aiResult.contextData?.gis?.thai_road_type || 'N/A'}</p>
+                    <p>🌧️ <span className="font-bold">ฝนตกสะสม:</span> {aiResult.contextData?.gee?.rainfall_last_12m_mm || 0} mm</p>
+                    <p>👥 <span className="font-bold">ประวัติแจ้งซ้ำ:</span> {aiResult.contextData?.crowdsource?.crowdsource_report_count_30d || 0} ครั้ง</p>
+                  </div>
+                )}
+
+                {/* โค้ดแสดงผล Late Fusion */}
+                {aiResult.fusionResult && (
                   <div className="bg-purple-50 p-4 rounded-2xl border border-purple-100 text-sm mt-3">
                     <p className="font-bold text-purple-800 mb-1 flex items-center gap-2">🎯 สรุปผลประเมิน (Late Fusion)</p>
-                    <div className="text-xl font-black text-purple-600 mb-1">{report.ai_result.fusion_result.final_decision}</div>
-                    <p className="text-xs text-purple-400">คะแนนความเสี่ยงสุทธิ: {Number(report.ai_result.fusion_result.fusion_score).toFixed(2)}</p>
+                    <div className="text-xl font-black text-purple-600 mb-1">{aiResult.fusionResult?.final_decision || 'Unknown'}</div>
+                    <p className="text-xs text-purple-400">คะแนนความเสี่ยงสุทธิ: {Number(aiResult.fusionResult?.fusion_score || 0).toFixed(2)}</p>
                   </div>
                 )}
               </div>
