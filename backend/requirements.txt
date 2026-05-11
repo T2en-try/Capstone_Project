@@ -15,6 +15,7 @@ greenlet
 # --- AI, Image & GPS Processing ---
 torch
 torchvision
+ultralytics
 opencv-python-headless
 numpy
 Pillow==10.4.0
