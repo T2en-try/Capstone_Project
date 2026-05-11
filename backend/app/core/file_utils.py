@@ -10,7 +10,7 @@ from pathlib import Path
 
 from fastapi import UploadFile, HTTPException
 
-from app.config import settings
+from app.core.config import settings
 
 
 def ensure_upload_dir() -> str:

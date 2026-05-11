@@ -8,7 +8,7 @@ from collections.abc import AsyncGenerator
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.orm import DeclarativeBase
 
-from app.config import settings
+from app.core.config import settings
 
 
 # สร้าง Async Engine และตั้งค่า `connect_args` เฉพาะเมื่อใช้ SQLite

@@ -1,25 +1,18 @@
 """
 Road Report Backend - Report Routes
-API Endpoints สำหรับจัดการรายงานสภาพถนน
+API Endpoints สำหรับจัดการรายงานสภาพถนน (Version: RT-DETR Optimized)
 """
 
 from typing import Optional
-
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, Request
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-# --- [NEW] Imports สำหรับ AI ---
-import cv2
-import torch
-import numpy as np
-from app.services.ai_model import extract_cv_features, perform_late_fusion
-from app.services.context_api import get_environment_data, get_road_type, get_crowdsource_data
-# -----------------------------
-
-from app.database import get_db
-from app.models import RoadReport, ReportStatus
-from app.schemas import (
+# --- [IMPORT ใหม่จากโครงสร้าง Domain-Driven] ---
+from app.ai.engine import ai_engine
+from app.core.database import get_db
+from app.reports.models import RoadReport, ReportStatus
+from app.reports.schemas import (
     ErrorResponse,
     ReportListResponse,
     ReportResponse,
@@ -28,13 +21,11 @@ from app.schemas import (
     UploadResponse,
     GPSData,
 )
-from app.services.file_service import save_upload_file
+from app.core.file_utils import save_upload_file
 from app.services.gps_extractor import extract_gps_from_exif
+# --------------------------------------------
 
 router = APIRouter(prefix="/api/reports", tags=["Reports"])
-
-
-# ─── POST: อัปโหลดรูปภาพและสร้างรายงาน ─────────────────────
 
 @router.post(
     "/upload",
@@ -52,82 +43,98 @@ async def upload_report(
     reporter_name: Optional[str] = Form(None, description="ชื่อผู้รายงาน"),
     db: AsyncSession = Depends(get_db),
 ):
-    """
-    อัปโหลดรูปภาพถนนและสร้างรายงานใหม่
-
-    **ขั้นตอนการทำงาน:**
-    1. ตรวจสอบและบันทึกไฟล์รูปภาพ
-    2. สกัดพิกัด GPS จาก EXIF metadata ของรูปภาพ
-    3. ถ้าไม่พบ GPS ใน EXIF จะใช้พิกัดที่ผู้ใช้ส่งมา (ถ้ามี)
-    4. ส่งข้อมูลให้ AI และดึงข้อมูลแวดล้อม
-    5. บันทึกข้อมูลทั้งหมดลงฐานข้อมูล
-    """
     try:
         # 1. บันทึกไฟล์รูปภาพ
         file_info = await save_upload_file(image)
 
-        # 2. [Logic ใหม่] การตัดสินใจเรื่องพิกัด (Priority: Manual > EXIF)
-        final_lat = None
-        final_lon = None
+        # 2. ตัดสินใจเรื่องพิกัด (Priority: Manual > EXIF)
+        final_lat, final_lon = None, None
         gps_source = "none"
 
-        # เช็คก่อนว่า User ปักหมุดมาจากหน้าเว็บไหม
         if latitude is not None and longitude is not None:
-            final_lat = latitude
-            final_lon = longitude
+            final_lat, final_lon = latitude, longitude
             gps_source = "manual"
-            print(f"📍 ใช้พิกัดจากการปักหมุดเอง: {final_lat}, {final_lon}")
         else:
-            # ถ้าไม่ได้ปักหมุดมา ค่อยไปลองแกะจาก EXIF
             exif_lat, exif_lon = extract_gps_from_exif(file_info["contents"])
             if exif_lat is not None and exif_lon is not None:
-                final_lat = exif_lat
-                final_lon = exif_lon
+                final_lat, final_lon = exif_lat, exif_lon
                 gps_source = "exif"
 
-        # 3. ส่งข้อมูลให้ AI และดึงข้อมูลแวดล้อม
+        # 3. ส่งข้อมูลให้ AI Engine ประมวลผล (ใช้ RT-DETR + Late Fusion)
         ai_analysis = None
-        if hasattr(request.app.state, 'model') and request.app.state.model is not None:
-            print("🔍 AI กำลังทำงาน...")
+        
+        # ตรวจสอบว่าโหลด Model สำเร็จหรือไม่ (โหลดผ่าน ai_engine)
+        if ai_engine.model is not None:
+            print(f"🔍 PRIIGS Engine กำลังวิเคราะห์ภาพ: {file_info['filename']}")
             
-            # 3.1 ประมวลผลภาพ (AI ทำงานได้แม้ไม่มีพิกัด)
-            img_cv = cv2.imread(file_info["path"])
-            img_rgb = cv2.cvtColor(img_cv, cv2.COLOR_BGR2RGB)
-            height, width, _ = img_rgb.shape
-            
-            # ใช้ YOLO หรือ Faster R-CNN ตามที่คุณเซ็ตไว้
-            image_tensor = torch.as_tensor(img_rgb.transpose(2, 0, 1), dtype=torch.float32).to(request.app.state.device) / 255.0
-            with torch.no_grad():
-                prediction = request.app.state.model([image_tensor])[0]
-            cv_features = extract_cv_features(prediction, width, height)
-            
-            # 3.2 [Safe GEE/GIS] ดึงข้อมูลแวดล้อม (ดักจับ Error เพื่อให้เพื่อนรันได้)
-            gee_data = {"rainfall_last_12m_mm": 0, "note": "GEE ไม่พร้อมใช้งาน"}
-            gis_data = {"thai_road_type": "ไม่ทราบประเภท"}
-            crowd_data = {"crowdsource_report_count_30d": 0}
+            try:
+                if final_lat and final_lon:
+                    # === Fetch Real Crowdsource Data ===
+                    from datetime import datetime, timedelta, timezone
+                    
+                    real_crowd_data = {
+                        "crowdsource_report_count_30d": 0,
+                        "days_since_last_report": 999,
+                        "user_severity_score_avg": 0.0
+                    }
+                    
+                    try:
+                        thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
+                        lat_offset = 0.00045 # ~50m
+                        lon_offset = 0.00045 # ~50m
+                        
+                        crowd_query = select(RoadReport).where(
+                            RoadReport.latitude.between(final_lat - lat_offset, final_lat + lat_offset),
+                            RoadReport.longitude.between(final_lon - lon_offset, final_lon + lon_offset),
+                            RoadReport.created_at >= thirty_days_ago
+                        ).order_by(RoadReport.created_at.desc())
+                        
+                        crowd_result = await db.execute(crowd_query)
+                        recent_reports = crowd_result.scalars().all()
+                        
+                        if recent_reports:
+                            real_crowd_data["crowdsource_report_count_30d"] = len(recent_reports)
+                            delta = datetime.now(timezone.utc) - recent_reports[0].created_at
+                            real_crowd_data["days_since_last_report"] = delta.days
+                            
+                            total_severity = 0
+                            valid_severity_count = 0
+                            for r in recent_reports:
+                                if r.ai_result and isinstance(r.ai_result, dict):
+                                    cv_data = r.ai_result.get("cv_features") or r.ai_result.get("ai_analysis")
+                                    if cv_data and "cv_max_severity_score" in cv_data:
+                                        total_severity += int(cv_data["cv_max_severity_score"])
+                                        valid_severity_count += 1
+                                        
+                            if valid_severity_count > 0:
+                                real_crowd_data["user_severity_score_avg"] = round(total_severity / valid_severity_count, 1)
+                                
+                    except Exception as e:
+                        print(f"⚠️ ไม่สามารถดึงข้อมูล Crowdsource จาก Database ได้: {e}")
 
-            if final_lat and final_lon:
-                try:
-                    # ใส่ try-except คลุมไว้ ถ้าเพื่อนไม่ได้ login GEE ระบบจะไม่แครช
-                    gee_data = get_environment_data(final_lat, final_lon)
-                    gis_data = get_road_type(final_lat, final_lon)
-                    crowd_data = get_crowdsource_data(final_lat, final_lon)
-                except Exception as gee_err:
-                    print(f"⚠️ คำเตือน: ดึงข้อมูล GEE/GIS ไม่สำเร็จ (อาจยังไม่ล็อกอิน): {gee_err}")
-
-            # [เพิ่มใหม่] นำข้อมูลแวดล้อมจัดใส่ Dict
-            context_data_dict = {"gee": gee_data, "gis": gis_data, "crowdsource": crowd_data}
-
-            # [เพิ่มใหม่] ส่งข้อมูลทั้ง 2 ขาเข้าสู่กระบวนการ Late Fusion
-            fusion_result = perform_late_fusion(cv_features, context_data_dict)
-
-            ai_analysis = {
-                "cv_features": cv_features,
-                "context_data": context_data_dict,
-                "fusion_result": fusion_result
-            }
-
-        # 4. บันทึกข้อมูล
+                    # กรณีมีพิกัด: คำนวณแบบ Full Fusion (AI + GEE + GIS + Crowd)
+                    ai_analysis = ai_engine.calculate_priority_index(
+                        lat=final_lat, 
+                        lon=final_lon, 
+                        image_path=file_info["path"],
+                        real_crowd_data=real_crowd_data
+                    )
+                else:
+                    # กรณีไม่มีพิกัด: รันเฉพาะ AI Detection (Computer Vision Only)
+                    print("⚠️ ไม่พบพิกัด GPS รันเฉพาะประเมินรอยร้าวเบื้องต้น")
+                    cv_result = ai_engine.predict_damage(file_info["path"])
+                    ai_analysis = {
+                        "status": "partial_success",
+                        "priority_index_ppi": 0.0,
+                        "ai_analysis": cv_result,
+                        "context_data": None,
+                        "note": "Analysis limited to Computer Vision due to missing GPS"
+                    }
+            except Exception as ai_err:
+                print(f"⚠️ PRIIGS Engine Error: {ai_err}")
+                # ถ้า AI พัง ยังยอมให้เซฟ Report ลงฐานข้อมูลได้ (แต่ไม่มีผลวิเคราะห์)
+        
+        # 4. บันทึกข้อมูลลงฐานข้อมูล
         report = RoadReport(
             image_filename=file_info["filename"],
             image_original_name=file_info["original_name"],
@@ -142,6 +149,7 @@ async def upload_report(
             status=ReportStatus.PENDING,
             ai_result=ai_analysis
         )
+        
         db.add(report)
         await db.commit()
         await db.refresh(report)
@@ -153,13 +161,11 @@ async def upload_report(
             gps_extracted=GPSData(latitude=final_lat, longitude=final_lon, source=gps_source),
             ai_result=ai_analysis
         )
-    except HTTPException:
-        raise
+        
     except Exception as e:
         await db.rollback()
         import traceback; traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
-
 
 # ─── GET: ดึงรายการรายงานทั้งหมด (พร้อม Pagination) ──────────
 
