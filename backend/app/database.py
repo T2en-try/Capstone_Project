@@ -3,6 +3,8 @@ Road Report Backend - Database Module
 โมดูลจัดการการเชื่อมต่อฐานข้อมูล (SQLAlchemy Async)
 """
 
+from collections.abc import AsyncGenerator
+
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.orm import DeclarativeBase
 
@@ -28,7 +30,7 @@ class Base(DeclarativeBase):
     pass
 
 
-async def get_db() -> AsyncSession:
+async def get_db() -> AsyncGenerator[AsyncSession, None]:
     """
     Dependency Injection: สร้าง database session ให้แต่ละ request
     ใช้เป็น FastAPI Dependency
