@@ -13,7 +13,9 @@ class Settings:
     """Application settings loaded from environment variables."""
 
     # Database
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./road_reports.db")
+    DATABASE_URL = os.getenv("DATABASE_URL")
+    if not DATABASE_URL:
+        raise ValueError("DATABASE_URL environment variable is not set")
 
     # Server
     HOST: str = os.getenv("HOST", "0.0.0.0")

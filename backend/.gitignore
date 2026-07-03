@@ -1,0 +1,40 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environment variables & Secrets
+.env
+.env.*
+!.env.example
+app/services/*.json
+Road-maintain.json
+
+# Local Databases
+*.db
+*.sqlite3
+road_reports.db
+
+# User Uploads
+uploads/
+*.jpg
+*.jpeg
+*.png
+*.webp
+*.heic
+
+# Large Machine Learning Models
+best.pt
+*.pt
+*.pkl
+ppi_rf_model.pkl
+
+# Virtual environments
+venv/
+env/
+.venv/
+
+# IDEs and Editors
+.vscode/
+.idea/
+*.swp

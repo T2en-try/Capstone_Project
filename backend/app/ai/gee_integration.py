@@ -2,13 +2,20 @@ import ee
 import requests
 from datetime import datetime, timedelta
 import random 
+import os
 
-# เริ่มต้นการเชื่อมต่อ (ใช้ Project ID ของคุณ)
-SERVICE_ACCOUNT = 'road-remaining-life-prediction@sturdy-web-472311-a8.iam.gserviceaccount.com'
-KEY_PATH = 'app/services/Road-maintain.json'
+# เริ่มต้นการเชื่อมต่อ
+SERVICE_ACCOUNT = os.getenv("GEE_SERVICE_ACCOUNT")
+KEY_PATH = os.getenv("GEE_KEY_PATH")
 
-credentials = ee.ServiceAccountCredentials(SERVICE_ACCOUNT, KEY_PATH)
-ee.Initialize(credentials, project='sturdy-web-472311-a8')
+if not SERVICE_ACCOUNT or not KEY_PATH:
+    print("⚠️ WARNING: GEE_SERVICE_ACCOUNT or GEE_KEY_PATH is missing from environment variables!")
+else:
+    try:
+        credentials = ee.ServiceAccountCredentials(SERVICE_ACCOUNT, KEY_PATH)
+        ee.Initialize(credentials, project='sturdy-web-472311-a8')
+    except Exception as e:
+        print(f"⚠️ Failed to initialize Google Earth Engine: {e}")
 
 def get_environment_data(lat, lon):
     """

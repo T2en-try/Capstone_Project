@@ -1,12 +1,11 @@
 """
 Road Report Backend - Pydantic Schemas
-โมเดลสำหรับ Validation ข้อมูลขาเข้า/ขาออกของ API
+โมเดลสำหรับ Validation ข้อมูลขาเข้า/ขาออกของ API (3-Table Schema Compatibility)
 """
 
 from datetime import datetime
-from typing import Optional
 from typing import Optional, Dict, Any
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, computed_field
 
 
 # ─── Request Schemas ───────────────────────────────────────────
@@ -33,8 +32,53 @@ class GPSData(BaseModel):
     source: str = "unknown"
 
 
+class AIAnalysisResponse(BaseModel):
+    """Schema สำหรับผลวิเคราะห์รายละเอียดของ AI"""
+    id: int
+    report_id: int
+    model_version: str
+
+    # CV Detections
+    cv_defect_count: int
+    cv_damage_ratio_percent: float
+    cv_max_severity_score: int
+    cv_details_json: Optional[Dict[str, int]] = None
+    annotated_image_filename: Optional[str] = None
+
+    # GEE Context
+    rainfall_last_12m_mm: float
+    soil_moisture_last_30d_mm: float
+    ndvi_index: float
+    estimated_surface_material: Optional[str] = None
+    nightlight_radiance: float = 0.0
+
+    # OSM Context
+    road_name: Optional[str] = None
+    road_type: Optional[str] = None
+    osm_highway_type: Optional[str] = None
+    community_impact_score_pi: int
+
+    # Crowdsource Context
+    crowdsource_report_count_30d: int
+    days_since_last_report: int
+    user_severity_score_avg: float
+
+    # Core scores
+    heuristic_score: Optional[float] = None
+    fuzzy_score: Optional[float] = None
+    ml_score: Optional[float] = None
+
+    # Final
+    final_fusion_score: float
+    final_decision: str
+    analyzed_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
 class ReportResponse(BaseModel):
-    """Schema สำหรับ Response ข้อมูลรายงาน"""
+    """Schema สำหรับ Response ข้อมูลรายงานหลัก"""
     id: int
     image_filename: str
     image_original_name: Optional[str] = None
@@ -48,10 +92,62 @@ class ReportResponse(BaseModel):
     status: str
     created_at: datetime
     updated_at: datetime
-    ai_result: Optional[Dict[str, Any]] = None
+    
+    # ดึงข้อมูลจากตารางสัมพันธ์แบบ 1-to-1
+    ai_analysis: Optional[AIAnalysisResponse] = None
 
     class Config:
         from_attributes = True
+
+    @computed_field
+    @property
+    def ai_result(self) -> Optional[Dict[str, Any]]:
+        """
+        แปลงข้อมูลจาก ai_analysis เป็นรูปแบบ Dictionary แบบเดิม (ai_result) 
+        เพื่อไม่ให้เกิดผลกระทบ (Breaking Change) ต่อโค้ดของ Frontend เดิมที่กำลังใช้อยู่
+        """
+        if not self.ai_analysis:
+            return None
+
+        ana = self.ai_analysis
+        return {
+            "cv_features": {
+                "cv_damage_ratio_percent": ana.cv_damage_ratio_percent,
+                "cv_max_severity_score": ana.cv_max_severity_score,
+                "cv_total_defects_count": ana.cv_defect_count,
+                "cv_details": ana.cv_details_json,
+                "annotated_image_filename": ana.annotated_image_filename
+            },
+            "context_data": {
+                "gee": {
+                    "date_analyzed": ana.analyzed_at.strftime('%Y-%m-%d') if ana.analyzed_at else None,
+                    "nightlight_radiance": ana.nightlight_radiance,
+                    "rainfall_last_12m_mm": ana.rainfall_last_12m_mm,
+                    "soil_moisture_last_30d_mm": ana.soil_moisture_last_30d_mm,
+                    "ndvi_index": ana.ndvi_index,
+                    "estimated_material": ana.estimated_surface_material
+                },
+                "gis": {
+                    "road_name": ana.road_name,
+                    "osm_highway_type": ana.osm_highway_type,
+                    "thai_road_type": ana.road_type
+                },
+                "crowdsource": {
+                    "crowdsource_report_count_30d": ana.crowdsource_report_count_30d,
+                    "days_since_last_report": ana.days_since_last_report,
+                    "user_severity_score_avg": ana.user_severity_score_avg
+                }
+            },
+            "fusion_result": {
+                "feature_vector": None,
+                "fusion_score": ana.final_fusion_score,
+                "final_decision": ana.final_decision,
+                "analysis_meta": {
+                    "is_high_risk_material": ana.estimated_surface_material == "ยางมะตอย (Asphalt)",
+                    "environmental_impact_factor": "high" if (ana.rainfall_last_12m_mm or 0) > 1200 or (ana.soil_moisture_last_30d_mm or 0) > 0.4 else "normal"
+                }
+            }
+        }
 
 
 class ReportListResponse(BaseModel):
@@ -85,3 +181,4 @@ class StatsResponse(BaseModel):
     processing_count: int
     completed_count: int
     rejected_count: int
+

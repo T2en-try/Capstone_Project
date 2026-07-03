@@ -3,8 +3,11 @@ import torch
 import cv2
 from ultralytics import RTDETR
 
-# นำเข้าฟังก์ชันดึง Context
-from app.ai.gee_integration import get_environment_data, get_road_type, get_crowdsource_data
+# นำเข้าฟังก์ชันดึง Context (เพิ่ม get_poi_data เข้ามา)
+from app.ai.gee_integration import get_environment_data, get_road_type, get_crowdsource_data, get_poi_data
+
+# นำเข้า Fusion Engines ทั้ง 3 ระบบและโครงสร้างข้อมูลที่เราเพิ่งสร้าง
+from app.ai.fusion_engines import RoadReportData, ml_engine, fuzzy_engine, heuristic_engine
 
 # กำหนดคลาสและน้ำหนัก
 CLASSES = ['D00', 'D10', 'D20', 'D40']
@@ -12,7 +15,7 @@ SEVERITY_WEIGHTS = {
     'D00': 2, 'D10': 2, 'D20': 4, 'D40': 5
 }
 
-# ถ้า best.pt อยู่ที่เดียวกับ main.py ใช้แบบนี้ได้เลย ปลอดภัยที่สุดครับ
+# ถ้า best.pt อยู่ที่เดียวกับ main.py ใช้แบบนี้ได้เลย
 MODEL_PATH = os.path.join(os.getcwd(), 'best.pt')
 
 class PRIIGSAIEngine:
@@ -85,56 +88,76 @@ class PRIIGSAIEngine:
         }
 
     def calculate_priority_index(self, lat: float, lon: float, image_path: str, real_crowd_data: dict = None):
-        """ทำ Late Fusion เพื่อหา Final Decision และ Risk Score"""
+        """ทำ Late Fusion เพื่อหา Final Decision และ Risk Score จาก 3 โมเดล"""
+        # 1. รวบรวมข้อมูลจากทุก Source (Computer Vision + GEE + GIS)
         cv_features = self.predict_damage(image_path)
         gee = get_environment_data(lat, lon)
         gis = get_road_type(lat, lon)
+        
+        # ป้องกัน error ถ้าไม่มีฟังก์ชัน get_poi_data ใน gee_integration.py
+        try:
+            poi = get_poi_data(lat, lon, radius_meters=500)
+        except NameError:
+            poi = {"community_impact_score_pi": 0}
+            
         crowd = real_crowd_data if real_crowd_data else get_crowdsource_data(lat, lon)
         
-        cv_vector = [
-            cv_features.get("cv_damage_ratio_percent", 0.0),
-            cv_features.get("cv_max_severity_score", 0),
-            cv_features.get("cv_total_defects_count", 0)
-        ]
-
-        rainfall = float(gee.get("rainfall_last_12m_mm", 0.0))
-        soil_moisture = float(gee.get("soil_moisture_last_30d_mm", 0.0))
-        ndvi_index = float(gee.get("ndvi_index", 0.0))
-        road_material = gee.get("estimated_material", "ไม่ระบุ")
-        report_count = int(crowd.get("crowdsource_report_count_30d", 0))
-
         road_type_map = {"highway": 3, "main": 2, "local": 1, "ไม่ทราบประเภท": 0}
         road_type_encoded = road_type_map.get(gis.get("thai_road_type", "ไม่ทราบประเภท"), 0)
 
-        damage_score = (cv_vector[0] * 0.5) + (cv_vector[1] * 10) + (rainfall * 0.05) + (report_count * 2)
+        # 2. จัดรูปแบบข้อมูลเตรียมส่งให้แผนกคำนวณ (Fusion Engines)
+        fusion_data = RoadReportData(
+            cv_ratio=cv_features.get("cv_damage_ratio_percent", 0.0),
+            cv_severity=cv_features.get("cv_max_severity_score", 0),
+            rain_12m=gee.get("rainfall_last_12m_mm", 0.0),
+            soil_moist=gee.get("soil_moisture_last_30d_mm", 0.0),
+            ndvi=gee.get("ndvi_index", 0.0),
+            material=gee.get("estimated_material", "ไม่ระบุ"),
+            road_type_enc=road_type_encoded,
+            crowd_30d=crowd.get("crowdsource_report_count_30d", 0),
+            comm_impact=poi.get("community_impact_score_pi", 0.0)
+        )
 
-        if road_material == "ยางมะตอย (Asphalt)" and rainfall > 1000:
-            damage_score += 15 
-        if soil_moisture > 0.4:
-            damage_score += 10
-        if ndvi_index > 0.25:
-            damage_score += 5
+        # 3. สั่งคำนวณคะแนนจากทั้ง 3 ระบบ
+        heur_score = heuristic_engine.predict_ppi(fusion_data)
+        fuzzy_score = fuzzy_engine.predict_ppi(fusion_data)
+        ml_score = ml_engine.predict_ppi(fusion_data)
 
-        if damage_score >= 50:
+        # 4. ตัดสินใจสถานะ (ใช้คะแนน ML เป็นหลักในการตัดสินใจ)
+        primary_score = ml_score
+        
+        if primary_score >= 50:
             final_decision = "Critical (ต้องซ่อมแซมด่วน)"
-        elif damage_score >= 20:
+        elif primary_score >= 20:
             final_decision = "Warning (ควรเฝ้าระวัง)"
         else:
             final_decision = "Good (สภาพปกติ)"
 
+        # เวกเตอร์คุณลักษณะเดิม (เก็บไว้เผื่อ Frontend เดิมต้องการใช้)
+        cv_vector = [
+            fusion_data.cv_damage_ratio_percent,
+            fusion_data.cv_max_severity_score,
+            cv_features.get("cv_total_defects_count", 0)
+        ]
+        legacy_feature_vector = cv_vector + [fusion_data.rainfall_12m, fusion_data.soil_moisture, fusion_data.ndvi_index, road_type_encoded]
+
+        # 5. จัดรูปแบบผลลัพธ์ส่งกลับไปให้ Router บันทึกลง Database
         fusion_result = {
-            "feature_vector": cv_vector + [rainfall, soil_moisture, ndvi_index, road_type_encoded],
-            "fusion_score": float(damage_score),
+            "feature_vector": legacy_feature_vector,
+            "heuristic_score": round(heur_score, 2),
+            "fuzzy_score": round(fuzzy_score, 2),
+            "ml_score": round(ml_score, 2),
+            "fusion_score": round(primary_score, 2), # คงชื่อตัวแปรเดิมไว้เพื่อให้ Frontend ไม่พัง
             "final_decision": final_decision,
             "analysis_meta": {
-                "is_high_risk_material": road_material == "ยางมะตอย (Asphalt)",
-                "environmental_impact_factor": "high" if rainfall > 1200 or soil_moisture > 0.4 else "normal"
+                "is_high_risk_material": fusion_data.surface_material == "Asphalt",
+                "environmental_impact_factor": "high" if fusion_data.rainfall_12m > 1200 or fusion_data.soil_moisture > 0.4 else "normal"
             }
         }
 
         return {
             "cv_features": cv_features,
-            "context_data": {"gee": gee, "gis": gis, "crowdsource": crowd},
+            "context_data": {"gee": gee, "gis": gis, "poi": poi, "crowdsource": crowd},
             "fusion_result": fusion_result
         }
 

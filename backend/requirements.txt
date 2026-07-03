@@ -9,7 +9,6 @@ requests
 
 # --- Database ---
 sqlalchemy==2.0.35
-aiosqlite==0.20.0
 greenlet
 
 # --- AI, Image & GPS Processing ---
@@ -20,6 +19,9 @@ opencv-python-headless
 numpy
 Pillow==10.4.0
 exifread==3.0.0
+pandas
+scikit-learn
+scikit-fuzzy
 
 # --- External Services ---
 earthengine-api
