@@ -62,6 +62,50 @@ async def upload_report(
                 final_lat, final_lon = exif_lat, exif_lon
                 gps_source = "exif"
 
+        # 2.5 Gatekeeper: ตรวจสอบว่าเป็นรูปถนนจริงหรือไม่ด้วยโมเดล Classification
+        if ai_engine.classifier_model:
+            is_road = ai_engine.validate_is_road(file_info["path"])
+            if not is_road:
+                print(f"🚫 [Gatekeeper] รูปภาพ {file_info['filename']} ไม่ใช่ถนน ปฏิเสธการประมวลผลต่อ")
+                report = RoadReport(
+                    image_filename=file_info["filename"],
+                    image_original_name=file_info["original_name"],
+                    image_size_bytes=file_info["size_bytes"],
+                    image_mime_type=file_info["mime_type"],
+                    latitude=final_lat,
+                    longitude=final_lon,
+                    gps_source=gps_source,
+                    description=description,
+                    reporter_name=reporter_name,
+                    status=ReportStatus.REJECTED,
+                )
+                db.add(report)
+                await db.flush()
+                
+                ai_analysis_record = AIAnalysis(
+                    report_id=report.id,
+                    model_version="YOLO-Gatekeeper",
+                    final_decision="Rejected (Image is not a road)",
+                    final_fusion_score=0.0,
+                    heuristic_score=0.0,
+                    fuzzy_score=0.0,
+                    ml_score=0.0
+                )
+                db.add(ai_analysis_record)
+                await db.commit()
+                
+                stmt = select(RoadReport).options(joinedload(RoadReport.ai_analysis)).where(RoadReport.id == report.id)
+                result = await db.execute(stmt)
+                refreshed_report = result.scalar_one()
+
+                return UploadResponse(
+                    status="success",
+                    message="อัปโหลดสำเร็จ แต่ระบบปฏิเสธเนื่องจากรูปภาพไม่ใช่ถนน",
+                    report=ReportResponse.model_validate(refreshed_report),
+                    gps_extracted=GPSData(latitude=final_lat, longitude=final_lon, source=gps_source),
+                    ai_result={"status": "rejected", "reason": "Image is not a road"}
+                )
+
         # 3. จัดการแคชข้อมูล API ภายนอก (GEE & OSM) ตามพิกัดกริด (~110m)
         cached_gee = None
         cached_osm = None
@@ -165,6 +209,10 @@ async def upload_report(
                 print(f"⚠️ PRIIGS Engine ประมวลผลผิดพลาด: {ai_err}")
 
         # 6. บันทึกข้อมูลรายงานสภาพถนนผู้ใช้ (RoadReport)
+        initial_status = ReportStatus.PENDING
+        if ai_analysis and ai_analysis.get("fusion_result", {}).get("final_decision", "").startswith("Rejected"):
+            initial_status = ReportStatus.REJECTED
+
         report = RoadReport(
             image_filename=file_info["filename"],
             image_original_name=file_info["original_name"],
@@ -175,7 +223,7 @@ async def upload_report(
             gps_source=gps_source,
             description=description,
             reporter_name=reporter_name,
-            status=ReportStatus.PENDING,
+            status=initial_status,
         )
         db.add(report)
         await db.flush()  # เพื่อให้มีรายงาน id ไปอ้างอิงในผลลัพธ์ AI
@@ -215,6 +263,9 @@ async def upload_report(
                 context_data = {}
                 fusion_result = {
                     "fusion_score": 0.0,
+                    "heuristic_score": 0.0,
+                    "fuzzy_score": 0.0,
+                    "ml_score": 0.0,
                     "final_decision": "Good (สภาพปกติ) - ไม่มีพิกัด"
                 }
             else:

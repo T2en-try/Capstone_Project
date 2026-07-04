@@ -1,12 +1,12 @@
 import os
 import torch
 import cv2
-from ultralytics import RTDETR
+from ultralytics import RTDETR, YOLO
 
-# นำเข้าฟังก์ชันดึง Context (เพิ่ม get_poi_data เข้ามา)
+# นำเข้าฟังก์ชันดึง Context
 from app.ai.gee_integration import get_environment_data, get_road_type, get_crowdsource_data, get_poi_data
 
-# นำเข้า Fusion Engines ทั้ง 3 ระบบและโครงสร้างข้อมูลที่เราเพิ่งสร้าง
+# นำเข้า Fusion Engines ทั้ง 3 ระบบและโครงสร้างข้อมูล
 from app.ai.fusion_engines import RoadReportData, ml_engine, fuzzy_engine, heuristic_engine
 
 # กำหนดคลาสและน้ำหนัก
@@ -15,23 +15,47 @@ SEVERITY_WEIGHTS = {
     'D00': 2, 'D10': 2, 'D20': 4, 'D40': 5
 }
 
-# ถ้า best.pt อยู่ที่เดียวกับ main.py ใช้แบบนี้ได้เลย
+# ถ้า best.pt อยู่ที่เดียวกับ main.py ใช้แบบนี้ได้เลย ปลอดภัยที่สุดครับ
 MODEL_PATH = os.path.join(os.getcwd(), 'best.pt')
+CLASSIFIER_MODEL_PATH = os.path.join(os.getcwd(), 'best-road-classifier.pt')
 
 class PRIIGSAIEngine:
     def __init__(self):
         self.model = None
+        self.classifier_model = None
 
     def load_model(self):
         """โหลดโมเดล RT-DETR จาก Ultralytics"""
         print("🧠 กำลังโหลดโมเดล RT-DETR (Fold 2)...")
+        device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        
         if os.path.exists(MODEL_PATH):
-            device = 'cuda' if torch.cuda.is_available() else 'cpu'
             self.model = RTDETR(MODEL_PATH)
             self.model.to(device)
             print(f"✅ โหลดโมเดล RT-DETR สำเร็จ! (ทำงานบน {device.upper()})")
         else:
             print(f"❌ หาไฟล์โมเดลไม่พบที่: {MODEL_PATH}")
+            
+        print("🧠 กำลังโหลดโมเดล Road Classifier...")
+        if os.path.exists(CLASSIFIER_MODEL_PATH):
+            self.classifier_model = YOLO(CLASSIFIER_MODEL_PATH)
+            self.classifier_model.to(device)
+            print(f"✅ โหลดโมเดล Road Classifier สำเร็จ! (ทำงานบน {device.upper()})")
+        else:
+            print(f"❌ หาไฟล์โมเดลไม่พบที่: {CLASSIFIER_MODEL_PATH}")
+
+    def validate_is_road(self, image_path: str) -> bool:
+        """ตรวจสอบว่ารูปภาพเป็นถนนหรือไม่ด้วยโมเดล Classification"""
+        if not self.classifier_model:
+            print("⚠️ โมเดล Classifier ยังไม่ได้โหลด ข้ามการตรวจสอบ")
+            return True
+            
+        results = self.classifier_model.predict(source=image_path, verbose=False)
+        if len(results) > 0 and hasattr(results[0], 'probs') and results[0].probs is not None:
+            top_class_id = results[0].probs.top1
+            class_name = self.classifier_model.names[top_class_id]
+            return class_name == "road"
+        return True
 
     def predict_damage(self, image_path: str, threshold=0.30):
         """วิเคราะห์ภาพและคำนวณ CV Features"""
@@ -89,16 +113,16 @@ class PRIIGSAIEngine:
 
     def calculate_priority_index(self, lat: float, lon: float, image_path: str, real_crowd_data: dict = None):
         """ทำ Late Fusion เพื่อหา Final Decision และ Risk Score จาก 3 โมเดล"""
-        # 1. รวบรวมข้อมูลจากทุก Source (Computer Vision + GEE + GIS)
+        # 1. รวบรวมข้อมูลจากทุก Source
         cv_features = self.predict_damage(image_path)
         gee = get_environment_data(lat, lon)
         gis = get_road_type(lat, lon)
         
         # ป้องกัน error ถ้าไม่มีฟังก์ชัน get_poi_data ใน gee_integration.py
         try:
-            poi = get_poi_data(lat, lon, radius_meters=500)
+            poi = get_poi_data(lat, lon, radius_meters=1000)
         except NameError:
-            poi = {"community_impact_score_pi": 0}
+            poi = {"community_impact_score_pi": 0, "nearest_poi_distance_m": 1000.0}
             
         crowd = real_crowd_data if real_crowd_data else get_crowdsource_data(lat, lon)
         
@@ -115,23 +139,45 @@ class PRIIGSAIEngine:
             material=gee.get("estimated_material", "ไม่ระบุ"),
             road_type_enc=road_type_encoded,
             crowd_30d=crowd.get("crowdsource_report_count_30d", 0),
-            comm_impact=poi.get("community_impact_score_pi", 0.0)
+            comm_impact=poi.get("community_impact_score_pi", 0.0),
+            slope=gee.get("slope_deg", 0.0),
+            lanes=gis.get("lanes", 2),
+            speed_limit=gis.get("speed_limit", 50.0),
+            nearest_poi_distance_m=poi.get("nearest_poi_distance_m", 1000.0)
         )
 
-        # 3. สั่งคำนวณคะแนนจากทั้ง 3 ระบบ
-        heur_score = heuristic_engine.predict_ppi(fusion_data)
-        fuzzy_score = fuzzy_engine.predict_ppi(fusion_data)
-        ml_score = ml_engine.predict_ppi(fusion_data)
-
-        # 4. ตัดสินใจสถานะ (ใช้คะแนน ML เป็นหลักในการตัดสินใจ)
-        primary_score = ml_score
+        # 🛑 3. Sanity Check (ตัวกรองข้อมูลขยะ / False Positive)
+        is_anomaly = False
+        anomaly_reason = ""
         
-        if primary_score >= 50:
-            final_decision = "Critical (ต้องซ่อมแซมด่วน)"
-        elif primary_score >= 20:
-            final_decision = "Warning (ควรเฝ้าระวัง)"
+        if fusion_data.ndvi_index > 0.6:
+            is_anomaly = True
+            anomaly_reason = "GPS does not match the uploaded image"
+        elif fusion_data.ndvi_index < -0.1:
+            is_anomaly = True
+            anomaly_reason = "GPS does not match the uploaded image"
+
+        # 4. สั่งคำนวณคะแนนจากทั้ง 3 ระบบ
+        if is_anomaly:
+            heur_score = 0.0
+            fuzzy_score = 0.0
+            ml_score = 0.0
+            primary_score = 0.0
+            final_decision = f"Rejected: {anomaly_reason}"
         else:
-            final_decision = "Good (สภาพปกติ)"
+            heur_score = heuristic_engine.predict_ppi(fusion_data)
+            fuzzy_score = fuzzy_engine.predict_ppi(fusion_data)
+            ml_score = ml_engine.predict_ppi(fusion_data)
+
+            # 5. ตัดสินใจสถานะ
+            primary_score = ml_score
+            
+            if primary_score >= 50:
+                final_decision = "Critical (ต้องซ่อมแซมด่วน)"
+            elif primary_score >= 20:
+                final_decision = "Warning (ควรเฝ้าระวัง)"
+            else:
+                final_decision = "Good (สภาพปกติ)"
 
         # เวกเตอร์คุณลักษณะเดิม (เก็บไว้เผื่อ Frontend เดิมต้องการใช้)
         cv_vector = [
@@ -141,7 +187,7 @@ class PRIIGSAIEngine:
         ]
         legacy_feature_vector = cv_vector + [fusion_data.rainfall_12m, fusion_data.soil_moisture, fusion_data.ndvi_index, road_type_encoded]
 
-        # 5. จัดรูปแบบผลลัพธ์ส่งกลับไปให้ Router บันทึกลง Database
+        # 6. จัดรูปแบบผลลัพธ์ส่งกลับไปให้ Router
         fusion_result = {
             "feature_vector": legacy_feature_vector,
             "heuristic_score": round(heur_score, 2),

@@ -20,13 +20,15 @@
 
 เพื่อความปลอดภัยและข้อจำกัดเรื่องขนาดไฟล์ของ GitHub ระบบได้ตั้งค่า `.gitignore` ไม่ให้อัปโหลดไฟล์ที่มีขนาดใหญ่มากและไฟล์กุญแจส่วนตัว (Private Keys) ขึ้นบน Git 
 
-**คุณต้องขอไฟล์ 3 ไฟล์นี้จากหัวหน้าทีมหรือแอดมิน และนำไปวางไว้ในโฟลเดอร์ให้ถูกต้องก่อนเริ่มระบบ:**
+**คุณต้องขอไฟล์ 4 ไฟล์นี้จากหัวหน้าทีมหรือแอดมิน และนำไปวางไว้ในโฟลเดอร์ให้ถูกต้องก่อนเริ่มระบบ:**
 
 1. **`best.pt`** (ไฟล์โมเดล PyTorch ของ RT-DETR ขนาดประมาน 66MB)
    * ให้นำไปวางไว้ที่โฟลเดอร์นอกสุดของ `/backend`
-2. **`ppi_rf_model.pkl`** (ไฟล์โมเดล Random Forest ขนาดประมาน 2.5MB)
+2. **`best-road-classifier.pt`** (ไฟล์โมเดล YOLO สำหรับคัดกรองรูปภาพถนน ขนาดประมาน 3MB)
    * ให้นำไปวางไว้ที่โฟลเดอร์นอกสุดของ `/backend`
-3. **`Road-maintain.json`** (ไฟล์ Google Cloud Service Account Key)
+3. **`ppi_rf_model.pkl`** (ไฟล์โมเดล Random Forest ขนาดประมาน 2.5MB)
+   * ให้นำไปวางไว้ที่โฟลเดอร์นอกสุดของ `/backend`
+4. **`Road-maintain.json`** (ไฟล์ Google Cloud Service Account Key)
    * ให้นำไปวางไว้ในโฟลเดอร์ `/backend/app/services/`
 
 ---
@@ -67,6 +69,7 @@
    # ตั้งค่า Google Earth Engine (ใส่ Email Service Account ของโปรเจกต์)
    GEE_SERVICE_ACCOUNT=your-service-account@your-project-id.iam.gserviceaccount.com
    GEE_KEY_PATH=./app/services/Road-maintain.json
+   GEE_PROJECT_ID=sturdy-web-472311-a8
    ```
 
 ---

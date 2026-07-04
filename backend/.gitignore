@@ -25,6 +25,7 @@ uploads/
 
 # Large Machine Learning Models
 best.pt
+best-road-classifier.pt
 *.pt
 *.pkl
 ppi_rf_model.pkl

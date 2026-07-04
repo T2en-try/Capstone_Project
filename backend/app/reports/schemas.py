@@ -5,7 +5,7 @@ Road Report Backend - Pydantic Schemas
 
 from datetime import datetime
 from typing import Optional, Dict, Any
-from pydantic import BaseModel, Field, computed_field
+from pydantic import BaseModel, Field, computed_field, ConfigDict
 
 
 # ─── Request Schemas ───────────────────────────────────────────
@@ -51,12 +51,16 @@ class AIAnalysisResponse(BaseModel):
     ndvi_index: float
     estimated_surface_material: Optional[str] = None
     nightlight_radiance: float = 0.0
+    slope: float = 0.0
 
     # OSM Context
     road_name: Optional[str] = None
     road_type: Optional[str] = None
     osm_highway_type: Optional[str] = None
+    lanes: int = 2
+    speed_limit: float = 50.0
     community_impact_score_pi: int
+    nearest_poi_distance_m: float = 1000.0
 
     # Crowdsource Context
     crowdsource_report_count_30d: int
@@ -73,8 +77,7 @@ class AIAnalysisResponse(BaseModel):
     final_decision: str
     analyzed_at: datetime
 
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True, protected_namespaces=())
 
 
 class ReportResponse(BaseModel):
@@ -125,12 +128,19 @@ class ReportResponse(BaseModel):
                     "rainfall_last_12m_mm": ana.rainfall_last_12m_mm,
                     "soil_moisture_last_30d_mm": ana.soil_moisture_last_30d_mm,
                     "ndvi_index": ana.ndvi_index,
-                    "estimated_material": ana.estimated_surface_material
+                    "estimated_material": ana.estimated_surface_material,
+                    "slope_deg": ana.slope
                 },
                 "gis": {
                     "road_name": ana.road_name,
                     "osm_highway_type": ana.osm_highway_type,
-                    "thai_road_type": ana.road_type
+                    "thai_road_type": ana.road_type,
+                    "lanes": ana.lanes,
+                    "speed_limit": ana.speed_limit
+                },
+                "poi": {
+                    "community_impact_score_pi": ana.community_impact_score_pi,
+                    "nearest_poi_distance_m": ana.nearest_poi_distance_m
                 },
                 "crowdsource": {
                     "crowdsource_report_count_30d": ana.crowdsource_report_count_30d,

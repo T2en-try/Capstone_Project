@@ -112,12 +112,16 @@ class AIAnalysis(Base):
     ndvi_index = Column(Float, default=0.0, comment="ดัชนีพื้นที่สีเขียว/พืชพรรณ NDVI")
     estimated_surface_material = Column(String(100), nullable=True, comment="ประเภทวัสดุผิวถนนที่ประเมินจาก Sentinel-2")
     nightlight_radiance = Column(Float, default=0.0, comment="ความเข้มข้นแสงไฟกลางคืน (Nightlight Radiance)")
+    slope = Column(Float, default=0.0, comment="ความลาดชันของพื้นที่ (องศา)")
 
     # 3. OSM GIS Context Features
     road_name = Column(String(255), nullable=True, comment="ชื่อถนนที่รายงานจาก OpenStreetMap")
     road_type = Column(String(100), nullable=True, comment="ประเภทถนน (Primary, Secondary, Local)")
     osm_highway_type = Column(String(100), nullable=True, comment="ประเภทถนนแบบ Raw Tag (OSM Highway)")
+    lanes = Column(Integer, default=2, comment="จำนวนเลนของถนน")
+    speed_limit = Column(Float, default=50.0, comment="ความเร็วจำกัดของถนน (km/h)")
     community_impact_score_pi = Column(Integer, default=0, comment="คะแนนผลกระทบชุมชนประเมินจาก POIs (โรงพยาบาล/โรงเรียน)")
+    nearest_poi_distance_m = Column(Float, default=1000.0, comment="ระยะห่างไปยังสถานที่สำคัญที่ใกล้ที่สุด (เมตร)")
 
     # 4. Crowdsourced Context Features
     crowdsource_report_count_30d = Column(Integer, default=0, comment="จำนวนการรายงานในรัศมีรอบๆ 30 วันที่ผ่านมา")

@@ -25,6 +25,8 @@ scikit-fuzzy
 
 # --- External Services ---
 earthengine-api
+osmnx
+networkx
 
 # --- Cloud Storage & Postgres ---
 asyncpg==0.29.0
