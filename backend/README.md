@@ -1,4 +1,4 @@
-# ระบบหลังบ้าน (Backend) - PRIIGS AI Road Assessment System
+# ระบบหลังบ้าน (Backend) 
 
 โปรเจกต์นี้คือระบบ Backend สำหรับจัดการและประเมินสภาพถนนด้วยเทคโนโลยี AI Multi-Fusion โดยใช้ **RT-DETR** สำหรับการตรวจจับภาพ (Computer Vision), **Google Earth Engine (GEE)** สำหรับข้อมูลสภาพแวดล้อม, **OpenStreetMap (OSM)** สำหรับข้อมูลภูมิสารสนเทศ (GIS), และใช้ระบบตัดสินใจ (DSS) ที่ผสานโมเดล 3 รูปแบบเข้าด้วยกัน ได้แก่ Heuristic, Fuzzy Logic, และ Random Forest ML
 
