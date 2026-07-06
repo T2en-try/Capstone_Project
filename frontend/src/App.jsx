@@ -1,5 +1,5 @@
 import React from 'react';
-import DashboardPage from './pages/DashboardPage';
+import DashboardPage from './pages/user/DashboardPage';
 
 // --- Fix Leaflet default marker icon ---
 import L from 'leaflet';

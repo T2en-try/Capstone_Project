@@ -2,13 +2,23 @@ import ee
 import requests
 from datetime import datetime, timedelta
 import random 
+import os
+import osmnx as ox
+import networkx as nx
 
-# เริ่มต้นการเชื่อมต่อ (ใช้ Project ID ของคุณ)
-SERVICE_ACCOUNT = 'road-remaining-life-prediction@sturdy-web-472311-a8.iam.gserviceaccount.com'
-KEY_PATH = 'app/services/Road-maintain.json'
+# เริ่มต้นการเชื่อมต่อ
+SERVICE_ACCOUNT = os.getenv("GEE_SERVICE_ACCOUNT")
+KEY_PATH = os.getenv("GEE_KEY_PATH")
+PROJECT_ID = os.getenv("GEE_PROJECT_ID")
 
-credentials = ee.ServiceAccountCredentials(SERVICE_ACCOUNT, KEY_PATH)
-ee.Initialize(credentials, project='sturdy-web-472311-a8')
+if not SERVICE_ACCOUNT or not KEY_PATH or not PROJECT_ID:
+    print("⚠️ WARNING: GEE_SERVICE_ACCOUNT, GEE_KEY_PATH, or GEE_PROJECT_ID is missing from environment variables!")
+else:
+    try:
+        credentials = ee.ServiceAccountCredentials(SERVICE_ACCOUNT, KEY_PATH)
+        ee.Initialize(credentials, project=PROJECT_ID)
+    except Exception as e:
+        print(f"⚠️ Failed to initialize Google Earth Engine: {e}")
 
 def get_environment_data(lat, lon):
     """
@@ -32,6 +42,8 @@ def get_environment_data(lat, lon):
     soil_moisture = 0
     ndvi_value = 0
     estimated_material = "ไม่ระบุ"
+    elevation = 0
+    slope = 0
 
     # 1. Nightlight (ความพลุกพล่าน)
     try:
@@ -66,36 +78,51 @@ def get_environment_data(lat, lon):
     except Exception as e:
         print(f"⚠️ ข้ามการดึง Soil Moisture: {e}")
 
-    # 4. NDVI (ดัชนีพืชพรรณ)
-    try:
-        modis_ndvi = ee.ImageCollection('MODIS/061/MOD13Q1') \
-                      .filterBounds(point).filterDate(start_date_ndvi, end_date_recent).mean()
-        val = modis_ndvi.select('NDVI').reduceRegion(
-            reducer=ee.Reducer.first(), geometry=point, scale=250
-        ).get('NDVI').getInfo()
-        if val: ndvi_value = val * 0.0001
-    except Exception as e:
-        print(f"⚠️ ข้ามการดึง NDVI: {e}")
-
-    # 5. Surface Material (จำแนกคอนกรีต vs ยางมะตอย ด้วย Sentinel-2)
+    # 4. NDVI & Surface Material (Sentinel-2 แทน MODIS)
     try:
         s2 = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED') \
                .filterBounds(point).filterDate(start_date_ndvi, end_date_recent) \
                .filter(ee.Filter.lt('CLOUDY_PIXEL_PERCENTAGE', 20)).median()
-        val = s2.select('B4').reduceRegion(
+               
+        # คำนวณ NDVI จาก B8 (NIR) และ B4 (Red)
+        ndvi = s2.normalizedDifference(['B8', 'B4'])
+        val_ndvi = ndvi.reduceRegion(
+            reducer=ee.Reducer.first(), geometry=point, scale=10
+        ).get('nd').getInfo()
+        
+        if val_ndvi is not None: ndvi_value = val_ndvi
+
+        val_b4 = s2.select('B4').reduceRegion(
             reducer=ee.Reducer.first(), geometry=point, scale=10
         ).get('B4').getInfo()
         
-        if val:
+        if val_b4:
             # ใช้ NDVI เช็คก่อนว่าใช่ถนนแน่หรือเปล่า
             if ndvi_value > 0.3:
                 estimated_material = "พื้นที่ป่า/ทางดิน (พืชพรรณหนาแน่น)"
-            elif val > 1500: # ถ้าสะท้อนแสงสว่างมาก = คอนกรีต
+            elif val_b4 > 1500: # ถ้าสะท้อนแสงสว่างมาก = คอนกรีต
                 estimated_material = "คอนกรีต (Concrete)"
             else: # ถ้าสะท้อนแสงน้อยดูดซับความร้อน = ยางมะตอย
                 estimated_material = "ยางมะตอย (Asphalt)"
     except Exception as e:
-        print(f"⚠️ ข้ามการดึง Surface Material: {e}")
+        print(f"⚠️ ข้ามการดึง Sentinel-2 (NDVI & Material): {e}")
+
+    # 5. Elevation & Slope (SRTM DEM)
+    try:
+        dem = ee.Image('USGS/SRTMGL1_003')
+        terrain = ee.Terrain.products(dem) # มีทั้ง elevation และ slope
+        
+        elev_val = terrain.select('elevation').reduceRegion(
+            reducer=ee.Reducer.first(), geometry=point, scale=30
+        ).get('elevation').getInfo()
+        if elev_val is not None: elevation = elev_val
+        
+        slope_val = terrain.select('slope').reduceRegion(
+            reducer=ee.Reducer.first(), geometry=point, scale=30
+        ).get('slope').getInfo()
+        if slope_val is not None: slope = slope_val
+    except Exception as e:
+        print(f"⚠️ ข้ามการดึง Elevation & Slope: {e}")
 
     return {
         "date_analyzed": today.strftime('%Y-%m-%d'),
@@ -103,57 +130,74 @@ def get_environment_data(lat, lon):
         "rainfall_last_12m_mm": round(rainfall, 2),
         "soil_moisture_last_30d_mm": round(soil_moisture, 4),
         "ndvi_index": round(ndvi_value, 4),
-        "estimated_material": estimated_material  
+        "estimated_material": estimated_material,
+        "elevation_m": round(elevation, 2),
+        "slope_deg": round(slope, 2)
     }
 
-def get_road_type(lat, lon, radius_meters=10):
+def get_road_type(lat, lon, radius_meters=50):
     """
-    ฟังก์ชันดึงประเภทถนนจากพิกัด GPS โดยใช้ OpenStreetMap (Overpass API)
+    ฟังก์ชันดึงประเภทถนน เลน ความเร็วจำกัด จากพิกัด GPS โดยใช้ OSMnx
     """
-    print("กำลังตรวจสอบประเภทถนนจาก OpenStreetMap...")
+    print("กำลังตรวจสอบประเภทถนนจาก OSMnx...")
     
-    overpass_url = "http://overpass-api.de/api/interpreter"
-    overpass_query = f"""
-    [out:json];
-    way(around:{radius_meters},{lat},{lon})["highway"];
-    out tags;
-    """
+    highway_type = 'unknown'
+    road_name = 'ไม่มีชื่อถนน'
+    lanes = 2
+    speed_limit = 50.0
     
     try:
-        headers = {'User-Agent': 'RoadReport-CapstoneProject/1.0'}
-        response = requests.post(overpass_url, data={'data': overpass_query}, headers=headers)
-        response.raise_for_status()
-        data = response.json()
+        # ใช้ OSMnx ดึงกราฟถนนบริเวณพิกัดแบบ Drive
+        G = ox.graph_from_point((lat, lon), dist=radius_meters, network_type='drive')
         
-        if data['elements']:
-            road_tags = data['elements'][0].get('tags', {})
-            highway_type = road_tags.get('highway', 'unknown')
-            road_name = road_tags.get('name', 'ไม่มีชื่อถนน')
+        if G and len(G.edges) > 0:
+            nearest_edge = ox.nearest_edges(G, X=lon, Y=lat)
+            edge_data = G.get_edge_data(nearest_edge[0], nearest_edge[1])[0]
             
-            road_type_mapping = {
-                'motorway': 'ทางด่วนพิเศษ',
-                'trunk': 'ทางหลวงแผ่นดิน',
-                'primary': 'ถนนสายหลัก',
-                'secondary': 'ถนนสายรอง',
-                'tertiary': 'ถนนท้องถิ่น',
-                'unclassified': 'ถนนในพื้นที่',
-                'residential': 'ถนนในหมู่บ้าน/ชุมชน',
-                'service': 'ซอย/ถนนบริการ'
-            }
+            hw = edge_data.get('highway', 'unknown')
+            highway_type = hw[0] if isinstance(hw, list) else hw
             
-            thai_road_type = road_type_mapping.get(highway_type, highway_type)
+            nm = edge_data.get('name', 'ไม่มีชื่อถนน')
+            road_name = nm[0] if isinstance(nm, list) else nm
             
-            return {
-                "road_name": road_name,
-                "osm_highway_type": highway_type,
-                "thai_road_type": thai_road_type
-            }
-        else:
-             return {"road_name": "ไม่พบข้อมูล", "osm_highway_type": "none", "thai_road_type": "ไม่ใช่ถนน/ไม่พบข้อมูล"}
-             
+            ln = edge_data.get('lanes')
+            if ln:
+                if isinstance(ln, list): ln = ln[0]
+                try: lanes = int(ln)
+                except ValueError: pass
+                
+            ms = edge_data.get('maxspeed')
+            if ms:
+                if isinstance(ms, list): ms = ms[0]
+                import re
+                ms_cleaned = re.sub(r'[^\d.]', '', str(ms))
+                try: 
+                    if ms_cleaned: speed_limit = float(ms_cleaned)
+                except ValueError: pass
+                
     except Exception as e:
-        print(f"เกิดข้อผิดพลาดในการดึงข้อมูล OSM: {e}")
-        return {"road_name": "error", "osm_highway_type": "error", "thai_road_type": "error"}
+        print(f"เกิดข้อผิดพลาดในการดึงข้อมูล OSMnx (Road): {e}")
+        
+    road_type_mapping = {
+        'motorway': 'ทางด่วนพิเศษ',
+        'trunk': 'ทางหลวงแผ่นดิน',
+        'primary': 'ถนนสายหลัก',
+        'secondary': 'ถนนสายรอง',
+        'tertiary': 'ถนนท้องถิ่น',
+        'unclassified': 'ถนนในพื้นที่',
+        'residential': 'ถนนในหมู่บ้าน/ชุมชน',
+        'service': 'ซอย/ถนนบริการ'
+    }
+    
+    thai_road_type = road_type_mapping.get(highway_type, highway_type)
+    
+    return {
+        "road_name": road_name,
+        "osm_highway_type": highway_type,
+        "thai_road_type": thai_road_type,
+        "lanes": lanes,
+        "speed_limit": speed_limit
+    }
 
 def get_crowdsource_data(lat, lon, radius_meters=50):
     """
@@ -179,53 +223,67 @@ def get_crowdsource_data(lat, lon, radius_meters=50):
         "user_severity_score_avg": avg_severity_score
     }
 
-def get_poi_data(lat, lon, radius_meters=500):
+def get_poi_data(lat, lon, radius_meters=1000):
     """
     ฟังก์ชันดึงข้อมูลสถานที่สำคัญ (โรงพยาบาล, โรงเรียน, ร้านสะดวกซื้อ/เซเว่น) 
-    ในรัศมีที่กำหนด เพื่อคำนวณผลกระทบต่อชุมชน (Community Impact)
+    โดยใช้ OSMnx และหาระยะห่างไปยัง POI สำคัญที่ใกล้ที่สุด
     """
-    print(f"กำลังตรวจสอบสถานที่สำคัญ (POIs) ในรัศมี {radius_meters} เมตร...")
+    print(f"กำลังตรวจสอบสถานที่สำคัญ (POIs) ในรัศมี {radius_meters} เมตรจาก OSMnx...")
     
-    overpass_url = "http://overpass-api.de/api/interpreter"
+    poi_count = 0
+    hospitals = 0
+    schools = 0
+    shops = 0
+    pi_score = 0
+    nearest_poi_distance_m = float(radius_meters)
     
-    # Query หา โรงพยาบาล, คลินิก, โรงเรียน, มหาวิทยาลัย, เซเว่น/ซูเปอร์มาร์เก็ต
-    overpass_query = f"""
-    [out:json];
-    (
-      node(around:{radius_meters},{lat},{lon})["amenity"~"hospital|clinic|school|university"];
-      node(around:{radius_meters},{lat},{lon})["shop"~"supermarket|convenience|mall"];
-    );
-    out center;
-    """
+    tags = {
+        'amenity': ['hospital', 'clinic', 'school', 'university'],
+        'shop': ['supermarket', 'convenience', 'mall']
+    }
     
     try:
-        headers = {'User-Agent': 'RoadReport-CapstoneProject/1.0'}
-        response = requests.post(overpass_url, data={'data': overpass_query}, headers=headers)
-        response.raise_for_status()
-        data = response.json()
-        
-        elements = data.get('elements', [])
-        poi_count = len(elements)
-        
-        # จัดกลุ่มประเภทสถานที่ที่เจอ
-        hospitals = sum(1 for el in elements if el.get('tags', {}).get('amenity') in ['hospital', 'clinic'])
-        schools = sum(1 for el in elements if el.get('tags', {}).get('amenity') in ['school', 'university'])
-        shops = sum(1 for el in elements if el.get('tags', {}).get('shop') in ['supermarket', 'convenience', 'mall'])
-        
-        # คำนวณคะแนน P_i เบื้องต้น (ถ่วงน้ำหนัก: รพ.=3, โรงเรียน=2, ร้านค้า=1)
-        pi_score = (hospitals * 3) + (schools * 2) + (shops * 1)
-        
-        return {
-            "total_pois_found": poi_count,
-            "hospitals_count": hospitals,
-            "schools_count": schools,
-            "shops_count": shops,
-            "community_impact_score_pi": pi_score
-        }
-        
+        try:
+            pois = ox.features_from_point((lat, lon), tags, dist=radius_meters)
+        except AttributeError:
+            pois = ox.geometries_from_point((lat, lon), tags, dist=radius_meters)
+            
+        if not pois.empty:
+            poi_count = len(pois)
+            
+            if 'amenity' in pois.columns:
+                hospitals = len(pois[pois['amenity'].isin(['hospital', 'clinic'])])
+                schools = len(pois[pois['amenity'].isin(['school', 'university'])])
+            
+            if 'shop' in pois.columns:
+                shops = len(pois[pois['shop'].isin(['supermarket', 'convenience', 'mall'])])
+            
+            from shapely.geometry import Point
+            import geopandas as gpd
+            
+            center_point = Point(lon, lat)
+            center_gdf = gpd.GeoDataFrame(geometry=[center_point], crs="EPSG:4326")
+            
+            pois = pois.to_crs(center_gdf.estimate_utm_crs())
+            center_gdf = center_gdf.to_crs(pois.crs)
+            
+            distances = pois.geometry.distance(center_gdf.geometry.iloc[0])
+            if not distances.empty:
+                nearest_poi_distance_m = float(distances.min())
+            
+            pi_score = (hospitals * 3) + (schools * 2) + (shops * 1)
+            
     except Exception as e:
-        print(f"เกิดข้อผิดพลาดในการดึงข้อมูล POIs: {e}")
-        return {"total_pois_found": 0, "hospitals_count": 0, "schools_count": 0, "shops_count": 0, "community_impact_score_pi": 0}
+        print(f"เกิดข้อผิดพลาดในการดึงข้อมูล POIs จาก OSMnx: {e}")
+
+    return {
+        "total_pois_found": poi_count,
+        "hospitals_count": hospitals,
+        "schools_count": schools,
+        "shops_count": shops,
+        "community_impact_score_pi": pi_score,
+        "nearest_poi_distance_m": round(nearest_poi_distance_m, 2)
+    }
 
 # ==========================================
 # ทดสอบการเรียกใช้งานแบบครบวงจร (Full Pipeline)
@@ -251,12 +309,16 @@ if __name__ == "__main__":
     print(f"\n--- 🌟 สรุปข้อมูล Feature Vector เตรียมเข้า Model 🌟 ---")
     print(f"พิกัด (Lat, Lon): {target_lat}, {target_lon}")
     print(f"[{'GIS':<12}] ประเภทถนน: {road_data['thai_road_type']} (OSM Tag: {road_data['osm_highway_type']})")
+    print(f"[{'GIS':<12}] เลน: {road_data['lanes']}, ความเร็วจำกัด: {road_data['speed_limit']} km/h")
     print(f"[{'GIS':<12}] ผลกระทบชุมชน (POIs): พบ {poi_data['total_pois_found']} แห่ง (รพ:{poi_data['hospitals_count']}, รร:{poi_data['schools_count']}, ร้านค้า:{poi_data['shops_count']}) -> Score: {poi_data['community_impact_score_pi']}")
+    print(f"[{'GIS':<12}] ระยะห่าง POI ที่ใกล้ที่สุด: {poi_data['nearest_poi_distance_m']} เมตร")
     print(f"[{'GEE':<12}] วัสดุพื้นผิว (Surface): {gee_data['estimated_material']}")
     print(f"[{'GEE':<12}] ความพลุกพล่าน (Nightlight): {gee_data['nightlight_radiance']}")
     print(f"[{'GEE':<12}] ปริมาณฝน 1 ปี (Rainfall): {gee_data['rainfall_last_12m_mm']} mm")
     print(f"[{'GEE':<12}] ความชื้นดิน 30 วัน (Soil Moisture): {gee_data['soil_moisture_last_30d_mm']} mm")
     print(f"[{'GEE':<12}] ดัชนีพืชพรรณ (NDVI): {gee_data['ndvi_index']}")
+    print(f"[{'GEE':<12}] ระดับความสูง (Elevation): {gee_data['elevation_m']} m")
+    print(f"[{'GEE':<12}] ความลาดชัน (Slope): {gee_data['slope_deg']} องศา")
     
     # แสดงข้อมูล Crowdsource
     if crowd_data['crowdsource_report_count_30d'] > 0:

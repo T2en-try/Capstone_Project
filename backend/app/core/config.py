@@ -13,7 +13,9 @@ class Settings:
     """Application settings loaded from environment variables."""
 
     # Database
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./road_reports.db")
+    DATABASE_URL = os.getenv("DATABASE_URL")
+    if not DATABASE_URL:
+        raise ValueError("DATABASE_URL environment variable is not set")
 
     # Server
     HOST: str = os.getenv("HOST", "0.0.0.0")
@@ -30,6 +32,9 @@ class Settings:
         "ALLOWED_ORIGINS",
         "http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173,http://localhost:5500"
     ).split(",")
+
+    # Google Earth Engine
+    GEE_PROJECT_ID: str = os.getenv("GEE_PROJECT_ID", "")
 
 
 settings = Settings()

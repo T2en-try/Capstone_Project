@@ -1,6 +1,6 @@
 """
 Road Report Backend - Database Module
-โมดูลจัดการการเชื่อมต่อฐานข้อมูล (SQLAlchemy Async)
+โมดูลจัดการการเชื่อมต่อฐานข้อมูล (SQLAlchemy Async - PostgreSQL)
 """
 
 from collections.abc import AsyncGenerator
@@ -11,10 +11,14 @@ from sqlalchemy.orm import DeclarativeBase
 from app.core.config import settings
 
 
-# สร้าง Async Engine และตั้งค่า `connect_args` เฉพาะเมื่อใช้ SQLite
-engine_kwargs = {"echo": False}
-if settings.DATABASE_URL.startswith("sqlite"):
-    engine_kwargs["connect_args"] = {"check_same_thread": False}
+# ตั้งค่า Connection Pool สำหรับ PostgreSQL ใน Production เพื่อประสิทธิภาพการทำงานที่ดียิ่งขึ้น
+engine_kwargs = {
+    "echo": False,
+    "pool_size": 20,           # ขนาดตั้งต้นของ connection pool
+    "max_overflow": 10,        # จำนวน connection สูงสุดที่จะขยายออกไปได้ชั่วคราว
+    "pool_recycle": 1800,      # หมุนเวียนเชื่อมต่อใหม่ทุก 30 นาทีเพื่อเลี่ยง connection หลุด
+    "pool_pre_ping": True,     # ping ทดสอบการเชื่อมต่อก่อนดึงจาก pool เพื่อกัน connection stale
+}
 
 engine = create_async_engine(settings.DATABASE_URL, **engine_kwargs)
 
@@ -46,3 +50,4 @@ async def init_db():
     """สร้างตารางทั้งหมดในฐานข้อมูล (ถ้ายังไม่มี)"""
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
