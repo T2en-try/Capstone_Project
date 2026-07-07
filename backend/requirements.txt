@@ -9,6 +9,7 @@ requests
 
 # --- Database ---
 sqlalchemy==2.0.35
+aiosqlite==0.20.0
 greenlet
 
 # --- AI, Image & GPS Processing ---
