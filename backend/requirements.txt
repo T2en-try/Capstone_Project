@@ -1,9 +1,9 @@
 # --- Web & API ---
-fastapi==0.115.0
+fastapi>=0.139.0
 uvicorn==0.30.6
-python-multipart==0.0.9
+python-multipart>=0.0.30
 pydantic==2.9.2
-python-dotenv==1.0.1
+python-dotenv>=1.2.2
 aiofiles==24.1.0
 requests
 
@@ -18,7 +18,7 @@ torchvision
 ultralytics
 opencv-python-headless
 numpy
-Pillow==10.4.0
+Pillow>=12.2.0
 exifread==3.0.0
 pandas
 scikit-learn
