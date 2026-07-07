@@ -35,6 +35,8 @@ class Settings:
 
     # Google Earth Engine
     GEE_PROJECT_ID: str = os.getenv("GEE_PROJECT_ID", "")
+    GEE_SERVICE_ACCOUNT: str = os.getenv("GEE_SERVICE_ACCOUNT", "")
+    GEE_KEY_PATH: str = os.getenv("GEE_KEY_PATH", "")
 
 
 settings = Settings()

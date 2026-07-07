@@ -1,7 +1,10 @@
 # ระบบหลังบ้าน (Backend) - PRIIGS AI Road Assessment System
 
-โปรเจกต์นี้คือระบบ Backend สำหรับจัดการและประเมินสภาพถนนด้วยเทคโนโลยี AI Multi-Fusion โดยใช้ **RT-DETR** สำหรับการตรวจจับภาพ (Computer Vision), **Google Earth Engine (GEE)** สำหรับข้อมูลสภาพแวดล้อม, **OpenStreetMap (OSM)** สำหรับข้อมูลภูมิสารสนเทศ (GIS), และใช้ระบบตัดสินใจ (DSS) ที่ผสานโมเดล 3 รูปแบบเข้าด้วยกัน ได้แก่ Heuristic, Fuzzy Logic, และ Random Forest ML
-
+โปรเจกต์นี้คือระบบ Backend สำหรับจัดการและประเมินสภาพถนนด้วยเทคโนโลยี AI Multi-Fusion สถาปัตยกรรมของระบบประกอบไปด้วย:
+1. **YOLO Gatekeeper**: โมเดลสำหรับคัดกรองรูปภาพว่าใช่ถนนหรือไม่ เพื่อลดภาระการประมวลผล
+2. **RT-DETR (Computer Vision)**: โมเดลวิเคราะห์ความเสียหายและคำนวณสัดส่วนรอยแตก
+3. **Google Earth Engine (GEE) & OpenStreetMap (OSM)**: ดึงข้อมูลสภาพแวดล้อม ภูมิประเทศ และสถานที่สำคัญ
+4. **Multi-Fusion Engines**: ระบบช่วยตัดสินใจ (DSS) ที่ทำงานควบคู่กัน 3 รูปแบบ (Heuristic, Fuzzy Logic, Random Forest ML)
 ทำตามคู่มือด้านล่างนี้เพื่อตั้งค่าโปรเจกต์และรันระบบในเครื่องของคุณ
 
 ---
@@ -65,11 +68,14 @@
    # ตั้งค่าที่เก็บไฟล์อัปโหลด
    UPLOAD_DIR=./uploads
    MAX_FILE_SIZE_MB=10
+
+   # ตั้งค่า Allowed Origins สำหรับ CORS
+   ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173
    
    # ตั้งค่า Google Earth Engine (ใส่ Email Service Account ของโปรเจกต์)
    GEE_SERVICE_ACCOUNT=your-service-account@your-project-id.iam.gserviceaccount.com
    GEE_KEY_PATH=./app/services/Road-maintain.json
-   GEE_PROJECT_ID=sturdy-web-472311-a8
+   GEE_PROJECT_ID=your-google-cloud-project-id
    ```
 
 ---
@@ -126,10 +132,17 @@ uvicorn main:app --reload
 
 ระบบจะทำการ Auto-reload ให้ทันทีเมื่อมีการแก้ไขไฟล์ Python ใดๆ
 
+## 8. การใช้งาน API เบื้องต้น (API Endpoints)
+
+* `POST /api/reports/upload`: อัปโหลดรูปภาพ ระบบจะสกัด GPS (หรือใช้จาก Body) จากนั้นส่งเข้าสู่ Gatekeeper, RT-DETR, ดึงข้อมูลจาก GEE/OSM, และประมวลผลคะแนน PPI ผ่าน Fusion Engines ทั้ง 3 แบบ คืนผลลัพธ์พร้อม URL รูปที่วาดกรอบความเสียหาย
+* `GET /api/reports/`: ดึงประวัติการรายงานพร้อมข้อมูลที่ถูกวิเคราะห์แล้ว
+
 ---
 
 ## วิธีแก้ปัญหาเบื้องต้น (Troubleshooting)
 
-* **Google Earth Engine Error**: ลองตรวจสอบดูว่าใส่อีเมลใน `GEE_SERVICE_ACCOUNT` ตรงกับไฟล์ JSON หรือไม่ และแน่ใจว่าวางไฟล์ `Road-maintain.json` ไว้ถูกที่
+* **อัปโหลดภาพแล้วระบบบอกว่าไม่ใช่ถนน (Gatekeeper Rejection)**: ระบบใช้ YOLO Classifier ในการเช็คว่าเป็นถนนหรือไม่ ถ้ารูปไม่ชัดหรือถ่ายติดสิ่งอื่นเยอะ ระบบจะปฏิเสธ (Rejected) เพื่อป้องกัน False Positive
+* **Google Earth Engine Error**: ลองตรวจสอบดูว่าใส่อีเมลใน `GEE_SERVICE_ACCOUNT` ตรงกับไฟล์ JSON หรือไม่ และแน่ใจว่าวางไฟล์ `Road-maintain.json` ไว้ถูกที่ พร้อมระบุ `GEE_PROJECT_ID` ถูกต้อง
 * **Database Connection Error**: เช็คให้ชัวร์ว่าเปิดใช้งาน PostgreSQL ไว้แล้ว (มักจะใช้พอร์ต 5432) และตรวจสอบรหัสผ่านในไฟล์ `.env` ว่าถูกต้อง
-* **หาไฟล์โมเดลไม่เจอ (Model Not Found)**: ตรวจสอบว่าได้นำไฟล์ `best.pt` และ `ppi_rf_model.pkl` มาวางไว้ในโฟลเดอร์ `backend/` แล้วหรือไม่
+* **CORS Error**: หากเรียก API จาก Frontend แล้วติด CORS ให้ตรวจสอบว่า URL ของ Frontend ถูกเพิ่มลงใน `ALLOWED_ORIGINS` ภายในไฟล์ `.env` หรือยัง
+* **หาไฟล์โมเดลไม่เจอ (Model Not Found)**: ตรวจสอบว่าได้นำไฟล์ `best.pt`, `best-road-classifier.pt` และ `ppi_rf_model.pkl` มาวางไว้ในโฟลเดอร์ `backend/` แล้วหรือไม่

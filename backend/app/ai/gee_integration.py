@@ -6,10 +6,12 @@ import os
 import osmnx as ox
 import networkx as nx
 
+from app.core.config import settings
+
 # เริ่มต้นการเชื่อมต่อ
-SERVICE_ACCOUNT = os.getenv("GEE_SERVICE_ACCOUNT")
-KEY_PATH = os.getenv("GEE_KEY_PATH")
-PROJECT_ID = os.getenv("GEE_PROJECT_ID")
+SERVICE_ACCOUNT = settings.GEE_SERVICE_ACCOUNT
+KEY_PATH = settings.GEE_KEY_PATH
+PROJECT_ID = settings.GEE_PROJECT_ID
 
 if not SERVICE_ACCOUNT or not KEY_PATH or not PROJECT_ID:
     print("⚠️ WARNING: GEE_SERVICE_ACCOUNT, GEE_KEY_PATH, or GEE_PROJECT_ID is missing from environment variables!")
