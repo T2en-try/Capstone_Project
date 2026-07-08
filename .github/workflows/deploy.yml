@@ -4,15 +4,7 @@ permissions:
   contents: read
 
 on:
-  push:
-    branches: [ main ]
-    paths:
-      - 'backend/**'
-      - 'frontend/**'
-      - 'nginx/**'
-      - 'docker-compose.yml'
-      - '.github/workflows/deploy.yml'
-  workflow_dispatch:  # Allow manual trigger
+  workflow_dispatch:  # Enable manually after server/secrets are ready
 
 concurrency:
   group: production-deploy
