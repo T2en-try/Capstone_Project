@@ -8,19 +8,28 @@ import networkx as nx
 
 from app.core.config import settings
 
-# เริ่มต้นการเชื่อมต่อ
-SERVICE_ACCOUNT = settings.GEE_SERVICE_ACCOUNT
-KEY_PATH = settings.GEE_KEY_PATH
-PROJECT_ID = settings.GEE_PROJECT_ID
+def init_gee():
+    """
+    Initialize Google Earth Engine during application startup.
+    Fails fast (raises an exception) if configuration is missing or invalid.
+    """
+    print("🌍 กำลังเริ่มต้น Google Earth Engine...")
+    SERVICE_ACCOUNT = settings.GEE_SERVICE_ACCOUNT
+    KEY_PATH = settings.GEE_KEY_PATH
+    PROJECT_ID = settings.GEE_PROJECT_ID
 
-if not SERVICE_ACCOUNT or not KEY_PATH or not PROJECT_ID:
-    print("⚠️ WARNING: GEE_SERVICE_ACCOUNT, GEE_KEY_PATH, or GEE_PROJECT_ID is missing from environment variables!")
-else:
+    if not SERVICE_ACCOUNT or not KEY_PATH or not PROJECT_ID:
+        error_msg = "GEE_SERVICE_ACCOUNT, GEE_KEY_PATH, or GEE_PROJECT_ID is missing from environment variables!"
+        print(f"❌ ERROR: {error_msg}")
+        raise ValueError(error_msg)
+    
     try:
         credentials = ee.ServiceAccountCredentials(SERVICE_ACCOUNT, KEY_PATH)
         ee.Initialize(credentials, project=PROJECT_ID)
+        print("✅ Google Earth Engine พร้อมใช้งาน")
     except Exception as e:
-        print(f"⚠️ Failed to initialize Google Earth Engine: {e}")
+        print(f"❌ Failed to initialize Google Earth Engine: {e}")
+        raise RuntimeError(f"GEE Initialization Failed: {e}")
 
 def get_environment_data(lat, lon):
     """

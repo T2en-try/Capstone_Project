@@ -16,6 +16,7 @@ from app.core.file_utils import ensure_upload_dir
 
 # --- [UPDATE] เปลี่ยนมาใช้ ai_engine ตัวใหม่แทน load_trained_model ---
 from app.ai.engine import ai_engine
+from app.ai.gee_integration import init_gee
 
 
 # ─── Lifespan Event: ทำงานตอนเริ่มต้น/ปิดเซิร์ฟเวอร์ ────────
@@ -27,6 +28,9 @@ async def lifespan(app: FastAPI):
     print("🚀 กำลังเริ่มต้นระบบ Road Report Backend...")
     await init_db()
     ensure_upload_dir()
+
+    # --- เริ่มต้น Google Earth Engine (GEE) ---
+    init_gee()
 
     # --- [UPDATE] โหลดสมองกล RT-DETR ---
     ai_engine.load_model()
