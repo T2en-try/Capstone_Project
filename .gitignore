@@ -8,9 +8,11 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
+*.db
 .env
 venv/
 env/
+.venv/
 .venv-test/
 
 Road-maintain.json
