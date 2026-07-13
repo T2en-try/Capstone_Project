@@ -22,25 +22,24 @@
 กรุณาดาวน์โหลดไฟล์ด้านล่างนี้และนำไปวางในตำแหน่งที่ระบุ:
 
 *   **ไฟล์ `.env`** (ไฟล์ตั้งค่าระบบและฐานข้อมูล)
-    *   **ดาวน์โหลด:** [Download the file from here]
     *   **ตำแหน่งที่ต้องวาง:** `backend/.env` (ให้อยู่ระดับเดียวกับ `main.py`)
-    *   *(ทางเลือก: สามารถก็อปปี้ไฟล์ `.env.example` แล้วเปลี่ยนชื่อเป็น `.env` พร้อมกรอกข้อมูลเองได้)*
+    *   *(ทางเลือก: สามารถก็อปปี้ไฟล์ `.env.example` แล้วเปลี่ยนชื่อเป็น `.env` พร้อมกรอกข้อมูลเองได้ ส่วนตัวข้อมูลข้างในสามารถติดต่อ นายพชร ได้เลย)*
 
 *   **ไฟล์ `Road-maintain.json`** (Google Earth Engine Service Account Credentials)
-    *   **ดาวน์โหลด:** [Download the file from here]
+    *   **ดาวน์โหลด:** https://drive.google.com/file/d/178Pdqw8FzfZYQXhCyU6OI5c6fkjQk3aP/view?usp=drive_link
     *   **ตำแหน่งที่ต้องวาง:** `backend/app/services/Road-maintain.json`
 
 ### 3. ไฟล์โมเดล AI (Machine Learning Weights) ที่ต้องดาวน์โหลด
 โมเดลเหล่านี้มีขนาดใหญ่และไม่ได้ถูกเก็บไว้ใน GitHub กรุณาดาวน์โหลดและนำไปวางในโฟลเดอร์ `backend/`:
 
 *   **ไฟล์ `best.pt`** (โมเดล YOLO/RT-DETR สำหรับตรวจจับความเสียหาย)
-    *   **ดาวน์โหลด:** [Download the file from here]
+    *   **ดาวน์โหลด:** https://drive.google.com/file/d/1f4h86pTPI3jfmHMdIrGkJkLTVxnEQ-Hi/view?usp=drive_link
     *   **ตำแหน่งที่ต้องวาง:** `backend/best.pt`
 *   **ไฟล์ `best-road-classifier.pt`** (โมเดลคัดกรองความถูกต้องของรูปภาพถนน)
-    *   **ดาวน์โหลด:** [Download the file from here]
+    *   **ดาวน์โหลด:** https://drive.google.com/file/d/15kjcDslmFC6e53miRMqkXPjmv6S1Vzxx/view?usp=drive_link
     *   **ตำแหน่งที่ต้องวาง:** `backend/best-road-classifier.pt`
 *   **ไฟล์ `ppi_rf_model_v3.pkl`** (โมเดล Random Forest สำหรับคำนวณ Priority Score)
-    *   **ดาวน์โหลด:** [Download the file from here]
+    *   **ดาวน์โหลด:** https://drive.google.com/file/d/1k7lhW311fNC4fYxsdwhjxJmwzqsyTqPh/view?usp=drive_link
     *   **ตำแหน่งที่ต้องวาง:** `backend/ppi_rf_model_v3.pkl`
 
 ### 4. การรันเซิร์ฟเวอร์
