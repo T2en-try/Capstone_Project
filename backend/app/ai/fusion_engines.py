@@ -88,7 +88,7 @@ class FuzzyFusionEngine:
         ppi = ctrl.Consequent(np.arange(0, 101, 1), 'ppi')
 
         sev['low'] = fuzz.zmf(sev.universe, 1, 3)
-        sev['medium'] = fuzz.trimf(sev.universe, [2, 3, 4])
+        sev['medium'] = fuzz.trapmf(sev.universe, [1, 2, 4, 5])
         sev['high'] = fuzz.smf(sev.universe, 3, 5)
         
         rain.automf(3, names=['low', 'medium', 'high'])
@@ -98,35 +98,38 @@ class FuzzyFusionEngine:
         crowd['few'] = fuzz.zmf(crowd.universe, 2, 15)
         crowd['many'] = fuzz.smf(crowd.universe, 10, 25)
         
-        road_type['local'] = fuzz.trimf(road_type.universe, [0, 1, 2])
-        road_type['highway'] = fuzz.smf(road_type.universe, 1, 3)
+        road_type['local'] = fuzz.zmf(road_type.universe, 1, 2)
+        road_type['main'] = fuzz.trimf(road_type.universe, [1, 2, 3])
+        road_type['highway'] = fuzz.smf(road_type.universe, 2, 3)
         
         impact['low'] = fuzz.zmf(impact.universe, 20, 50)
         impact['high'] = fuzz.smf(impact.universe, 40, 80)
 
-        ppi.automf(3, names=['normal', 'warning', 'critical'])
+        ppi.automf(5, names=['normal', 'watch', 'warning', 'urgent', 'critical'])
 
         # Extended Rule Matrix
         # 1. Extreme Cases
-        r1 = ctrl.Rule(sev['high'] & road_type['highway'], ppi['critical'])
+        r1a = ctrl.Rule(sev['high'] & (road_type['highway'] | road_type['main']), ppi['critical'])
+        r1b = ctrl.Rule(sev['high'] & road_type['local'], ppi['urgent'])
         r2 = ctrl.Rule(sev['high'] & impact['high'], ppi['critical'])
         r3 = ctrl.Rule(sev['high'] & crowd['many'], ppi['critical'])
         
         # 2. Warning Cases
-        r4 = ctrl.Rule(sev['medium'] & road_type['highway'], ppi['warning'])
+        r4a = ctrl.Rule(sev['medium'] & (road_type['highway'] | road_type['main']), ppi['warning'])
+        r4b = ctrl.Rule(sev['medium'] & road_type['local'], ppi['watch'])
         r5 = ctrl.Rule(sev['medium'] & (soil['wet'] | rain['high']), ppi['warning'])
         r6 = ctrl.Rule(sev['medium'] & crowd['many'], ppi['warning'])
-        r7 = ctrl.Rule(sev['low'] & soil['wet'] & rain['high'] & road_type['highway'], ppi['warning'])
+        r7 = ctrl.Rule(sev['low'] & soil['wet'] & rain['high'] & (road_type['highway'] | road_type['main']), ppi['warning'])
 
         # 3. Normal Cases
-        r8 = ctrl.Rule(sev['low'] & soil['dry'] & road_type['local'], ppi['normal'])
+        r8 = ctrl.Rule(sev['low'] & soil['dry'] & (road_type['local'] | road_type['main'] | road_type['highway']), ppi['normal'])
         r9 = ctrl.Rule(sev['low'] & impact['low'] & crowd['few'], ppi['normal'])
         
         # 4. Environment driven
         r10 = ctrl.Rule(rain['medium'] & sev['medium'], ppi['warning'])
         r11 = ctrl.Rule(rain['high'] & road_type['local'], ppi['warning'])
         
-        ppi_ctrl = ctrl.ControlSystem([r1, r2, r3, r4, r5, r6, r7, r8, r9, r10, r11])
+        ppi_ctrl = ctrl.ControlSystem([r1a, r1b, r2, r3, r4a, r4b, r5, r6, r7, r8, r9, r10, r11])
         return ctrl.ControlSystemSimulation(ppi_ctrl)
 
     def predict_ppi(self, data: RoadReportData) -> float:

@@ -36,6 +36,9 @@ venv/
 env/
 .venv/
 
+# Testing Caches
+.pytest_cache/
+
 # IDEs and Editors
 .vscode/
 .idea/

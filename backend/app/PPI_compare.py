@@ -43,38 +43,58 @@ def calculate_heuristic_ppi(data: RoadReportData):
 # วิธีที่ 2: Fuzzy Inference System (ปรับสเกลตามข้อมูล GEE/GIS จริง)
 # =====================================================================
 def setup_fuzzy_system():
-    # 1. กำหนดตัวแปรต้น (คัดเฉพาะตัวแปรหลักที่มีผลต่อ Rule base เพื่อไม่ให้ระบบซับซ้อนเกินไป)
-    sev = ctrl.Antecedent(np.arange(0, 6, 1), 'severity')        # 0 ถึง 5 (D40=5)
-    rain = ctrl.Antecedent(np.arange(0, 3001, 100), 'rainfall')  # 0 ถึง 3000 mm (สะสม 12 เดือน)
-    soil = ctrl.Antecedent(np.arange(0, 1.1, 0.1), 'soil')       # 0.0 ถึง 1.0
-    crowd = ctrl.Antecedent(np.arange(0, 51, 1), 'crowd')        # 0 ถึง 50 แจ้ง
+    sev = ctrl.Antecedent(np.arange(0, 6, 1), 'severity')
+    rain = ctrl.Antecedent(np.arange(0, 3001, 100), 'rainfall')
+    soil = ctrl.Antecedent(np.arange(0, 1.1, 0.1), 'soil')
+    crowd = ctrl.Antecedent(np.arange(0, 51, 1), 'crowd')
+    road_type = ctrl.Antecedent(np.arange(0, 4, 1), 'road_type')
+    impact = ctrl.Antecedent(np.arange(0, 101, 1), 'impact')
     
     ppi = ctrl.Consequent(np.arange(0, 101, 1), 'ppi')
 
-    # 2. แบ่งระดับ (Membership Functions)
-    sev['low'] = fuzz.zmf(sev.universe, 2, 4)
+    sev['low'] = fuzz.zmf(sev.universe, 1, 3)
+    sev['medium'] = fuzz.trapmf(sev.universe, [1, 2, 4, 5])
     sev['high'] = fuzz.smf(sev.universe, 3, 5)
     
     rain.automf(3, names=['low', 'medium', 'high'])
-    soil['dry'] = fuzz.zmf(soil.universe, 0.2, 0.5)
+    soil['dry'] = fuzz.zmf(soil.universe, 0.2, 0.6)
     soil['wet'] = fuzz.smf(soil.universe, 0.4, 0.8)
     
-    crowd['few'] = fuzz.zmf(crowd.universe, 2, 10)
-    crowd['many'] = fuzz.smf(crowd.universe, 5, 20)
+    crowd['few'] = fuzz.zmf(crowd.universe, 2, 15)
+    crowd['many'] = fuzz.smf(crowd.universe, 10, 25)
     
-    ppi.automf(3, names=['normal', 'warning', 'critical'])
+    road_type['local'] = fuzz.zmf(road_type.universe, 1, 2)
+    road_type['main'] = fuzz.trimf(road_type.universe, [1, 2, 3])
+    road_type['highway'] = fuzz.smf(road_type.universe, 2, 3)
+    
+    impact['low'] = fuzz.zmf(impact.universe, 20, 50)
+    impact['high'] = fuzz.smf(impact.universe, 40, 80)
 
-    # 3. ตั้งกฎเชิงตรรกะ (อิงตาม Heuristic ของคุณ)
-    # ถ้าแผลระดับ 5 (พังมาก) หรือ คนแจ้งเยอะมาก -> วิกฤต
-    rule1 = ctrl.Rule(sev['high'] | crowd['many'], ppi['critical'])
-    # ถ้าแผลกลางๆ แต่ดินชื้นและฝนตกหนัก (เสี่ยงถนนทรุด) -> วิกฤต
-    rule2 = ctrl.Rule(sev['low'] & soil['wet'] & rain['high'], ppi['warning'])
-    # ถ้าแผลกลางๆ คนแจ้งน้อย ฝนตกน้อย -> ปกติ
-    rule3 = ctrl.Rule(sev['low'] & soil['dry'] & crowd['few'], ppi['normal'])
-    # Fallback
-    rule4 = ctrl.Rule(rain['medium'], ppi['warning'])
+    ppi.automf(5, names=['normal', 'watch', 'warning', 'urgent', 'critical'])
+
+    # 3. ตั้งกฎเชิงตรรกะ (Extended Rule Matrix)
+    # 1. Extreme Cases
+    r1a = ctrl.Rule(sev['high'] & (road_type['highway'] | road_type['main']), ppi['critical'])
+    r1b = ctrl.Rule(sev['high'] & road_type['local'], ppi['urgent'])
+    r2 = ctrl.Rule(sev['high'] & impact['high'], ppi['critical'])
+    r3 = ctrl.Rule(sev['high'] & crowd['many'], ppi['critical'])
     
-    ppi_ctrl = ctrl.ControlSystem([rule1, rule2, rule3, rule4])
+    # 2. Warning Cases
+    r4a = ctrl.Rule(sev['medium'] & (road_type['highway'] | road_type['main']), ppi['warning'])
+    r4b = ctrl.Rule(sev['medium'] & road_type['local'], ppi['watch'])
+    r5 = ctrl.Rule(sev['medium'] & (soil['wet'] | rain['high']), ppi['warning'])
+    r6 = ctrl.Rule(sev['medium'] & crowd['many'], ppi['warning'])
+    r7 = ctrl.Rule(sev['low'] & soil['wet'] & rain['high'] & (road_type['highway'] | road_type['main']), ppi['warning'])
+
+    # 3. Normal Cases
+    r8 = ctrl.Rule(sev['low'] & soil['dry'] & (road_type['local'] | road_type['main'] | road_type['highway']), ppi['normal'])
+    r9 = ctrl.Rule(sev['low'] & impact['low'] & crowd['few'], ppi['normal'])
+    
+    # 4. Environment driven
+    r10 = ctrl.Rule(rain['medium'] & sev['medium'], ppi['warning'])
+    r11 = ctrl.Rule(rain['high'] & road_type['local'], ppi['warning'])
+    
+    ppi_ctrl = ctrl.ControlSystem([r1a, r1b, r2, r3, r4a, r4b, r5, r6, r7, r8, r9, r10, r11])
     return ctrl.ControlSystemSimulation(ppi_ctrl)
 
 fuzzy_sim = setup_fuzzy_system()
@@ -84,8 +104,13 @@ def calculate_fuzzy_ppi(data: RoadReportData):
     fuzzy_sim.input['rainfall'] = data.rainfall_12m
     fuzzy_sim.input['soil'] = data.soil_moisture
     fuzzy_sim.input['crowd'] = data.crowd_count_30d
-    fuzzy_sim.compute()
-    return fuzzy_sim.output['ppi']
+    fuzzy_sim.input['road_type'] = data.road_type_encoded
+    fuzzy_sim.input['impact'] = data.community_impact_score
+    try:
+        fuzzy_sim.compute()
+        return fuzzy_sim.output['ppi']
+    except Exception:
+        return calculate_heuristic_ppi(data)
 
 # =====================================================================
 # วิธีที่ 3: Machine Learning (Random Forest)
@@ -97,25 +122,25 @@ n_samples = 2000
 # จำลอง Data ตามสเกลระบบจริงของคุณ
 df = pd.DataFrame({
     'cv_ratio': np.random.uniform(5, 80, n_samples),
-    'cv_severity': np.random.choice([2, 4, 5], n_samples), # D00, D20, D40
+    'cv_severity': np.random.choice([0, 2, 4, 5], n_samples), 
     'rain_12m': np.random.uniform(500, 2500, n_samples),
     'soil_moist': np.random.uniform(0.1, 0.8, n_samples),
-    'ndvi': np.random.uniform(0.0, 0.8, n_samples),
-    'is_asphalt': np.random.choice([1, 0], n_samples), # 1=Asphalt, 0=Concrete
-    'road_type_enc': np.random.uniform(1, 10, n_samples),
+    'is_asphalt': np.random.choice([1, 0], n_samples), 
+    'road_type_enc': np.random.uniform(1, 4, n_samples),
     'crowd_30d': np.random.randint(1, 30, n_samples),
-    'comm_impact': np.random.uniform(10, 100, n_samples)
+    'comm_impact': np.random.uniform(10, 100, n_samples),
+    'speed_limit': np.random.choice([30, 50, 80, 90], n_samples)
 })
 
-# สร้าง Label (Y) โดยให้เรียนรู้จาก "สูตร Heuristic ของคุณ" เป็นตัวตั้งต้น (Teacher-Student approach)
+# สร้าง Label (Y) โดยให้เรียนรู้จาก "สูตร Heuristic ของคุณ" เป็นตัวตั้งต้น
 y_train = []
 for _, row in df.iterrows():
     mat = 'Asphalt' if row['is_asphalt'] == 1 else 'Concrete'
+    # Mock data ndvi=0 to fit older constructor if needed, but constructor allows kwargs
     mock_data = RoadReportData(row['cv_ratio'], row['cv_severity'], row['rain_12m'], 
-                               row['soil_moist'], row['ndvi'], mat, 
+                               row['soil_moist'], 0.0, mat, 
                                row['road_type_enc'], row['crowd_30d'], row['comm_impact'])
     
-    # คำนวณสูตรเดิม + ใส่ Noise ให้ข้อมูลดูเป็นธรรมชาติ 
     score = calculate_heuristic_ppi(mock_data) + np.random.normal(0, 5)
     y_train.append(min(100, max(0, score)))
 
@@ -127,9 +152,9 @@ def calculate_ml_ppi(data: RoadReportData):
     X_test = pd.DataFrame({
         'cv_ratio': [data.cv_damage_ratio_percent], 'cv_severity': [data.cv_max_severity_score],
         'rain_12m': [data.rainfall_12m], 'soil_moist': [data.soil_moisture],
-        'ndvi': [data.ndvi_index], 'is_asphalt': [is_asphalt],
+        'is_asphalt': [is_asphalt],
         'road_type_enc': [data.road_type_encoded], 'crowd_30d': [data.crowd_count_30d],
-        'comm_impact': [data.community_impact_score]
+        'comm_impact': [data.community_impact_score], 'speed_limit': [50.0] # Mocked speed limit since older class might not have it
     })
     return ml_model.predict(X_test)[0]
 
