@@ -19,7 +19,7 @@ SEVERITY_WEIGHTS = {
 MODEL_PATH = os.path.join(os.getcwd(), 'best.pt')
 CLASSIFIER_MODEL_PATH = os.path.join(os.getcwd(), 'best-road-classifier.pt')
 
-class PRIIGSAIEngine:
+class AIEngine:
     def __init__(self):
         self.model = None
         self.classifier_model = None
@@ -208,4 +208,4 @@ class PRIIGSAIEngine:
         }
 
 # สร้าง Instance "ai_engine" รอไว้
-ai_engine = PRIIGSAIEngine()
+ai_engine = AIEngine()

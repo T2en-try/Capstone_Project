@@ -128,7 +128,7 @@ class AIAnalysis(Base):
     days_since_last_report = Column(Integer, default=999, comment="จำนวนวันนับตั้งแต่รายงานล่าสุดในรัศมี")
     user_severity_score_avg = Column(Float, default=0.0, comment="ระดับความรุนแรงเฉลี่ยจากการประเมินในบริเวณนั้น")
 
-    # 5. Core Multi-Fusion Scoring Systems (PRIIGS Architecture)
+    # 5. Core Multi-Fusion Scoring Systems (AI Architecture)
     heuristic_score = Column(Float, nullable=True, comment="ดัชนีความสำคัญคำนวณด้วย Rule-based Heuristics")
     fuzzy_score = Column(Float, nullable=True, comment="ดัชนีความสำคัญคำนวณด้วย Fuzzy logic DSS")
     ml_score = Column(Float, nullable=True, comment="ดัชนีความสำคัญทำนายด้วย Machine Learning Model")

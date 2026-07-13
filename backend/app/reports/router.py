@@ -169,7 +169,7 @@ async def upload_report(
         # 5. ประมวลผลวิเคราะห์ด้วย AI Engine (รองรับ RT-DETR + Late Fusion)
         ai_analysis = None
         if ai_engine.model is not None:
-            print(f"🔍 PRIIGS Engine กำลังวิเคราะห์ภาพ: {file_info['filename']}")
+            print(f"🔍 AI Engine กำลังวิเคราะห์ภาพ: {file_info['filename']}")
             try:
                 if final_lat is not None and final_lon is not None:
                     # ทำการ Patch GEE/OSM API ที่ Engine เรียกใช้งานแบบ dynamic ชั่วคราวหากมีแคช
@@ -206,7 +206,7 @@ async def upload_report(
                         "note": "Analysis limited to Computer Vision due to missing GPS"
                     }
             except Exception as ai_err:
-                print(f"⚠️ PRIIGS Engine ประมวลผลผิดพลาด: {ai_err}")
+                print(f"⚠️ AI Engine ประมวลผลผิดพลาด: {ai_err}")
 
         # 6. บันทึกข้อมูลรายงานสภาพถนนผู้ใช้ (RoadReport)
         initial_status = ReportStatus.PENDING
