@@ -33,8 +33,8 @@ osmnx
 networkx
 
 # --- Cloud Storage & Postgres ---
-asyncpg==0.29.0
-psycopg2-binary==2.9.9
+asyncpg>=0.29.0
+psycopg2-binary>=2.9.9 #ให้ยอมรับ version ที่ใหม่กว่า
 boto3==1.35.0
 
 # --- Testing ---

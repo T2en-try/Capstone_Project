@@ -16,6 +16,8 @@ from app.core.database import get_db
 from app.reports.models import RoadReport, AIAnalysis, ApiCacheGeeOsm, ReportStatus
 from app.reports.schemas import (
     ErrorResponse,
+    MapPointItem,
+    MapPointsResponse,
     ReportListResponse,
     ReportResponse,
     ReportUpdateStatus,
@@ -376,6 +378,100 @@ async def get_reports(
     )
 
 
+# ─── GET: สถิติภาพรวม (ต้องอยู่ก่อน /{report_id}) ───────────────
+
+@router.get(
+    "/stats/summary",
+    response_model=StatsResponse,
+    summary="ดึงสถิติภาพรวมรายงาน",
+)
+async def get_stats(db: AsyncSession = Depends(get_db)):
+    """ดึงสถิติจำนวนรายงานแยกตามสถานะการพิจารณา"""
+    total = (await db.execute(select(func.count(RoadReport.id)))).scalar() or 0
+
+    async def count_status(s: ReportStatus) -> int:
+        r = await db.execute(
+            select(func.count(RoadReport.id)).where(RoadReport.status == s)
+        )
+        return r.scalar() or 0
+
+    return StatsResponse(
+        total_reports=total,
+        pending_count=await count_status(ReportStatus.PENDING),
+        processing_count=await count_status(ReportStatus.PROCESSING),
+        completed_count=await count_status(ReportStatus.COMPLETED),
+        rejected_count=await count_status(ReportStatus.REJECTED),
+    )
+
+
+def _classify_damage_level(decision: Optional[str], fusion_score: float, severity_score: float) -> str:
+    """จัดระดับความเสียหายจากผลโมเดล fusion / CV"""
+    text = (decision or "").lower()
+    if "reject" in text:
+        return "unknown"
+    if "critical" in text or "วิกฤต" in text or fusion_score >= 0.75 or severity_score >= 5:
+        return "critical"
+    if "warning" in text or "เตือน" in text or fusion_score >= 0.5 or severity_score >= 4:
+        return "warning"
+    if fusion_score >= 0.3 or severity_score >= 2:
+        return "moderate"
+    if decision:
+        return "good"
+    return "unknown"
+
+
+# ─── GET: จุดพิกัดสำหรับ Heatmap / Severity Map ─────────────────
+
+@router.get(
+    "/map/points",
+    response_model=MapPointsResponse,
+    summary="ดึงจุดพิกัดรายงานสำหรับแผนที่ heatmap และระดับความเสียหาย",
+)
+async def get_map_points(
+    include_rejected: bool = Query(False, description="รวมรายงานที่ถูกปฏิเสธหรือไม่"),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    คืนรายการจุดที่มี latitude/longitude สำหรับ:
+    1) Kernel density heatmap (ความหนาแน่นการแจ้ง)
+    2) Severity markers (ระดับความเสียหายจากโมเดล)
+    """
+    query = (
+        select(RoadReport)
+        .options(joinedload(RoadReport.ai_analysis))
+        .where(RoadReport.latitude.isnot(None), RoadReport.longitude.isnot(None))
+    )
+    if not include_rejected:
+        query = query.where(RoadReport.status != ReportStatus.REJECTED)
+
+    result = await db.execute(query.order_by(RoadReport.created_at.desc()))
+    reports = result.scalars().all()
+
+    points: list[MapPointItem] = []
+    for r in reports:
+        ana = r.ai_analysis
+        severity = float(ana.cv_max_severity_score) if ana and ana.cv_max_severity_score is not None else 0.0
+        fusion = float(ana.final_fusion_score) if ana and ana.final_fusion_score is not None else 0.0
+        decision = ana.final_decision if ana else None
+        points.append(
+            MapPointItem(
+                id=r.id,
+                latitude=float(r.latitude),
+                longitude=float(r.longitude),
+                status=r.status.value if hasattr(r.status, "value") else str(r.status),
+                reporter_name=r.reporter_name,
+                created_at=r.created_at,
+                severity_score=severity,
+                fusion_score=fusion,
+                decision=decision,
+                road_name=ana.road_name if ana else None,
+                damage_level=_classify_damage_level(decision, fusion, severity),
+            )
+        )
+
+    return MapPointsResponse(total=len(points), points=points)
+
+
 # ─── GET: ดึงรายงานตาม ID (Join Table) ───────────────────────────
 
 @router.get(
@@ -452,28 +548,3 @@ async def delete_report(report_id: int, db: AsyncSession = Depends(get_db)):
 
     return {"status": "success", "message": f"ลบรายงาน ID: {report_id} สำเร็จ"}
 
-
-# ─── GET: สถิติภาพรวม ───────────────────────────────────────────
-
-@router.get(
-    "/stats/summary",
-    response_model=StatsResponse,
-    summary="ดึงสถิติภาพรวมรายงาน",
-)
-async def get_stats(db: AsyncSession = Depends(get_db)):
-    """ดึงสถิติจำนวนรายงานแยกตามสถานะการพิจารณา"""
-    total = (await db.execute(select(func.count(RoadReport.id)))).scalar() or 0
-
-    async def count_status(s: ReportStatus) -> int:
-        r = await db.execute(
-            select(func.count(RoadReport.id)).where(RoadReport.status == s)
-        )
-        return r.scalar() or 0
-
-    return StatsResponse(
-        total_reports=total,
-        pending_count=await count_status(ReportStatus.PENDING),
-        processing_count=await count_status(ReportStatus.PROCESSING),
-        completed_count=await count_status(ReportStatus.COMPLETED),
-        rejected_count=await count_status(ReportStatus.REJECTED),
-    )

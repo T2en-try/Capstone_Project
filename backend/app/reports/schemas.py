@@ -192,3 +192,25 @@ class StatsResponse(BaseModel):
     completed_count: int
     rejected_count: int
 
+
+class MapPointItem(BaseModel):
+    """จุดพิกัดสำหรับ heatmap / severity map"""
+    id: int
+    latitude: float
+    longitude: float
+    status: str
+    reporter_name: Optional[str] = None
+    created_at: Optional[datetime] = None
+    # ความหนาแน่น: weight = 1 ต่อจุด; severity ใช้ค่าด้านล่าง
+    severity_score: float = 0.0
+    fusion_score: float = 0.0
+    decision: Optional[str] = None
+    road_name: Optional[str] = None
+    damage_level: str = "unknown"  # critical | warning | moderate | good | unknown
+
+
+class MapPointsResponse(BaseModel):
+    """รายการจุดพิกัดทั้งหมดที่มี GPS สำหรับแสดงบนแผนที่"""
+    total: int
+    points: list[MapPointItem]
+
