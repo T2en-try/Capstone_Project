@@ -1,1 +1,78 @@
 @import "tailwindcss";
+
+@theme {
+  --font-display: "Kanit", sans-serif;
+  --font-body: "Sarabun", sans-serif;
+
+  --color-ink: #14352f;
+  --color-ink-soft: #1f4a42;
+  --color-mark: #e6a817;
+  --color-mark-deep: #c48a0a;
+  --color-mist: #e8efec;
+  --color-paper: #f7faf8;
+  --color-asphalt: #2a3431;
+  --color-line: #c5d4cf;
+  --color-danger: #c45c4a;
+  --color-ok: #2d7a5f;
+  --color-warn: #c4891a;
+  --color-info: #2f6f7e;
+}
+
+@layer base {
+  html {
+    font-family: var(--font-body);
+    color: var(--color-asphalt);
+    background: var(--color-mist);
+  }
+
+  h1, h2, h3, .font-display {
+    font-family: var(--font-display);
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--color-mark) 35%, white);
+  }
+}
+
+/* พื้นหลังลายเส้นถนนจาง ๆ — บรรยากาศกึ่งทางการ */
+.app-atmosphere {
+  background-color: var(--color-mist);
+  background-image:
+    linear-gradient(180deg, rgba(20, 53, 47, 0.04) 0%, transparent 28%),
+    repeating-linear-gradient(
+      -12deg,
+      transparent,
+      transparent 11px,
+      rgba(20, 53, 47, 0.03) 11px,
+      rgba(20, 53, 47, 0.03) 12px
+    );
+}
+
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes brand-underline {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+.anim-rise {
+  animation: rise-in 0.45s ease-out both;
+}
+
+.anim-rise-delay {
+  animation: rise-in 0.55s ease-out 0.08s both;
+}
+
+.brand-mark::after {
+  content: "";
+  display: block;
+  height: 3px;
+  width: 100%;
+  margin-top: 2px;
+  background: var(--color-mark);
+  transform-origin: left;
+  animation: brand-underline 0.6s ease-out 0.2s both;
+}
