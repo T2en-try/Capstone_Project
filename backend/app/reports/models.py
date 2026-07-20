@@ -78,6 +78,12 @@ class RoadReport(Base):
         cascade="all, delete-orphan"
     )
 
+    actions = relationship(
+        "ReportAction",
+        back_populates="report",
+        cascade="all, delete-orphan"
+    )
+
     def __repr__(self):
         return f"<RoadReport(id={self.id}, lat={self.latitude}, lon={self.longitude}, status={self.status})>"
 
@@ -178,4 +184,83 @@ class ApiCacheGeeOsm(Base):
     )
 
     def __repr__(self):
-        return f"<ApiCacheGeeOsm(grid={self.coordinate_grid}, api={self.source_api}, fetched_at={self.fetched_at})>"
+        return f"<ApiCacheGeeOsm(grid={self.coordinate_grid}, api={self.source_api}, fetched_at={self.fetched_at})>"
+
+
+class UserRole(str, enum.Enum):
+    """บทบาทของผู้ใช้งานระบบ (เจ้าหน้าที่ และ ผู้ดูแลระบบ)"""
+    OFFICER = "officer"
+    ADMIN = "admin"
+
+
+class User(Base):
+    """
+    ตาราง users - สำหรับเจ้าหน้าที่ (Officers) และผู้ดูแลระบบ (Admins) 
+    (General Users ไม่มีบัญชีผู้ใช้)
+    """
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, autoincrement=True, index=True)
+    email = Column(String(255), unique=True, index=True, nullable=False, comment="อีเมลสำหรับเข้าสู่ระบบ")
+    hashed_password = Column(String(255), nullable=False, comment="รหัสผ่านที่เข้ารหัสแล้ว")
+    role = Column(SAEnum(UserRole), default=UserRole.OFFICER, nullable=False, comment="บทบาทของผู้ใช้")
+    is_active = Column(Integer, default=1, comment="สถานะบัญชี (1=Active, 0=Inactive) ใช้ Integer แทน Boolean ให้เข้ากับบาง DB")
+    
+    created_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False
+    )
+    last_login = Column(DateTime(timezone=True), nullable=True)
+
+    # ความสัมพันธ์
+    actions = relationship("ReportAction", back_populates="officer")
+    settings_updated = relationship("SystemSetting", back_populates="admin")
+
+
+class ReportAction(Base):
+    """
+    ตาราง report_actions - Audit Log สำหรับติดตามการแก้ไขสถานะรายงานโดยเจ้าหน้าที่
+    """
+    __tablename__ = "report_actions"
+
+    id = Column(Integer, primary_key=True, autoincrement=True, index=True)
+    report_id = Column(Integer, ForeignKey("road_reports.id", ondelete="CASCADE"), nullable=False, index=True)
+    officer_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    
+    previous_status = Column(SAEnum(ReportStatus), nullable=True, comment="สถานะก่อนหน้า")
+    new_status = Column(SAEnum(ReportStatus), nullable=False, comment="สถานะใหม่")
+    
+    action_note = Column(Text, nullable=True, comment="บันทึกการปฏิบัติงานเพิ่มเติม")
+    repaired_image_filename = Column(String(255), nullable=True, comment="ไฟล์รูปภาพหลังซ่อมแซมสำเร็จ (ถ้ามี)")
+    
+    action_timestamp = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False
+    )
+
+    # ความสัมพันธ์
+    report = relationship("RoadReport", back_populates="actions")
+    officer = relationship("User", back_populates="actions")
+
+
+class SystemSetting(Base):
+    """
+    ตาราง system_settings - สำหรับ Admin ในการตั้งค่าพารามิเตอร์ AI แบบไดนามิก
+    """
+    __tablename__ = "system_settings"
+
+    id = Column(Integer, primary_key=True, autoincrement=True, index=True)
+    config_key = Column(String(100), unique=True, nullable=False, comment="คีย์การตั้งค่า (เช่น ACTIVE_AI_MODEL)")
+    config_value = Column(JSONB, nullable=False, comment="ค่าของการตั้งค่าแบบ JSON")
+    
+    updated_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False
+    )
+
+    admin = relationship("User", back_populates="settings_updated")

@@ -192,3 +192,39 @@ class StatsResponse(BaseModel):
     completed_count: int
     rejected_count: int
 
+
+# ─── New Schemas for System Entities ────────────────────────────
+
+class UserResponse(BaseModel):
+    id: int
+    email: str
+    role: str
+    is_active: int
+    created_at: datetime
+    last_login: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ReportActionResponse(BaseModel):
+    id: int
+    report_id: int
+    officer_id: Optional[int] = None
+    previous_status: Optional[str] = None
+    new_status: str
+    action_note: Optional[str] = None
+    repaired_image_filename: Optional[str] = None
+    action_timestamp: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class SystemSettingResponse(BaseModel):
+    id: int
+    config_key: str
+    config_value: Dict[str, Any]
+    updated_by: Optional[int] = None
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
