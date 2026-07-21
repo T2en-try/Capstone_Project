@@ -1,5 +1,7 @@
 import React from 'react';
-import DashboardPage from './pages/DashboardPage';
+import  UserDashboard  from "./pages/UserDashboard";
+import { Routes, Route } from 'react-router-dom';
+import UserReport from './pages/UserReportPage';
 
 // --- Fix Leaflet default marker icon ---
 import L from 'leaflet';
@@ -11,6 +13,18 @@ L.Icon.Default.mergeOptions({
   shadowUrl:     'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
-export default function App() {
-  return <DashboardPage />;
+function App() {
+  return (
+    <Routes>
+      {/* หน้าฝั่งประชาชน: แจ้งซ่อม */}
+      <Route path="/" element={<UserDashboard />} />
+      <Route path="/report" element={<UserReport />} />
+
+      {/* หน้าฝั่งวิศวกร/เจ้าหน้าที่: Dashboard & Heatmap */}
+      {/* <Route path="/admin/dashboard" element={<AdminDashboard />} /> */}
+
+    </Routes>
+  )
 }
+
+export default App

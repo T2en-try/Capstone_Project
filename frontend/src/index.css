@@ -17,6 +17,13 @@
   --color-warn: #c4891a;
   --color-info: #2f6f7e;
 }
+/* บังคับให้ Container ของ Leaflet ขยายเต็มพื้นที่เสมอ */
+.leaflet-container {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 400px !important;
+  z-index: 1 !important;
+}
 
 @layer base {
   html {
