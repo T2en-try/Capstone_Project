@@ -15,10 +15,11 @@ const STATUS_LABELS = {
 };
 
 export default function ReportDetailModal({ isOpen, report, onClose, onUpdateStatus }) {
-  if (!isOpen || !report) return null;
-
-  const aiResult = normalizeAiResult(report.ai_result);
   const [showAiImage, setShowAiImage] = useState(false);
+  if (!isOpen || !report) return null;
+  
+  const aiResult = normalizeAiResult(report.ai_result);
+  // const [showAiImage, setShowAiImage] = useState(false);
   const hasAiImage = aiResult?.annotatedImage != null;
   const currentImage = showAiImage && hasAiImage ? aiResult.annotatedImage : report.image_filename;
 

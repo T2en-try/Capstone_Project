@@ -8,6 +8,10 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react()],
+    // ✨ เพิ่มส่วนแก้ปัญหา React/Hook ตีกันตรงนี้
+    resolve: {
+      dedupe: ['react', 'react-dom', 'react-router-dom'],
+    },
     server: {
       host: '0.0.0.0',
       proxy: {

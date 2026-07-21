@@ -15,8 +15,9 @@ import ReportDetailModal from '../features/reports/ReportDetailModal';
 import HeatmapPanel from '../features/reports/HeatmapPanel';
 import MainLayout from '../layouts/MainLayout';
 import Sidebar from '../layouts/Sidebar';
+import Navbar from '../layouts/Navbar';
 
-export default function DashboardPage() {
+export default function UserReportPage() {
   const [reports, setReports] = useState([]);
   const [stats, setStats] = useState(null);
   const [selectedReport, setSelectedReport] = useState(null);
@@ -166,6 +167,7 @@ export default function DashboardPage() {
 
   return (
     <MainLayout>
+      <Navbar />
       {/* Header กึ่งทางการ — แบรนด์เป็นสัญญาณหลัก */}
       <header className="sticky top-0 z-40 border-b border-line/80 bg-paper/90 backdrop-blur-md">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-end justify-between gap-4">
@@ -179,11 +181,6 @@ export default function DashboardPage() {
             <p className="text-sm text-asphalt/65 mt-2 max-w-md leading-relaxed">
               แจ้งซ่อมถนนง่าย ๆ สำหรับประชาชน · วิเคราะห์ด้วย AI
             </p>
-          </div>
-          <div className="hidden sm:block text-right text-xs text-asphalt/50 leading-relaxed anim-rise-delay">
-            ระบบบริหารวงจรชีวิตถนน
-            <br />
-            Road Lifecycle Management
           </div>
         </div>
       </header>
