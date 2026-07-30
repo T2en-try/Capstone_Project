@@ -13,7 +13,7 @@ export default function SearchBar() {
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-md p-4">
+    <div className="bg-paper border border-line rounded-xl shadow-sm p-4">
 
       <div className="flex flex-col lg:flex-row gap-4">
 
@@ -23,7 +23,7 @@ export default function SearchBar() {
 
           <Search
             size={20}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-asphalt/40"
           />
 
           <input
@@ -31,7 +31,7 @@ export default function SearchBar() {
             placeholder="กรอกคำสำคัญของเรื่องแจ้ง เช่น รหัสเรื่อง."
             value={keyword}
             onChange={(e) => setKeyword(e.target.value)}
-            className="w-full rounded-lg border border-gray-300 py-2 pl-10 pr-4 outline-none focus:border-orange-500"
+            className="w-full rounded-xl border border-line bg-paper py-2 pl-10 pr-4 text-asphalt outline-none placeholder:text-asphalt/40 focus:border-ink-soft focus:ring-2 focus:ring-ink/10"
           />
 
         </div>
@@ -41,7 +41,7 @@ export default function SearchBar() {
         <select
           value={status}
           onChange={(e) => setStatus(e.target.value)}
-          className="rounded-lg border border-gray-300 px-4 py-2 outline-none focus:border-orange-500"
+          className="rounded-xl border border-line bg-paper px-4 py-2 text-asphalt outline-none focus:border-ink-soft focus:ring-2 focus:ring-ink/10"
         >
           <option value="all">ทุกสถานะ</option>
           <option value="pending">รอดำเนินการ</option>
@@ -54,7 +54,7 @@ export default function SearchBar() {
 
         <button
           onClick={handleSearch}
-          className="flex items-center justify-center gap-2 rounded-lg bg-orange-500 px-6 py-2 text-white hover:bg-orange-600 transition"
+          className="flex items-center justify-center gap-2 rounded-xl bg-mark px-6 py-2 text-paper hover:bg-mark-deep transition"
         >
           <Filter size={18} />
           ค้นหา

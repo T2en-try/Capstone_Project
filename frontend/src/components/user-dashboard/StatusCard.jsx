@@ -1,5 +1,5 @@
 import { FileText } from "lucide-react";
-import { dashboardStats } from "../../data_mockup/user_dashboard";
+import { dashboardStats } from "../../mock/user_dashboard";
 
 export default function StatusCard() {
 
@@ -9,7 +9,7 @@ export default function StatusCard() {
   );
 
   return (
-    <div className="bg-white rounded-2xl shadow-lg p-6">
+    <div className="bg-paper border border-line rounded-2xl shadow-sm p-6">
 
       <div className="space-y-4">
 
@@ -20,7 +20,7 @@ export default function StatusCard() {
           return (
             <div
               key={item.title}
-              className={`${item.bgColor} rounded-xl p-4 hover:shadow transition`}
+              className={`${item.bgColor} rounded-2xl border border-line p-4 hover:shadow transition`}
             >
 
               <div className="flex justify-between">
@@ -42,7 +42,7 @@ export default function StatusCard() {
 
                   </div>
 
-                  <p className="text-sm text-gray-500 mt-1">
+                  <p className="text-sm text-asphalt/70 mt-1">
                     {item.description}
                   </p>
 
@@ -63,19 +63,19 @@ export default function StatusCard() {
 
       </div>
 
-      <div className="mt-6 bg-gray-100 rounded-xl p-5 flex justify-between">
+      <div className="mt-6 bg-mist rounded-2xl p-5 flex justify-between border border-line">
 
-        <div className="flex gap-2 items-center">
+        <div className="flex gap-2 items-center text-asphalt">
 
-          <FileText className="text-orange-500"/>
+          <FileText className="text-mark"/>
 
-          <span className="font-semibold">
+          <span className="font-semibold text-ink">
             รายงานทั้งหมด
           </span>
 
         </div>
 
-        <span className="text-3xl font-bold text-orange-500">
+        <span className="text-3xl font-bold text-mark-deep">
           {total}
         </span>
 

@@ -8,7 +8,7 @@ import SearchBar from "../components/user-dashboard/SearchBar";
 
 export default function UserDashboard() {
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col">
+    <div className="min-h-screen app-atmosphere flex flex-col">
       {/* 1. ส่วนแถบนำทาง (Navbar Layer) */}
       <Navbar />
 
@@ -16,7 +16,7 @@ export default function UserDashboard() {
       <main className="flex-1 p-4 md:p-6 space-y-6 max-w-[1600px] mx-auto w-full">
         
         {/* หัวข้อแดชบอร์ดต้อนรับ */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-paper border border-line p-6 rounded-2xl shadow-sm">
           <div>
             <NewsSection />
           </div>
@@ -29,14 +29,14 @@ export default function UserDashboard() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           
         {/* ฝั่งซ้าย: พื้นที่แผนที่ GIS (กินพื้นที่ 8 ช่องบนจอใหญ่) */}
-        <div className="lg:col-span-8 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden h-[450px] lg:h-[600px] w-full">
+        <div className="lg:col-span-8 bg-paper rounded-2xl shadow-sm border border-line overflow-hidden h-[450px] lg:h-[600px] w-full">
           <MapView />
         </div>
 
           {/* ฝั่งขวา: การ์ดสรุปสถานะ / รายการแจ้งซ่อม (กินพื้นที่ 4 ช่องบนจอใหญ่) */}
-          <div className="lg:col-span-4 bg-white rounded-xl shadow-sm border border-slate-200 p-5 min-h-[450px] lg:h-[600px] flex flex-col justify-between">
+          <div className="lg:col-span-4 bg-paper rounded-2xl shadow-sm border border-line p-5 min-h-[450px] lg:h-[600px] flex flex-col justify-between">
             <StatusCard />
-            <div className="text-center p-6 text-slate-400 my-auto">
+            <div className="text-center p-6 text-asphalt/55 my-auto">
               {/* <p className="text-xs mt-1">แสดงรายการแจ้งซ่อมทั้งหมด</p> */}
             </div>
           </div>

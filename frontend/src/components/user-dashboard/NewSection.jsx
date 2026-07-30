@@ -68,7 +68,7 @@ const NewsSection = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
         {reports.map((report) => (
-          <article key={report.id} className="group bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-200">
+          <article key={report.id} className="group bg-paper rounded-2xl border border-line shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-200">
             <div className="flex gap-3 p-4">
               <img
                 src={report.image}
@@ -77,20 +77,20 @@ const NewsSection = () => {
               />
               <div className="flex-1 min-w-0">
                 <div className="flex items-start justify-between gap-3">
-                  <h3 className="text-sm font-semibold text-slate-900 truncate">{report.title}</h3>
+                  <h3 className="text-sm font-semibold text-ink truncate">{report.title}</h3>
                   <span className={`mt-0.5 h-2.5 w-2.5 rounded-full ${report.statusColor}`} />
                 </div>
-                <p className="mt-2 text-xs leading-5 text-slate-500 line-clamp-4">{report.description}</p>
-                <div className="mt-3 text-xs text-slate-400 space-y-1">
+                <p className="mt-2 text-xs leading-5 text-asphalt/70 line-clamp-4">{report.description}</p>
+                <div className="mt-3 text-xs text-asphalt/55 space-y-1">
                   <div>
-                    โดย <span className="text-slate-700 font-medium">{report.reporter}</span> · {report.date}
+                    โดย <span className="text-ink font-medium">{report.reporter}</span> · {report.date}
                   </div>
-                  {report.duration ? <div className="text-emerald-600 font-medium">{report.duration}</div> : null}
+                  {report.duration ? <div className="text-ok font-medium">{report.duration}</div> : null}
                 </div>
               </div>
             </div>
 
-            <div className="flex items-center justify-between gap-2 px-4 py-3 border-t border-slate-100 text-slate-500 text-xs">
+            <div className="flex items-center justify-between gap-2 px-4 py-3 border-t border-line text-asphalt/60 text-xs">
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-1">
                   <ThumbsUp size={14} />
@@ -105,7 +105,7 @@ const NewsSection = () => {
                   <span>{report.views}</span>
                 </div>
               </div>
-              <button className="inline-flex items-center justify-center rounded-xl p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors" title="คัดลอกลิงก์">
+              <button className="inline-flex items-center justify-center rounded-xl p-2 text-asphalt/60 hover:text-ink hover:bg-mist transition-colors" title="คัดลอกลิงก์">
                 <Copy size={16} />
               </button>
             </div>
