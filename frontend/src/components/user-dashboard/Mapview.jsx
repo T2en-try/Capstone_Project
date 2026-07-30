@@ -7,7 +7,7 @@ import {
 
 import L from "leaflet";
 
-import { markers } from "../../data_mockup/markers_map";
+import { markers } from "../../mock/markers_map";
 
 
 

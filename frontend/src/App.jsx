@@ -1,30 +1,43 @@
-import React from 'react';
-import  UserDashboard  from "./pages/UserDashboard";
-import { Routes, Route } from 'react-router-dom';
-import UserReport from './pages/UserReportPage';
+import React from "react";
+import { Routes, Route } from "react-router-dom";
 
-// --- Fix Leaflet default marker icon ---
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+import UserDashboard from "./pages/UserDashboard";
+import UserReport from "./pages/UserReportPage";
+
+import AdminLayout from "./layouts/AdminLayout";
+import AdminDashboard from "./pages/AdminDashboard";
+import AdminPriority from "./pages/AdminPriority";
+
+// Leaflet
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+
 delete L.Icon.Default.prototype._getIconUrl;
+
 L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  iconUrl:       'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  shadowUrl:     'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+  iconRetinaUrl:
+    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+  iconUrl:
+    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+  shadowUrl:
+    "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
 });
 
 function App() {
   return (
     <Routes>
-      {/* หน้าฝั่งประชาชน: แจ้งซ่อม */}
+      {/* User */}
       <Route path="/" element={<UserDashboard />} />
       <Route path="/report" element={<UserReport />} />
 
-      {/* หน้าฝั่งวิศวกร/เจ้าหน้าที่: Dashboard & Heatmap */}
-      {/* <Route path="/admin/dashboard" element={<AdminDashboard />} /> */}
+      {/* Admin Layout */}
+      <Route path="/admin" element={<AdminLayout />}>
+        <Route path="dashboard" element={<AdminDashboard />} />
+        <Route path="priority-reports" element={<AdminPriority />} />
 
+      </Route>
     </Routes>
-  )
+  );
 }
 
-export default App
+export default App;
