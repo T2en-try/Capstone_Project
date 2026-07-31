@@ -7,6 +7,7 @@ import UserReport from "./pages/UserReportPage";
 import AdminLayout from "./layouts/AdminLayout";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminPriority from "./pages/AdminPriority";
+import AdminReportDetail from "./pages/AdminReportDetail";
 
 // Leaflet
 import L from "leaflet";
@@ -34,6 +35,7 @@ function App() {
       <Route path="/admin" element={<AdminLayout />}>
         <Route path="dashboard" element={<AdminDashboard />} />
         <Route path="priority-reports" element={<AdminPriority />} />
+        <Route path="reports/:id" element={<AdminReportDetail />} />
 
       </Route>
     </Routes>
