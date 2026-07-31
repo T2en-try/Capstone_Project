@@ -7,8 +7,7 @@ import ReportBarChart from "../components/admin-dashboard/ReportChart";
 import ReportPieChart from "../components/admin-dashboard/ReportPieChart";
 import { reportTypeData, reportStatusData } from "../mock/chartData";
 import RecentReports from "../components/admin-dashboard/RecentReports";
-import AIAnalysis from "../components/admin-dashboard/AIAnalysis";
-import { aiAnalysisData } from "../mock/aiAnalysis";
+
 
 
 import {
@@ -66,12 +65,6 @@ reports={mapReports}
  lg={8}
 >
 
-
-<AIAnalysis
-
-data={aiAnalysisData}
-
-/>
 
 
 </Col>
