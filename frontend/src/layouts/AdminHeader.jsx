@@ -19,10 +19,13 @@ import {
   Button,
 } from "antd";
 
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
+import { logout as authLogout, getAdminInfo } from "../services/authService";
 
 export default function Header() {
   const location = useLocation();
+  const navigate = useNavigate();
+  const adminInfo = getAdminInfo();
 
   // ==========================
   // Page Title
@@ -62,6 +65,11 @@ export default function Header() {
   // User Dropdown
   // ==========================
 
+  const handleLogout = () => {
+    authLogout();
+    navigate("/login", { replace: true });
+  };
+
   const profileItems = [
     {
       key: "1",
@@ -81,6 +89,7 @@ export default function Header() {
       danger: true,
       icon: <LogoutOutlined />,
       label: "Logout",
+      onClick: handleLogout,
     },
   ];
 
@@ -141,11 +150,11 @@ export default function Header() {
             <div className="hidden md:block leading-5">
 
               <h4 className="font-semibold text-slate-800">
-                Admin
+                {adminInfo?.full_name || "Admin"}
               </h4>
 
               <p className="text-xs text-gray-500">
-                Highway Engineer
+                {adminInfo?.role || "Administrator"}
               </p>
 
             </div>

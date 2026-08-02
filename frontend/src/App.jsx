@@ -9,6 +9,9 @@ import AdminDashboard from "./pages/AdminDashboard";
 import AdminPriority from "./pages/AdminPriority";
 import AdminReportDetail from "./pages/AdminReportDetail";
 
+import AdminLoginPage from "./pages/AdminLoginPage";
+import ProtectedRoute from "./components/ProtectedRoute";
+
 // Leaflet
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -31,8 +34,15 @@ function App() {
       <Route path="/" element={<UserDashboard />} />
       <Route path="/report" element={<UserReport />} />
 
-      {/* Admin Layout */}
-      <Route path="/admin" element={<AdminLayout />}>
+      {/* Admin Login */}
+      <Route path="/login" element={<AdminLoginPage />} />
+
+      {/* Admin Layout (Protected) */}
+      <Route path="/admin" element={
+        <ProtectedRoute>
+          <AdminLayout />
+        </ProtectedRoute>
+      }>
         <Route path="dashboard" element={<AdminDashboard />} />
         <Route path="priority-reports" element={<AdminPriority />} />
         <Route path="reports/:id" element={<AdminReportDetail />} />

@@ -193,7 +193,6 @@ class StatsResponse(BaseModel):
     rejected_count: int
 
 
-<<<<<<< HEAD
 # ─── New Schemas for System Entities ────────────────────────────
 
 class UserResponse(BaseModel):
@@ -228,7 +227,8 @@ class SystemSettingResponse(BaseModel):
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
-=======
+
+
 class MapPointItem(BaseModel):
     """จุดพิกัดสำหรับ heatmap / severity map"""
     id: int
@@ -249,5 +249,4 @@ class MapPointsResponse(BaseModel):
     """รายการจุดพิกัดทั้งหมดที่มี GPS สำหรับแสดงบนแผนที่"""
     total: int
     points: list[MapPointItem]
->>>>>>> 6cd57bc99f5614195a2ce183e5c468a14c0c855e
 
