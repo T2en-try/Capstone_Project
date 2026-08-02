@@ -38,5 +38,9 @@ class Settings:
     GEE_SERVICE_ACCOUNT: str = os.getenv("GEE_SERVICE_ACCOUNT", "")
     GEE_KEY_PATH: str = os.getenv("GEE_KEY_PATH", "")
 
+    # JWT Auth
+    JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", "default-secret-key-change-me")
+    JWT_ALGORITHM: str = "HS256"
+
 
 settings = Settings()
