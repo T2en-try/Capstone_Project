@@ -8,6 +8,7 @@ import AdminLayout from "./layouts/AdminLayout";
 import AdminDashboard from "./pages/AdminDashboard";
 import AdminPriority from "./pages/AdminPriority";
 import AdminReportDetail from "./pages/AdminReportDetail";
+import AdminGISMap from "./pages/AdminGISMap";
 
 import AdminLoginPage from "./pages/AdminLoginPage";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -46,6 +47,7 @@ function App() {
         <Route path="dashboard" element={<AdminDashboard />} />
         <Route path="priority-reports" element={<AdminPriority />} />
         <Route path="reports/:id" element={<AdminReportDetail />} />
+        <Route path="map" element={<AdminGISMap />} />
 
       </Route>
     </Routes>
