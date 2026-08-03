@@ -1,5 +1,10 @@
 import { Button, Card, Col, Row, Space, Typography } from "antd";
-import { DownloadOutlined, ReloadOutlined } from "@ant-design/icons";
+
+import {
+    DownloadOutlined,
+    ReloadOutlined,
+    WarningOutlined,
+} from "@ant-design/icons";
 
 import SummaryCards from "../components/admin-priority/SummaryCards";
 import FilterBar from "../components/admin-priority/FilterBar";
@@ -8,54 +13,126 @@ import ReportsTable from "../components/admin-priority/ReportsTable";
 const { Title, Text } = Typography;
 
 const PriorityReportsPage = () => {
-  return (
-    <div style={{ padding: 24 }}>
-      {/* Header */}
-      <Row justify="space-between" align="middle">
-        <Col>
-          <Title level={2} style={{ marginBottom: 4 }}>
-            Priority Reports
-          </Title>
+    return (
+        <div
+            style={{
+                padding: 24,
+                background: "#f5f7fa",
+                minHeight: "100vh",
+            }}
+        >
+            {/* ================= Header ================= */}
 
-          <Text type="secondary">
-            View and manage road reports ranked by AI priority score.
-          </Text>
-        </Col>
-
-        <Col>
-          <Space>
-            <Button icon={<ReloadOutlined />}>
-              Refresh
-            </Button>
-
-            <Button
-              type="primary"
-              icon={<DownloadOutlined />}
+            <Card
+                bordered={false}
+                style={{
+                    borderRadius: 16,
+                    marginBottom: 20,
+                }}
             >
-              Export
-            </Button>
-          </Space>
-        </Col>
-      </Row>
+                <Row justify="space-between" align="middle">
+                    <Col>
+                        <Space align="start">
+                            <WarningOutlined
+                                style={{
+                                    fontSize: 32,
+                                    color: "#ff4d4f",
+                                    marginTop: 6,
+                                }}
+                            />
 
-      {/* Summary */}
-      <div style={{ marginTop: 24 }}>
-        <SummaryCards />
-      </div>
+                            <div>
+                                <Title
+                                    level={2}
+                                    style={{
+                                        margin: 0,
+                                    }}
+                                >
+                                    Priority Reports
+                                </Title>
 
-      {/* Table */}
-      <Card
-        style={{ marginTop: 24 }}
-        bodyStyle={{ padding: 20 }}
-      >
-        <FilterBar />
+                                <Text type="secondary">
+                                    Manage and monitor road damage reports
+                                    ranked by AI priority score
+                                </Text>
+                            </div>
+                        </Space>
+                    </Col>
 
-        <div style={{ marginTop: 20 }}>
-          <ReportsTable />
+                    <Col>
+                        <Space>
+                            <Button icon={<ReloadOutlined />}>Refresh</Button>
+
+                            <Button type="primary" icon={<DownloadOutlined />}>
+                                Export
+                            </Button>
+                        </Space>
+                    </Col>
+                </Row>
+            </Card>
+
+            {/* ================= Summary ================= */}
+
+            <Card
+                bordered={false}
+                style={{
+                    borderRadius: 16,
+                    marginBottom: 20,
+                }}
+            >
+                <SummaryCards />
+            </Card>
+
+            {/* ================= Report Table ================= */}
+
+            <Card
+                bordered={false}
+                style={{
+                    borderRadius: 16,
+                }}
+                bodyStyle={{
+                    padding: 24,
+                }}
+            >
+                <Row
+                    justify="space-between"
+                    align="middle"
+                    style={{
+                        marginBottom: 20,
+                    }}
+                >
+                   <Col>
+    <Title
+        level={4}
+        style={{
+            margin: 0,
+        }}
+    >
+        รายงานปัญหาถนน
+    </Title>
+
+    <Text type="secondary">
+        ตรวจสอบ วิเคราะห์ และจัดการรายงานความเสียหายของถนนจากผู้ใช้งาน
+    </Text>
+</Col>
+                </Row>
+
+                {/* Filter */}
+
+                <FilterBar />
+
+                {/* Table */}
+
+                <div
+                    style={{
+                        marginTop: 24,
+                    }}
+                >
+                    <ReportsTable />
+                </div>
+            </Card>
         </div>
-      </Card>
-    </div>
-  );
+    );
 };
 
 export default PriorityReportsPage;
