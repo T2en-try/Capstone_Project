@@ -6,7 +6,7 @@ const ReportImage = ({image})=>{
 
 return (
 
-<Card title="Report Image">
+<Card >
 
 <Image
 width="100%"

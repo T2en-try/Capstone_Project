@@ -1,210 +1,216 @@
 import { Table, Tag, Progress, Button, Dropdown, Space } from "antd";
-import { MoreOutlined } from "@ant-design/icons";
+import {
+    MoreOutlined,
+    EyeOutlined,
+    UserAddOutlined,
+    CheckCircleOutlined,
+} from "@ant-design/icons";
+
 import { useNavigate } from "react-router-dom";
 
 import priorityReportMock from "../../mock/priorityReportMock";
 
-
 const ReportsTable = () => {
+    const navigate = useNavigate();
 
-  const navigate = useNavigate();
+    const getPriorityColor = (score) => {
+        if (score >= 90) return "#ff4d4f";
+        if (score >= 70) return "#fa8c16";
+        if (score >= 50) return "#faad14";
 
+        return "#52c41a";
+    };
 
-  const getPriorityColor = (score) => {
-    if (score >= 90) return "#ff4d4f";
-    if (score >= 70) return "#fa8c16";
-    if (score >= 50) return "#faad14";
-    return "#52c41a";
-  };
+    const getStatusColor = (status) => {
+        switch (status) {
+            case "Pending":
+                return "gold";
 
+            case "Processing":
+                return "blue";
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case "Pending":
-        return "gold";
+            case "Completed":
+                return "green";
 
-      case "Processing":
-        return "blue";
+            default:
+                return "default";
+        }
+    };
 
-      case "Completed":
-        return "green";
+    const menuItems = (record) => [
+        {
+            key: "assign",
 
-      default:
-        return "default";
-    }
-  };
+            icon: <UserAddOutlined />,
 
+            label: "Assign Engineer",
 
-  const menuItems = (record) => [
-    {
-      key: "1",
-      label: "View Detail",
-      onClick: () => {
-        navigate(`/admin/reports/${record.id}`);
-      },
-    },
-    {
-      key: "2",
-      label: "Assign Engineer",
-    },
-    {
-      key: "3",
-      label: "Mark as Completed",
-    },
-  ];
+            onClick: () => {
+                console.log("Assign", record);
+            },
+        },
 
+        {
+            key: "complete",
 
+            icon: <CheckCircleOutlined />,
 
-  const columns = [
+            label: "Mark as Completed",
 
-    {
-      title: "Report ID",
-      dataIndex: "reportId",
-      key: "reportId",
-      width: 140,
-    },
+            disabled: record.status === "Completed",
 
+            onClick: () => {
+                console.log("Complete", record);
+            },
+        },
+    ];
 
-    {
-      title: "Road",
-      dataIndex: "roadName",
-      key: "roadName",
-    },
+    const columns = [
+        {
+            title: "Report ID",
 
+            dataIndex: "reportId",
 
-    {
-      title: "Damage",
-      dataIndex: "damageType",
-      key: "damageType",
-      width: 140,
-    },
+            key: "reportId",
 
+            width: 120,
+        },
 
-    {
-      title: "Priority",
-      dataIndex: "priorityScore",
-      key: "priorityScore",
-      width: 180,
+        {
+            title: "Road",
 
-      render: (score) => (
+            dataIndex: "roadName",
 
-        <Space
-          direction="vertical"
-          size={2}
-          style={{
-            width:"100%"
-          }}
-        >
+            key: "roadName",
+        },
 
-          <strong>
-            {score}
-          </strong>
+        {
+            title: "Damage",
 
+            dataIndex: "damageType",
 
-          <Progress
-            percent={score}
-            showInfo={false}
-            strokeColor={getPriorityColor(score)}
-          />
+            key: "damageType",
 
-        </Space>
+            width: 170,
+        },
 
-      ),
-    },
+        {
+            title: "Priority Score",
 
+            dataIndex: "priorityScore",
 
-    {
-      title: "GEE",
-      dataIndex: "gee",
-      key:"gee",
-      width:120,
+            key: "priorityScore",
 
-      render:(gee)=>(
+            width: 180,
 
-        <Progress
-          percent={gee}
-          size="small"
+            render: (score) => (
+                <Space
+                    direction="vertical"
+                    style={{
+                        width: "100%",
+                    }}
+                    size={2}
+                >
+                    <b>{score}</b>
+
+                    <Progress
+                        percent={score}
+                        showInfo={false}
+                        strokeColor={getPriorityColor(score)}
+                    />
+                </Space>
+            ),
+        },
+
+        {
+            title: "GEE",
+
+            dataIndex: "gee",
+
+            key: "gee",
+
+            width: 120,
+
+            render: (gee) => <Progress percent={gee} size="small" />,
+        },
+
+        {
+            title: "Status",
+
+            dataIndex: "status",
+
+            key: "status",
+
+            width: 150,
+
+            render: (status) => (
+                <Tag color={getStatusColor(status)}>{status}</Tag>
+            ),
+        },
+
+        {
+            title: "Reported Date",
+
+            dataIndex: "reportDate",
+
+            key: "reportDate",
+
+            width: 150,
+        },
+
+        {
+            title: "Action",
+
+            key: "action",
+
+            width: 170,
+
+            fixed: "right",
+
+            render: (_, record) => (
+                <Space>
+                    {/* View Detail */}
+
+                    <Button
+                        type="primary"
+                        icon={<EyeOutlined />}
+                        onClick={() => {
+                            navigate(`/admin/reports/${record.id}`);
+                        }}
+                    >
+                        View
+                    </Button>
+
+                    {/* More Action */}
+
+                    <Dropdown
+                        menu={{
+                            items: menuItems(record),
+                        }}
+                        trigger={["click"]}
+                    >
+                        <Button icon={<MoreOutlined />} />
+                    </Dropdown>
+                </Space>
+            ),
+        },
+    ];
+
+    return (
+        <Table
+            rowKey="id"
+            columns={columns}
+            dataSource={priorityReportMock}
+            scroll={{
+                x: 1200,
+            }}
+            pagination={{
+                pageSize: 8,
+
+                showSizeChanger: false,
+            }}
         />
-
-      ),
-    },
-
-
-    {
-      title:"Status",
-      dataIndex:"status",
-      key:"status",
-      width:140,
-
-      render:(status)=>(
-
-        <Tag color={getStatusColor(status)}>
-          {status}
-        </Tag>
-
-      )
-    },
-
-
-    {
-      title:"Reported Date",
-      dataIndex:"reportDate",
-      key:"reportDate",
-      width:150,
-    },
-
-
-    {
-      title:"",
-      key:"action",
-      width:70,
-      align:"center",
-
-
-      render:(_,record)=>(
-
-        <Dropdown
-          menu={{
-            items:menuItems(record)
-          }}
-          trigger={["click"]}
-        >
-
-          <Button
-            type="text"
-            icon={<MoreOutlined />}
-          />
-
-        </Dropdown>
-
-      )
-    }
-
-  ];
-
-
-
-  return (
-
-    <Table
-
-      rowKey="id"
-
-      columns={columns}
-
-      dataSource={priorityReportMock}
-
-
-      pagination={{
-        pageSize:8,
-        showSizeChanger:false,
-      }}
-
-    />
-
-  );
-
+    );
 };
-
 
 export default ReportsTable;
