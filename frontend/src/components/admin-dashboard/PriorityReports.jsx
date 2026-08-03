@@ -1,141 +1,219 @@
-import {
-  Card,
-  Col,
-  Row,
-  Tag,
-  Typography,
-  Progress,
-} from "antd";
+import { useNavigate } from "react-router-dom";
 
+import { Button, Card, List, Progress, Space, Tag, Typography } from "antd";
 
 import {
-  EnvironmentOutlined,
-  WarningOutlined,
+    WarningOutlined,
+    EnvironmentOutlined,
+    ArrowRightOutlined,
 } from "@ant-design/icons";
 
+const { Text } = Typography;
 
-const { Title, Text } = Typography;
+const PriorityReports = ({ reports = [] }) => {
+    const navigate = useNavigate();
 
+    const severityConfig = {
+        Critical: {
+            color: "red",
+            label: "Critical",
+        },
 
+        High: {
+            color: "orange",
+            label: "High",
+        },
 
-const PriorityReports = ({ reports }) => {
+        Medium: {
+            color: "gold",
+            label: "Medium",
+        },
 
+        Low: {
+            color: "green",
+            label: "Low",
+        },
+    };
 
-  const severityColor = {
-    Critical: "red",
-    High: "orange",
-    Medium: "gold",
-    Low: "green",
-  };
+    const ranked = [...reports]
+        .sort((a, b) => b.confidence - a.confidence)
+        .slice(0, 5);
 
+    return (
+        <Card
+            title={
+                <Space>
+                    <WarningOutlined
+                        style={{
+                            color: "#ff4d4f",
+                        }}
+                    />
 
-
-  return (
-
-    <Card
-      title={
-        <span>
-          <WarningOutlined />
-          {" "}
-          รายงานสำคัญ (Priority Reports)
-        </span>
-      }
-      style={{
-        borderRadius:12
-      }}
-    >
-
-
-      <Row gutter={[16,16]}>
-
-        {
-          reports.map((report)=>(
-
-            <Col
-              key={report.id}
-              xs={24}
-              md={8}
-            >
-
-
-              <Card
-                size="small"
-                hoverable
-                style={{
-                  height:"100%"
-                }}
-              >
-
-
-                <Title level={5}>
-                  {report.title}
-                </Title>
-
-
-
-                <Tag
-                  color={severityColor[report.severity]}
+                    <span>Priority Reports</span>
+                </Space>
+            }
+            extra={
+                <Button
+                    type="link"
+                    onClick={() => navigate("/admin/priority-reports")}
                 >
-                  {report.severity}
-                </Tag>
+                    View All
+                    <ArrowRightOutlined />
+                </Button>
+            }
+            style={{
+                borderRadius: 16,
 
+                height: 650,
+            }}
+            bodyStyle={{
+                padding: "8px 16px",
 
+                height: "calc(100% - 60px)",
 
-                <p>
-                  <EnvironmentOutlined />
-                  {" "}
-                  สถานที่: {report.location}
-                </p>
+                overflow: "hidden",
+            }}
+        >
+            <List
+                dataSource={ranked}
+                style={{
+                    height: "100%",
 
+                    overflowY: "auto",
 
+                    paddingRight: 5,
+                }}
+                renderItem={(item, index) => (
+                    <List.Item
+                        style={{
+                            padding: "14px 8px",
 
-                <Text>
-                  ความเชื่อมั่น AI
-                </Text>
+                            borderRadius: 12,
 
+                            transition: "0.2s",
+                        }}
+                        onMouseEnter={(e) => {
+                            e.currentTarget.style.background = "#f5f5f5";
+                        }}
+                        onMouseLeave={(e) => {
+                            e.currentTarget.style.background = "transparent";
+                        }}
+                    >
+                        <div
+                            style={{
+                                display: "flex",
 
-                <Progress
-                  percent={report.confidence}
-                  size="small"
-                />
+                                width: "100%",
 
+                                gap: 12,
+                            }}
+                        >
+                            {/* Rank */}
 
+                            <div
+                                style={{
+                                    width: 38,
 
-                <p>
-                  Status :
-                  {" "}
+                                    height: 38,
 
-                  <Tag>
-                    {report.status}
-                  </Tag>
-                </p>
+                                    borderRadius: "50%",
 
+                                    background:
+                                        index === 0 ? "#fff1f0" : "#f5f5f5",
 
+                                    display: "flex",
 
-                <Text type="secondary">
-                  {report.time}
-                </Text>
+                                    justifyContent: "center",
 
+                                    alignItems: "center",
 
-              </Card>
+                                    fontWeight: 700,
+                                }}
+                            >
+                                #{index + 1}
+                            </div>
 
+                            {/* Content */}
 
-            </Col>
+                            <div
+                                style={{
+                                    flex: 1,
+                                }}
+                            >
+                                <div
+                                    style={{
+                                        display: "flex",
 
+                                        justifyContent: "space-between",
 
-          ))
-        }
+                                        alignItems: "center",
+                                    }}
+                                >
+                                    <Text
+                                        strong
+                                        ellipsis
+                                        style={{
+                                            maxWidth: 180,
+                                        }}
+                                    >
+                                        {item.title}
+                                    </Text>
 
+                                    <Text
+                                        strong
+                                        style={{
+                                            color: "#1677ff",
 
-      </Row>
+                                            fontSize: 16,
+                                        }}
+                                    >
+                                        {item.confidence}%
+                                    </Text>
+                                </div>
 
+                                <div
+                                    style={{
+                                        marginTop: 4,
 
-    </Card>
+                                        fontSize: 12,
 
-  );
+                                        color: "#8c8c8c",
+                                    }}
+                                >
+                                    <EnvironmentOutlined /> {item.location}
+                                </div>
 
+                                <Space
+                                    style={{
+                                        marginTop: 10,
+
+                                        width: "100%",
+                                    }}
+                                >
+                                    <Tag
+                                        color={
+                                            severityConfig[item.severity]?.color
+                                        }
+                                    >
+                                        {severityConfig[item.severity]?.label}
+                                    </Tag>
+
+                                    <Progress
+                                        percent={item.confidence}
+                                        showInfo={false}
+                                        size="small"
+                                        style={{
+                                            flex: 1,
+                                        }}
+                                    />
+                                </Space>
+                            </div>
+                        </div>
+                    </List.Item>
+                )}
+            />
+        </Card>
+    );
 };
-
-
 
 export default PriorityReports;

@@ -1,112 +1,108 @@
+import { Card, Row, Col, Statistic } from "antd";
 import {
-  Card
-} from "antd";
-
-
-import {
-
- PieChart,
- Pie,
- Cell,
- Tooltip,
- ResponsiveContainer
-
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
 } from "recharts";
-
-
-
-
-
-const ReportPieChart = ({data}) => {
-
-
 
 const COLORS = [
   "#faad14",
   "#1677ff",
-  "#52c41a"
+  "#52c41a",
+  "#ff4d4f",
 ];
 
+export default function ReportPieChart({ data }) {
+  const total = data.reduce((sum, item) => sum + item.value, 0);
 
+  return (
+    <Card
+      title="Report Status"
+      style={{
+        borderRadius: 12,
+      }}
+    >
+      <Row align="middle">
+        <Col span={16}>
+          <ResponsiveContainer width="100%" height={300}>
+            <PieChart>
+              <Pie
+                data={data}
+                cx="50%"
+                cy="50%"
+                innerRadius={55}
+                outerRadius={95}
+                paddingAngle={4}
+                dataKey="value"
+              >
+                {data.map((entry, index) => (
+                  <Cell
+                    key={entry.name}
+                    fill={COLORS[index % COLORS.length]}
+                  />
+                ))}
+              </Pie>
 
-return (
+              <Tooltip
+                formatter={(value) => [
+                  `${value} Reports`,
+                  "Count",
+                ]}
+              />
 
-<Card
+              <Legend
+                verticalAlign="bottom"
+                iconType="circle"
+              />
+            </PieChart>
+          </ResponsiveContainer>
+        </Col>
 
- title="Report Status"
+        <Col span={8}>
+          <Statistic
+            title="Total Reports"
+            value={total}
+          />
 
- style={{
-   borderRadius:12
- }}
+          <div style={{ marginTop: 20 }}>
+            {data.map((item, index) => (
+              <div
+                key={item.name}
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  marginBottom: 12,
+                  alignItems: "center",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 12,
+                      height: 12,
+                      borderRadius: "50%",
+                      background: COLORS[index],
+                    }}
+                  />
 
->
+                  {item.name}
+                </div>
 
-
-<ResponsiveContainer
- width="100%"
- height={300}
->
-
-
-<PieChart>
-
-
-<Pie
-
- data={data}
-
- dataKey="value"
-
- nameKey="name"
-
- cx="50%"
-
- cy="50%"
-
- outerRadius={100}
-
- label
-
-
->
-
-
-{
-data.map((entry,index)=>(
-
-<Cell
-
- key={`cell-${index}`}
-
- fill={COLORS[index % COLORS.length]}
-
-/>
-
-))
-
+                <strong>{item.value}</strong>
+              </div>
+            ))}
+          </div>
+        </Col>
+      </Row>
+    </Card>
+  );
 }
-
-
-</Pie>
-
-
-<Tooltip />
-
-
-</PieChart>
-
-
-</ResponsiveContainer>
-
-
-</Card>
-
-
-);
-
-
-};
-
-
-
-export default ReportPieChart;
