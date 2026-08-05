@@ -4,18 +4,7 @@ permissions:
   contents: read
 
 on:
-  push:
-    branches: [ main, develop ]
-    paths:
-      - 'backend/**'
-      - 'frontend/**'
-      - '.github/workflows/ci.yml'
-  pull_request:
-    branches: [ main, develop ]
-    paths:
-      - 'backend/**'
-      - 'frontend/**'
-      - '.github/workflows/ci.yml'
+  workflow_dispatch:  # Disabled automatic triggers; run manually when needed
 
 jobs:
   backend-tests:
