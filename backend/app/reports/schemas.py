@@ -192,3 +192,61 @@ class StatsResponse(BaseModel):
     completed_count: int
     rejected_count: int
 
+
+# ─── New Schemas for System Entities ────────────────────────────
+
+class UserResponse(BaseModel):
+    id: int
+    email: str
+    role: str
+    is_active: int
+    created_at: datetime
+    last_login: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ReportActionResponse(BaseModel):
+    id: int
+    report_id: int
+    officer_id: Optional[int] = None
+    previous_status: Optional[str] = None
+    new_status: str
+    action_note: Optional[str] = None
+    repaired_image_filename: Optional[str] = None
+    action_timestamp: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class SystemSettingResponse(BaseModel):
+    id: int
+    config_key: str
+    config_value: Dict[str, Any]
+    updated_by: Optional[int] = None
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class MapPointItem(BaseModel):
+    """จุดพิกัดสำหรับ heatmap / severity map"""
+    id: int
+    latitude: float
+    longitude: float
+    status: str
+    reporter_name: Optional[str] = None
+    created_at: Optional[datetime] = None
+    # ความหนาแน่น: weight = 1 ต่อจุด; severity ใช้ค่าด้านล่าง
+    severity_score: float = 0.0
+    fusion_score: float = 0.0
+    decision: Optional[str] = None
+    road_name: Optional[str] = None
+    damage_level: str = "unknown"  # critical | warning | moderate | good | unknown
+
+
+class MapPointsResponse(BaseModel):
+    """รายการจุดพิกัดทั้งหมดที่มี GPS สำหรับแสดงบนแผนที่"""
+    total: int
+    points: list[MapPointItem]
+

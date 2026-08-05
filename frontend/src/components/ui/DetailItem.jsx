@@ -1,11 +1,11 @@
 import React from 'react';
 
 const DetailItem = ({ icon, label, value }) => (
-  <div className="flex items-start gap-4">
-    <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 shadow-sm">{icon}</div>
-    <div>
-      <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-none mb-1.5">{label}</p>
-      <div className="text-base font-bold text-slate-700">{value}</div>
+  <div className="flex items-start gap-3">
+    <div className="p-2.5 bg-mist border border-line rounded-xl text-ink-soft">{icon}</div>
+    <div className="min-w-0">
+      <p className="text-xs text-asphalt/55 font-medium mb-0.5">{label}</p>
+      <div className="text-[15px] font-semibold text-ink">{value}</div>
     </div>
   </div>
 );

@@ -82,26 +82,54 @@ class FuzzyFusionEngine:
         rain = ctrl.Antecedent(np.arange(0, 3001, 100), 'rainfall')
         soil = ctrl.Antecedent(np.arange(0, 1.1, 0.1), 'soil')
         crowd = ctrl.Antecedent(np.arange(0, 51, 1), 'crowd')
+        road_type = ctrl.Antecedent(np.arange(0, 4, 1), 'road_type')
+        impact = ctrl.Antecedent(np.arange(0, 101, 1), 'impact')
+        
         ppi = ctrl.Consequent(np.arange(0, 101, 1), 'ppi')
 
-        sev['low'] = fuzz.zmf(sev.universe, 2, 4)
+        sev['low'] = fuzz.zmf(sev.universe, 1, 3)
+        sev['medium'] = fuzz.trapmf(sev.universe, [1, 2, 4, 5])
         sev['high'] = fuzz.smf(sev.universe, 3, 5)
         
         rain.automf(3, names=['low', 'medium', 'high'])
-        soil['dry'] = fuzz.zmf(soil.universe, 0.2, 0.5)
+        soil['dry'] = fuzz.zmf(soil.universe, 0.2, 0.6)
         soil['wet'] = fuzz.smf(soil.universe, 0.4, 0.8)
         
-        crowd['few'] = fuzz.zmf(crowd.universe, 2, 10)
-        crowd['many'] = fuzz.smf(crowd.universe, 5, 20)
+        crowd['few'] = fuzz.zmf(crowd.universe, 2, 15)
+        crowd['many'] = fuzz.smf(crowd.universe, 10, 25)
         
-        ppi.automf(3, names=['normal', 'warning', 'critical'])
+        road_type['local'] = fuzz.zmf(road_type.universe, 1, 2)
+        road_type['main'] = fuzz.trimf(road_type.universe, [1, 2, 3])
+        road_type['highway'] = fuzz.smf(road_type.universe, 2, 3)
+        
+        impact['low'] = fuzz.zmf(impact.universe, 20, 50)
+        impact['high'] = fuzz.smf(impact.universe, 40, 80)
 
-        rule1 = ctrl.Rule(sev['high'] | crowd['many'], ppi['critical'])
-        rule2 = ctrl.Rule(sev['low'] & soil['wet'] & rain['high'], ppi['warning'])
-        rule3 = ctrl.Rule(sev['low'] & soil['dry'] & crowd['few'], ppi['normal'])
-        rule4 = ctrl.Rule(rain['medium'], ppi['warning'])
+        ppi.automf(5, names=['normal', 'watch', 'warning', 'urgent', 'critical'])
+
+        # Extended Rule Matrix
+        # 1. Extreme Cases
+        r1a = ctrl.Rule(sev['high'] & (road_type['highway'] | road_type['main']), ppi['critical'])
+        r1b = ctrl.Rule(sev['high'] & road_type['local'], ppi['urgent'])
+        r2 = ctrl.Rule(sev['high'] & impact['high'], ppi['critical'])
+        r3 = ctrl.Rule(sev['high'] & crowd['many'], ppi['critical'])
         
-        ppi_ctrl = ctrl.ControlSystem([rule1, rule2, rule3, rule4])
+        # 2. Warning Cases
+        r4a = ctrl.Rule(sev['medium'] & (road_type['highway'] | road_type['main']), ppi['warning'])
+        r4b = ctrl.Rule(sev['medium'] & road_type['local'], ppi['watch'])
+        r5 = ctrl.Rule(sev['medium'] & (soil['wet'] | rain['high']), ppi['warning'])
+        r6 = ctrl.Rule(sev['medium'] & crowd['many'], ppi['warning'])
+        r7 = ctrl.Rule(sev['low'] & soil['wet'] & rain['high'] & (road_type['highway'] | road_type['main']), ppi['warning'])
+
+        # 3. Normal Cases
+        r8 = ctrl.Rule(sev['low'] & soil['dry'] & (road_type['local'] | road_type['main'] | road_type['highway']), ppi['normal'])
+        r9 = ctrl.Rule(sev['low'] & impact['low'] & crowd['few'], ppi['normal'])
+        
+        # 4. Environment driven
+        r10 = ctrl.Rule(rain['medium'] & sev['medium'], ppi['warning'])
+        r11 = ctrl.Rule(rain['high'] & road_type['local'], ppi['warning'])
+        
+        ppi_ctrl = ctrl.ControlSystem([r1a, r1b, r2, r3, r4a, r4b, r5, r6, r7, r8, r9, r10, r11])
         return ctrl.ControlSystemSimulation(ppi_ctrl)
 
     def predict_ppi(self, data: RoadReportData) -> float:
@@ -109,14 +137,21 @@ class FuzzyFusionEngine:
         self.fuzzy_sim.input['rainfall'] = data.rainfall_12m
         self.fuzzy_sim.input['soil'] = data.soil_moisture
         self.fuzzy_sim.input['crowd'] = data.crowd_count_30d
-        self.fuzzy_sim.compute()
-        return float(self.fuzzy_sim.output['ppi'])
+        self.fuzzy_sim.input['road_type'] = data.road_type_encoded
+        self.fuzzy_sim.input['impact'] = data.community_impact_score
+        
+        try:
+            self.fuzzy_sim.compute()
+            return float(self.fuzzy_sim.output['ppi'])
+        except Exception as e:
+            print(f"⚠️ [FuzzyLogic Error]: No rules triggered, falling back to heuristic. Details: {e}")
+            return HeuristicFusionEngine.predict_ppi(data)
 
 # =====================================================================
 # 3. Machine Learning Engine (รองรับการ Save/Load Pickle File)
 # =====================================================================
 class MLFusionEngine:
-    def __init__(self, model_path="ppi_rf_model_v2.pkl"):
+    def __init__(self, model_path="ppi_rf_model_v3.pkl"):
         self.model_path = model_path
         self.model = None
         self._initialize_model()
@@ -134,21 +169,16 @@ class MLFusionEngine:
         np.random.seed(42)
         n_samples = 2000
         
-        # ปรับชื่อตัวแปรให้เป็น nearest_poi_distance_m ทั้งหมด
         df = pd.DataFrame({
             'cv_ratio': np.random.uniform(0, 80, n_samples),
             'cv_severity': np.random.choice([0, 2, 4, 5], n_samples),
             'rain_12m': np.random.uniform(500, 2500, n_samples),
             'soil_moist': np.random.uniform(0.1, 0.8, n_samples),
-            'ndvi': np.random.uniform(0.0, 0.8, n_samples),
             'is_asphalt': np.random.choice([1, 0], n_samples),
-            'road_type_enc': np.random.uniform(1, 10, n_samples),
+            'road_type_enc': np.random.uniform(1, 4, n_samples),
             'crowd_30d': np.random.randint(0, 30, n_samples),
             'comm_impact': np.random.uniform(0, 100, n_samples),
-            'slope': np.random.uniform(0, 15, n_samples),
-            'lanes': np.random.choice([1, 2, 3, 4], n_samples),
-            'speed_limit': np.random.choice([30, 50, 80, 90], n_samples),
-            'nearest_poi_distance_m': np.random.uniform(10, 2000, n_samples)
+            'speed_limit': np.random.choice([30, 50, 80, 90], n_samples)
         })
 
         y_train = []
@@ -157,10 +187,9 @@ class MLFusionEngine:
             mock_data = RoadReportData(
                 cv_ratio=row['cv_ratio'], cv_severity=row['cv_severity'], 
                 rain_12m=row['rain_12m'], soil_moist=row['soil_moist'], 
-                ndvi=row['ndvi'], material=mat, road_type_enc=row['road_type_enc'], 
+                material=mat, road_type_enc=row['road_type_enc'], 
                 crowd_30d=row['crowd_30d'], comm_impact=row['comm_impact'],
-                slope=row['slope'], lanes=row['lanes'], speed_limit=row['speed_limit'],
-                nearest_poi_distance_m=row['nearest_poi_distance_m']
+                speed_limit=row['speed_limit']
             )
             score = HeuristicFusionEngine.predict_ppi(mock_data) + np.random.normal(0, 2)
             y_train.append(min(100.0, max(0.0, score)))
@@ -182,15 +211,11 @@ class MLFusionEngine:
             'cv_severity': [data.cv_max_severity_score],
             'rain_12m': [data.rainfall_12m], 
             'soil_moist': [data.soil_moisture],
-            'ndvi': [data.ndvi_index], 
             'is_asphalt': [is_asphalt],
             'road_type_enc': [data.road_type_encoded], 
             'crowd_30d': [data.crowd_count_30d],
             'comm_impact': [data.community_impact_score],
-            'slope': [data.slope],
-            'lanes': [data.lanes],
-            'speed_limit': [data.speed_limit],
-            'nearest_poi_distance_m': [data.nearest_poi_distance_m]
+            'speed_limit': [data.speed_limit]
         })
         
         return float(self.model.predict(X_test)[0])

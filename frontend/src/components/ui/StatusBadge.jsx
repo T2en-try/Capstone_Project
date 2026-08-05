@@ -1,17 +1,27 @@
 import React from 'react';
 
-const StatusBadge = ({ status, size = 'sm' }) => {
-  const styles = {
-    pending:    'bg-amber-100 text-amber-700 ring-amber-600/20',
-    processing: 'bg-blue-100 text-blue-700 ring-blue-600/20',
-    completed:  'bg-emerald-100 text-emerald-700 ring-emerald-600/20',
-    rejected:   'bg-rose-100 text-rose-700 ring-rose-600/20',
-  };
-  return (
-    <span className={`inline-flex items-center rounded-full font-bold uppercase tracking-wider ring-1 ring-inset ${styles[status]} ${size==='sm' ? 'px-2.5 py-1 text-[10px]' : 'px-4 py-1.5 text-xs shadow-lg backdrop-blur-md'}`}>
-      {status}
-    </span>
-  );
+const LABELS = {
+  pending: 'รอรับเรื่อง',
+  processing: 'กำลังดำเนินการ',
+  completed: 'เสร็จสิ้น',
+  rejected: 'ไม่ผ่านการตรวจ',
 };
+
+const STYLES = {
+  pending: 'bg-mark/20 text-mark-deep border-mark/40',
+  processing: 'bg-info/10 text-info border-info/30',
+  completed: 'bg-ok/10 text-ok border-ok/30',
+  rejected: 'bg-danger/10 text-danger border-danger/30',
+};
+
+const StatusBadge = ({ status, size = 'sm' }) => (
+  <span
+    className={`inline-flex items-center border font-semibold ${STYLES[status] || STYLES.pending} ${
+      size === 'sm' ? 'px-2.5 py-1 text-[11px] rounded-md' : 'px-3 py-1.5 text-xs rounded-lg'
+    }`}
+  >
+    {LABELS[status] || status}
+  </span>
+);
 
 export default StatusBadge;

@@ -1,4 +1,4 @@
-﻿# Road Remaining Life Prediction System
+# Road Remaining Life Prediction System
 
 ## สมาชิกผู้จัดทำ
 1. นายวัชรเกียรติ พิทักษา รหัสนักศึกษา B6613969
@@ -9,16 +9,47 @@
 ## อาจารย์ที่ปรึกษา
 รองศาสตราจารย์ ดร. ปรเมศวร์ห่อแก้ว
 
-## วิธีการติดตั้งและรันระบบ AI 
+## วิธีการติดตั้งและตั้งค่าระบบ (Installation & Setup)
 
-1. Clone โปรเจกต์ลงเครื่อง: `git clone ...`
-2. เข้าไปที่โฟลเดอร์: `cd backend` 
-3. ติดตั้งไลบรารี: `pip install -r requirements.txt`
-4. ไปที่ https://drive.google.com/drive/folders/1G45AjreZVy1xsrpG1CFhTak6aRH4UEVz 
-5. นำไฟล์ `best.pt` ในโฟลเดอร์ `Model_Train` ที่โหลดมา ไปวางไว้ในโฟลเดอร์ `backend` (ให้อยู่ระดับเดียวกับ `main.py`)
-6. ไปที่ https://drive.google.com/drive/folders/1zAzuR9x3x1J0SX7VlAyF7U5d4IAIWycB
-7. นำไฟล์ `Road-maintain.json` ในโฟลเดอร์ `Config` ที่โหลดมา ไปวางไว้ในโฟลเดอร์ `backend/app/services` (ให้อยู่ระดับเดียวกับ `gps_extractor.py`)
-8. สั่งรันเซิร์ฟเวอร์ backend : `uvicorn main:app --reload` หรือ `python -m uvicorn main:app --reload`
-9. ไปที่ `cd backend` รันคำสั่ง `uvicorn main:app --reload` เพื่อรันเซิร์ฟเวอร์ backend
-10. เปิดอีก Terminal แล้วไปที่ `cd frontend` รันคำสั่ง `npm install`
-11. สั่งรันเซิร์ฟเวอร์ frontend : `npm run dev`
+ระบบ AI และ Backend มีไฟล์บางส่วนที่ไม่สามารถอัปโหลดขึ้น GitHub ได้ (เช่น ไฟล์โมเดลขนาดใหญ่, รหัสผ่าน, และไฟล์ Credentials) คุณจำเป็นต้องดาวน์โหลดไฟล์เหล่านี้มาวางในโปรเจกต์ด้วยตัวเองก่อนจึงจะสามารถรันระบบได้
+
+### 1. การเตรียมโฟลเดอร์และไลบรารี
+1. Clone โปรเจกต์ลงเครื่อง: `git clone [YOUR_REPO_LINK]`
+2. เข้าไปที่โฟลเดอร์ Backend: `cd backend`
+3. ติดตั้งไลบรารีที่จำเป็น: `pip install -r requirements.txt`
+
+### 2. ไฟล์ตั้งค่าและ Credentials ที่ต้องดาวน์โหลด
+กรุณาดาวน์โหลดไฟล์ด้านล่างนี้และนำไปวางในตำแหน่งที่ระบุ:
+
+*   **ไฟล์ `.env`** (ไฟล์ตั้งค่าระบบและฐานข้อมูล)
+    *   **ตำแหน่งที่ต้องวาง:** `backend/.env` (ให้อยู่ระดับเดียวกับ `main.py`)
+    *   *(ทางเลือก: สามารถก็อปปี้ไฟล์ `.env.example` แล้วเปลี่ยนชื่อเป็น `.env` พร้อมกรอกข้อมูลเองได้ ส่วนตัวข้อมูลข้างในสามารถติดต่อ นายพชร ได้เลย)*
+
+*   **ไฟล์ `Road-maintain.json`** (Google Earth Engine Service Account Credentials)
+    *   **ดาวน์โหลด:** https://drive.google.com/file/d/178Pdqw8FzfZYQXhCyU6OI5c6fkjQk3aP/view?usp=drive_link
+    *   **ตำแหน่งที่ต้องวาง:** `backend/app/services/Road-maintain.json`
+
+### 3. ไฟล์โมเดล AI (Machine Learning Weights) ที่ต้องดาวน์โหลด
+โมเดลเหล่านี้มีขนาดใหญ่และไม่ได้ถูกเก็บไว้ใน GitHub กรุณาดาวน์โหลดและนำไปวางในโฟลเดอร์ `backend/`:
+
+*   **ไฟล์ `best.pt`** (โมเดล YOLO/RT-DETR สำหรับตรวจจับความเสียหาย)
+    *   **ดาวน์โหลด:** https://drive.google.com/file/d/1f4h86pTPI3jfmHMdIrGkJkLTVxnEQ-Hi/view?usp=drive_link
+    *   **ตำแหน่งที่ต้องวาง:** `backend/best.pt`
+*   **ไฟล์ `best-road-classifier.pt`** (โมเดลคัดกรองความถูกต้องของรูปภาพถนน)
+    *   **ดาวน์โหลด:** https://drive.google.com/file/d/15kjcDslmFC6e53miRMqkXPjmv6S1Vzxx/view?usp=drive_link
+    *   **ตำแหน่งที่ต้องวาง:** `backend/best-road-classifier.pt`
+*   **ไฟล์ `ppi_rf_model_v3.pkl`** (โมเดล Random Forest สำหรับคำนวณ Priority Score)
+    *   **ดาวน์โหลด:** https://drive.google.com/file/d/1k7lhW311fNC4fYxsdwhjxJmwzqsyTqPh/view?usp=drive_link
+    *   **ตำแหน่งที่ต้องวาง:** `backend/ppi_rf_model_v3.pkl`
+
+### 4. การรันเซิร์ฟเวอร์
+เมื่อวางไฟล์ทั้งหมดครบถ้วนแล้ว สามารถรันระบบได้ตามขั้นตอนดังนี้:
+
+**สำหรับ Backend:**
+1. ตรวจสอบว่าอยู่ในโฟลเดอร์ `backend`
+2. รันเซิร์ฟเวอร์: `python -m uvicorn main:app --reload`
+
+**สำหรับ Frontend:**
+1. เปิด Terminal ใหม่ แล้วเข้าไปที่โฟลเดอร์ `frontend`: `cd frontend`
+2. ติดตั้งแพ็กเกจ: `npm install`
+3. รันหน้าเว็บ: `npm run dev`

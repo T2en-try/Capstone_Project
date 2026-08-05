@@ -12,10 +12,12 @@ from fastapi.staticfiles import StaticFiles
 from app.core.config import settings
 from app.core.database import init_db
 from app.reports.router import router as reports_router
+from app.auth.router import router as auth_router
 from app.core.file_utils import ensure_upload_dir
 
 # --- [UPDATE] เปลี่ยนมาใช้ ai_engine ตัวใหม่แทน load_trained_model ---
 from app.ai.engine import ai_engine
+from app.ai.gee_integration import init_gee
 
 
 # ─── Lifespan Event: ทำงานตอนเริ่มต้น/ปิดเซิร์ฟเวอร์ ────────
@@ -27,6 +29,9 @@ async def lifespan(app: FastAPI):
     print("🚀 กำลังเริ่มต้นระบบ Road Report Backend...")
     await init_db()
     ensure_upload_dir()
+
+    # --- เริ่มต้น Google Earth Engine (GEE) ---
+    init_gee()
 
     # --- [UPDATE] โหลดสมองกล RT-DETR ---
     ai_engine.load_model()
@@ -74,6 +79,7 @@ app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads"
 # ─── Register Routers ─────────────────────────────────────────
 
 app.include_router(reports_router)
+app.include_router(auth_router)
 
 
 # ─── Health Check ──────────────────────────────────────────────
