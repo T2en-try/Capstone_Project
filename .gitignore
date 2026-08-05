@@ -25,3 +25,7 @@ uploads/
 images/
 
 .DS_Store
+
+# Playwright artifacts
+frontend/playwright-report/
+frontend/test-results/
