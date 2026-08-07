@@ -1,43 +1,92 @@
-import { Card, Input, Select, Space, Button } from "antd";
+import { Card, Input, Select, Space } from "antd";
 import { SearchOutlined } from "@ant-design/icons";
 
-export default function FilterBar() {
+export default function FilterBar({
+  filters,
+  setFilters,
+}) {
   return (
-    <Card style={{ marginBottom: 16 }}>
+    <Card
+      style={{
+        marginBottom: 16,
+        borderRadius: 12,
+      }}
+    >
       <Space wrap>
         <Input
-          placeholder="Search Road"
+          placeholder="ค้นหาชื่อถนน..."
+          prefix={<SearchOutlined />}
           style={{ width: 250 }}
+          value={filters.keyword}
+          onChange={(e) =>
+            setFilters({
+              ...filters,
+              keyword: e.target.value,
+            })
+          }
         />
 
         <Select
-          defaultValue="All Severity"
-          style={{ width: 170 }}
+          style={{ width: 180 }}
+          value={filters.severity}
+          onChange={(value) =>
+            setFilters({
+              ...filters,
+              severity: value,
+            })
+          }
           options={[
-            { value: "all", label: "All Severity" },
-            { value: "high", label: "High" },
-            { value: "medium", label: "Medium" },
-            { value: "low", label: "Low" },
+            {
+              value: "All",
+              label: "ทุกระดับความรุนแรง",
+            },
+            {
+              value: "Critical",
+              label: "Critical",
+            },
+            {
+              value: "High",
+              label: "High",
+            },
+            {
+              value: "Medium",
+              label: "Medium",
+            },
+            {
+              value: "Low",
+              label: "Low",
+            },
           ]}
         />
 
         <Select
-          defaultValue="All Status"
-          style={{ width: 170 }}
+          style={{ width: 180 }}
+          value={filters.status}
+          onChange={(value) =>
+            setFilters({
+              ...filters,
+              status: value,
+            })
+          }
           options={[
-            { value: "all", label: "All Status" },
-            { value: "pending", label: "Pending" },
-            { value: "processing", label: "Processing" },
-            { value: "completed", label: "Completed" },
+            {
+              value: "All",
+              label: "ทุกสถานะ",
+            },
+            {
+              value: "Pending",
+              label: "Pending",
+            },
+            {
+              value: "Processing",
+              label: "Processing",
+            },
+            {
+              value: "Completed",
+              label: "Completed",
+            },
           ]}
         />
-
-        <Button
-          type="primary"
-          icon={<SearchOutlined />}
-        >
-          Search
-        </Button>
       </Space>
     </Card>
   );
