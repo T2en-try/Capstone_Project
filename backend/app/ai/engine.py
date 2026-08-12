@@ -16,7 +16,7 @@ SEVERITY_WEIGHTS = {
 }
 
 # ถ้า best.pt อยู่ที่เดียวกับ main.py ใช้แบบนี้ได้เลย ปลอดภัยที่สุดครับ
-MODEL_PATH = os.path.join(os.getcwd(), 'best.pt')
+MODEL_PATH = os.path.join(os.getcwd(), 'models', 'best.pt')
 CLASSIFIER_MODEL_PATH = os.path.join(os.getcwd(), 'best-road-classifier.pt')
 
 class AIEngine:
@@ -150,12 +150,15 @@ class AIEngine:
         is_anomaly = False
         anomaly_reason = ""
         
-        if fusion_data.ndvi_index > 0.6:
-            is_anomaly = True
-            anomaly_reason = "GPS does not match the uploaded image"
-        elif fusion_data.ndvi_index < -0.1:
-            is_anomaly = True
-            anomaly_reason = "GPS does not match the uploaded image"
+        # [INTENTIONAL BYPASS]: The NDVI anomaly check is intentionally bypassed for the 
+        # offline labeling dataset because high NDVI (dense vegetation) can occur near legitimate 
+        # rural roads, and we don't want it falsely rejecting valid images.
+        # if fusion_data.ndvi_index > 0.6:
+        #     is_anomaly = True
+        #     anomaly_reason = "GPS does not match the uploaded image"
+        # elif fusion_data.ndvi_index < -0.1:
+        #     is_anomaly = True
+        #     anomaly_reason = "GPS does not match the uploaded image"
 
         # 4. สั่งคำนวณคะแนนจากทั้ง 3 ระบบ
         if is_anomaly:

@@ -24,8 +24,17 @@ build/
 uploads/
 images/
 
+data/
+
 .DS_Store
 
 # Playwright artifacts
 frontend/playwright-report/
 frontend/test-results/
+
+# Added per security audit
+*.parquet
+*.pbf
+backend/cache/
+backend/scratch/
+*.csv

@@ -6,7 +6,17 @@ import os
 import osmnx as ox
 import networkx as nx
 
+# For local OSM extract
+from pyrosm import OSM
+import geopandas as gpd
+from shapely.geometry import Point
+import numpy as np
+
 from app.core.config import settings
+
+# Force OSMnx to timeout quickly if Overpass API is rate-limiting us
+ox.settings.requests_timeout = 10
+
 
 def init_gee():
     """
@@ -46,6 +56,9 @@ def get_environment_data(lat, lon):
     start_date_ndvi = (today - timedelta(days=90)).strftime('%Y-%m-%d')
 
     print(f"กำลังดึงข้อมูล GEE พิกัด {lat}, {lon}...")
+    import time
+    gee_times = {}
+    total_start = time.time()
 
     # ตั้งค่าเริ่มต้นเผื่อดึงข้อมูลไม่สำเร็จ
     nightlight = 0
@@ -57,6 +70,7 @@ def get_environment_data(lat, lon):
     slope = 0
 
     # 1. Nightlight (ความพลุกพล่าน)
+    t0 = time.time()
     try:
         viirs = ee.ImageCollection('NOAA/VIIRS/DNB/MONTHLY_V1/VCMSLCFG') \
                   .filterBounds(point).filterDate(start_date_annual, end_date_annual).median()
@@ -66,8 +80,10 @@ def get_environment_data(lat, lon):
         if val: nightlight = val
     except Exception as e:
         print(f"⚠️ ข้ามการดึง Nightlight: {e}")
+    gee_times['nightlight'] = round(time.time() - t0, 2)
 
     # 2. Rainfall (น้ำฝนสะสม)
+    t0 = time.time()
     try:
         chirps = ee.ImageCollection('UCSB-CHG/CHIRPS/DAILY') \
                     .filterBounds(point).filterDate(start_date_annual, end_date_annual).sum()
@@ -77,8 +93,10 @@ def get_environment_data(lat, lon):
         if val: rainfall = val
     except Exception as e:
         print(f"⚠️ ข้ามการดึง Rainfall: {e}")
+    gee_times['rainfall'] = round(time.time() - t0, 2)
 
     # 3. Soil Moisture (ความชื้นดิน)
+    t0 = time.time()
     try:
         smap = ee.ImageCollection('NASA/SMAP/SPL4SMGP/008') \
                  .filterBounds(point).filterDate(start_date_recent, end_date_recent).mean()
@@ -88,8 +106,10 @@ def get_environment_data(lat, lon):
         if val: soil_moisture = val
     except Exception as e:
         print(f"⚠️ ข้ามการดึง Soil Moisture: {e}")
+    gee_times['soil'] = round(time.time() - t0, 2)
 
     # 4. NDVI & Surface Material (Sentinel-2 แทน MODIS)
+    t0 = time.time()
     try:
         s2 = ee.ImageCollection('COPERNICUS/S2_SR_HARMONIZED') \
                .filterBounds(point).filterDate(start_date_ndvi, end_date_recent) \
@@ -117,8 +137,10 @@ def get_environment_data(lat, lon):
                 estimated_material = "ยางมะตอย (Asphalt)"
     except Exception as e:
         print(f"⚠️ ข้ามการดึง Sentinel-2 (NDVI & Material): {e}")
+    gee_times['ndvi_material'] = round(time.time() - t0, 2)
 
     # 5. Elevation & Slope (SRTM DEM)
+    t0 = time.time()
     try:
         dem = ee.Image('USGS/SRTMGL1_003')
         terrain = ee.Terrain.products(dem) # มีทั้ง elevation และ slope
@@ -134,6 +156,10 @@ def get_environment_data(lat, lon):
         if slope_val is not None: slope = slope_val
     except Exception as e:
         print(f"⚠️ ข้ามการดึง Elevation & Slope: {e}")
+    gee_times['elevation'] = round(time.time() - t0, 2)
+    
+    total_gee = round(time.time() - total_start, 2)
+    print(f"GEE Fetch Complete! Total Time: {total_gee}s. Breakdown: {gee_times}")
 
     return {
         "date_analyzed": today.strftime('%Y-%m-%d'),
@@ -146,11 +172,41 @@ def get_environment_data(lat, lon):
         "slope_deg": round(slope, 2)
     }
 
+# --- Caching Mechanism ---
+_cached_driving_network = None
+_cached_pois = None
+
+def get_cached_driving_network():
+    global _cached_driving_network
+    if _cached_driving_network is None:
+        cache_path = 'cached_driving_network.parquet'
+        if os.path.exists(cache_path):
+            print("Loading driving network cache from Parquet...")
+            _cached_driving_network = gpd.read_parquet(cache_path)
+            if _cached_driving_network.crs != "EPSG:3857":
+                _cached_driving_network = _cached_driving_network.to_crs(epsg=3857)
+        else:
+            print("WARNING: cached_driving_network.parquet not found!")
+    return _cached_driving_network
+
+def get_cached_pois():
+    global _cached_pois
+    if _cached_pois is None:
+        cache_path = 'cached_pois.parquet'
+        if os.path.exists(cache_path):
+            print("Loading POIs cache from Parquet...")
+            _cached_pois = gpd.read_parquet(cache_path)
+            if _cached_pois.crs != "EPSG:3857":
+                _cached_pois = _cached_pois.to_crs(epsg=3857)
+        else:
+            print("WARNING: cached_pois.parquet not found!")
+    return _cached_pois
+
 def get_road_type(lat, lon, radius_meters=50):
     """
-    ฟังก์ชันดึงประเภทถนน เลน ความเร็วจำกัด จากพิกัด GPS โดยใช้ OSMnx
+    ฟังก์ชันดึงประเภทถนน เลน ความเร็วจำกัด จากพิกัด GPS โดยใช้ Pyrosm Cache
     """
-    print("กำลังตรวจสอบประเภทถนนจาก OSMnx...")
+    print("กำลังตรวจสอบประเภทถนนจาก Pyrosm (Local Cache)...")
     
     highway_type = 'unknown'
     road_name = 'ไม่มีชื่อถนน'
@@ -158,36 +214,44 @@ def get_road_type(lat, lon, radius_meters=50):
     speed_limit = 50.0
     
     try:
-        # ใช้ OSMnx ดึงกราฟถนนบริเวณพิกัดแบบ Drive
-        G = ox.graph_from_point((lat, lon), dist=radius_meters, network_type='drive')
-        
-        if G and len(G.edges) > 0:
-            nearest_edge = ox.nearest_edges(G, X=lon, Y=lat)
-            edge_data = G.get_edge_data(nearest_edge[0], nearest_edge[1])[0]
+        edges_proj = get_cached_driving_network()
+        if edges_proj is not None and not edges_proj.empty:
+            pt = Point(lon, lat)
+            pt_gdf = gpd.GeoDataFrame(geometry=[pt], crs="EPSG:4326").to_crs(epsg=3857)
+            pt_proj = pt_gdf.geometry.iloc[0]
             
-            hw = edge_data.get('highway', 'unknown')
-            highway_type = hw[0] if isinstance(hw, list) else hw
+            nearest_idx = edges_proj.sindex.nearest(pt_proj, return_all=False)[1][0]
+            nearest_edge = edges_proj.iloc[nearest_idx]
             
-            nm = edge_data.get('name', 'ไม่มีชื่อถนน')
-            road_name = nm[0] if isinstance(nm, list) else nm
-            
-            ln = edge_data.get('lanes')
-            if ln:
-                if isinstance(ln, list): ln = ln[0]
-                try: lanes = int(ln)
-                except ValueError: pass
+            # Distance sanity check
+            distance_m = pt_proj.distance(nearest_edge.geometry)
+            if distance_m <= 200:
+                hw = nearest_edge.get("highway", "unknown")
+                highway_type = hw[0] if isinstance(hw, (list, tuple, np.ndarray)) else str(hw)
                 
-            ms = edge_data.get('maxspeed')
-            if ms:
-                if isinstance(ms, list): ms = ms[0]
-                import re
-                ms_cleaned = re.sub(r'[^\d.]', '', str(ms))
-                try: 
-                    if ms_cleaned: speed_limit = float(ms_cleaned)
-                except ValueError: pass
+                if "name" in nearest_edge:
+                    nm = nearest_edge["name"]
+                    road_name = nm[0] if isinstance(nm, (list, tuple, np.ndarray)) else str(nm)
+                
+                if "lanes" in nearest_edge:
+                    ln = nearest_edge["lanes"]
+                    ln = ln[0] if isinstance(ln, (list, tuple, np.ndarray)) else str(ln)
+                    try: lanes = int(float(ln))
+                    except: pass
+                    
+                if "maxspeed" in nearest_edge:
+                    ms = nearest_edge["maxspeed"]
+                    ms = ms[0] if isinstance(ms, (list, tuple, np.ndarray)) else str(ms)
+                    import re
+                    ms_cleaned = re.sub(r'[^\d.]', '', ms)
+                    if ms_cleaned:
+                        try: speed_limit = float(ms_cleaned)
+                        except: pass
+            else:
+                print(f"Nearest road is too far ({distance_m:.1f}m), falling back to unknown.")
                 
     except Exception as e:
-        print(f"เกิดข้อผิดพลาดในการดึงข้อมูล OSMnx (Road): {e}")
+        print(f"เกิดข้อผิดพลาดในการดึงข้อมูล Pyrosm (Road): {e}")
         
     road_type_mapping = {
         'motorway': 'ทางด่วนพิเศษ',
@@ -237,9 +301,9 @@ def get_crowdsource_data(lat, lon, radius_meters=50):
 def get_poi_data(lat, lon, radius_meters=1000):
     """
     ฟังก์ชันดึงข้อมูลสถานที่สำคัญ (โรงพยาบาล, โรงเรียน, ร้านสะดวกซื้อ/เซเว่น) 
-    โดยใช้ OSMnx และหาระยะห่างไปยัง POI สำคัญที่ใกล้ที่สุด
+    โดยใช้ Pyrosm Local Cache และหาระยะห่างไปยัง POI สำคัญที่ใกล้ที่สุด
     """
-    print(f"กำลังตรวจสอบสถานที่สำคัญ (POIs) ในรัศมี {radius_meters} เมตรจาก OSMnx...")
+    print(f"กำลังตรวจสอบสถานที่สำคัญ (POIs) ในรัศมี {radius_meters} เมตรจาก Pyrosm (Local Cache)...")
     
     poi_count = 0
     hospitals = 0
@@ -248,44 +312,36 @@ def get_poi_data(lat, lon, radius_meters=1000):
     pi_score = 0
     nearest_poi_distance_m = float(radius_meters)
     
-    tags = {
-        'amenity': ['hospital', 'clinic', 'school', 'university'],
-        'shop': ['supermarket', 'convenience', 'mall']
-    }
-    
     try:
-        try:
-            pois = ox.features_from_point((lat, lon), tags, dist=radius_meters)
-        except AttributeError:
-            pois = ox.geometries_from_point((lat, lon), tags, dist=radius_meters)
+        pois_proj = get_cached_pois()
             
-        if not pois.empty:
-            poi_count = len(pois)
+        if pois_proj is not None and not pois_proj.empty:
+            pt = Point(lon, lat)
+            pt_gdf = gpd.GeoDataFrame(geometry=[pt], crs="EPSG:4326").to_crs(epsg=3857)
+            pt_proj = pt_gdf.geometry.iloc[0]
+
+            buffer = pt_proj.buffer(radius_meters)
             
-            if 'amenity' in pois.columns:
-                hospitals = len(pois[pois['amenity'].isin(['hospital', 'clinic'])])
-                schools = len(pois[pois['amenity'].isin(['school', 'university'])])
-            
-            if 'shop' in pois.columns:
-                shops = len(pois[pois['shop'].isin(['supermarket', 'convenience', 'mall'])])
-            
-            from shapely.geometry import Point
-            import geopandas as gpd
-            
-            center_point = Point(lon, lat)
-            center_gdf = gpd.GeoDataFrame(geometry=[center_point], crs="EPSG:4326")
-            
-            pois = pois.to_crs(center_gdf.estimate_utm_crs())
-            center_gdf = center_gdf.to_crs(pois.crs)
-            
-            distances = pois.geometry.distance(center_gdf.geometry.iloc[0])
-            if not distances.empty:
-                nearest_poi_distance_m = float(distances.min())
+            possible_matches_idx = list(pois_proj.sindex.intersection(buffer.bounds))
+            if possible_matches_idx:
+                possible_matches = pois_proj.iloc[possible_matches_idx]
+                precise_matches = possible_matches[possible_matches.geometry.intersects(buffer)]
+                
+                if not precise_matches.empty:
+                    poi_count = len(precise_matches)
+                    if 'amenity' in precise_matches.columns:
+                        hospitals = len(precise_matches[precise_matches['amenity'].isin(['hospital', 'clinic'])])
+                        schools = len(precise_matches[precise_matches['amenity'].isin(['school', 'university'])])
+                    if 'shop' in precise_matches.columns:
+                        shops = len(precise_matches[precise_matches['shop'].isin(['supermarket', 'convenience', 'mall'])])
+                    
+                    distances = precise_matches.geometry.distance(pt_proj)
+                    nearest_poi_distance_m = float(distances.min())
             
             pi_score = (hospitals * 3) + (schools * 2) + (shops * 1)
             
     except Exception as e:
-        print(f"เกิดข้อผิดพลาดในการดึงข้อมูล POIs จาก OSMnx: {e}")
+        print(f"เกิดข้อผิดพลาดในการดึงข้อมูล POIs จาก Pyrosm: {e}")
 
     return {
         "total_pois_found": poi_count,

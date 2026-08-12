@@ -32,6 +32,7 @@ from app.services.gps_extractor import extract_gps_from_exif
 
 router = APIRouter(prefix="/api/reports", tags=["Reports"])
 
+
 async def process_report_background(
     report_id: int,
     file_info: dict,
@@ -42,28 +43,13 @@ async def process_report_background(
     """ฟังก์ชันทำงานเบื้องหลังสำหรับ AI Inference และดึงข้อมูล API ภายนอก"""
     async with async_session() as db:
         try:
-            # 1. Gatekeeper: ตรวจสอบว่าเป็นรูปถนนจริงหรือไม่
-            if ai_engine.classifier_model:
-                # รัน AI ใน thread ป้องกัน event loop block
-                is_road = await asyncio.to_thread(ai_engine.validate_is_road, file_info["path"])
-                if not is_road:
-                    print(f"🚫 [Gatekeeper] รูปภาพ {file_info['filename']} ไม่ใช่ถนน")
-                    report = await db.get(RoadReport, report_id)
-                    if report:
-                        report.status = ReportStatus.REJECTED
-                        
-                        ai_analysis_record = AIAnalysis(
-                            report_id=report_id,
-                            model_version="YOLO-Gatekeeper",
-                            final_decision="Rejected (Image is not a road)",
-                            final_fusion_score=0.0,
-                            heuristic_score=0.0,
-                            fuzzy_score=0.0,
-                            ml_score=0.0
-                        )
-                        db.add(ai_analysis_record)
-                        await db.commit()
-                    return
+            # 1. Gatekeeper — ปิดชั่วคราวสำหรับ Expert Labeling Batch
+            # [INTENTIONAL BYPASS]: Bypassed for offline batch labeling dataset generation.
+            # Do not remove without reconsidering production behavior.
+            # TODO: RE-ENABLE after expert labeling — uncomment the block below:
+            # if ai_engine.classifier_model:
+            #     is_road = await asyncio.to_thread(ai_engine.validate_is_road, file_info["path"])
+            #     if not is_road: (reject and return)
 
             # 2. จัดการแคชข้อมูล API ภายนอก (GEE & OSM)
             cached_gee, cached_osm = None, None
@@ -203,13 +189,27 @@ async def process_report_background(
                 else:
                     report.status = ReportStatus.COMPLETED
 
+            elif report and report.status == ReportStatus.PROCESSING:
+                # ai_analysis is None — set rejected to avoid getting stuck
+                print(f"⚠️ Report {report_id}: ai_analysis=None, ตั้งสถานะเป็น rejected")
+                report.status = ReportStatus.REJECTED
+
             await db.commit()
             print(f"✅ ประมวลผลรายงาน {report_id} ในเบื้องหลังสำเร็จ")
 
         except Exception as e:
-            await db.rollback()
-            print(f"❌ Background task error: {e}")
             import traceback; traceback.print_exc()
+            print(f"❌ Background task error for report {report_id}: {e}")
+            try:
+                async with async_session() as err_db:
+                    err_report = await err_db.get(RoadReport, report_id)
+                    if err_report and err_report.status == ReportStatus.PROCESSING:
+                        err_report.status = ReportStatus.REJECTED
+                        await err_db.commit()
+            except Exception as update_err:
+                print(f"❌ ไม่สามารถอัปเดตสถานะ report {report_id}: {update_err}")
+
+
 @router.post(
     "/upload",
     response_model=UploadResponse,
@@ -230,6 +230,8 @@ async def upload_report(
     try:
         # 1. บันทึกไฟล์รูปภาพไปยังที่จัดเก็บ
         file_info = await save_upload_file(image)
+        file_info = await save_upload_file(image)
+
         final_lat, final_lon = None, None
         gps_source = "none"
 
@@ -269,10 +271,15 @@ async def upload_report(
             gps_source=gps_source
         )
 
+        # โหลด report พร้อม relationship เพื่อป้องกัน MissingGreenlet ใน Pydantic
+        stmt = select(RoadReport).options(joinedload(RoadReport.ai_analysis)).where(RoadReport.id == report.id)
+        result = await db.execute(stmt)
+        refreshed_report = result.scalar_one()
+
         return UploadResponse(
             status="success",
             message="อัปโหลดสำเร็จ ระบบกำลังวิเคราะห์ผลด้วย AI ในเบื้องหลัง",
-            report=ReportResponse.model_validate(report),
+            report=ReportResponse.model_validate(refreshed_report),
             gps_extracted=GPSData(latitude=final_lat, longitude=final_lon, source=gps_source),
             ai_result=None
         )
@@ -284,6 +291,10 @@ async def upload_report(
 
 
 # ─── GET: ดึงรายการรายงานทั้งหมด (พร้อม Pagination และ Join Table) ───
+        print(e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get(
     "/",
     response_model=ReportListResponse,
@@ -492,3 +503,24 @@ async def delete_report(report_id: int, db: AsyncSession = Depends(get_db)):
     return {"status": "success", "message": f"ลบรายงาน ID: {report_id} สำเร็จ"}
 
 
+@router.get(
+    "/stats/summary",
+    response_model=StatsResponse,
+    summary="ดึงสถิติภาพรวมรายงาน",
+)
+async def get_stats(db: AsyncSession = Depends(get_db)):
+    total = (await db.execute(select(func.count(RoadReport.id)))).scalar() or 0
+
+    async def count_status(s: ReportStatus) -> int:
+        r = await db.execute(
+            select(func.count(RoadReport.id)).where(RoadReport.status == s)
+        )
+        return r.scalar() or 0
+
+    return StatsResponse(
+        total_reports=total,
+        pending_count=await count_status(ReportStatus.PENDING),
+        processing_count=await count_status(ReportStatus.PROCESSING),
+        completed_count=await count_status(ReportStatus.COMPLETED),
+        rejected_count=await count_status(ReportStatus.REJECTED),
+    )

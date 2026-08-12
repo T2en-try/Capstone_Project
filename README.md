@@ -34,13 +34,13 @@
 
 *   **ไฟล์ `best.pt`** (โมเดล YOLO/RT-DETR สำหรับตรวจจับความเสียหาย)
     *   **ดาวน์โหลด:** https://drive.google.com/file/d/1f4h86pTPI3jfmHMdIrGkJkLTVxnEQ-Hi/view?usp=drive_link
-    *   **ตำแหน่งที่ต้องวาง:** `backend/best.pt`
+    *   **ตำแหน่งที่ต้องวาง:** `backend/models/best.pt`
 *   **ไฟล์ `best-road-classifier.pt`** (โมเดลคัดกรองความถูกต้องของรูปภาพถนน)
     *   **ดาวน์โหลด:** https://drive.google.com/file/d/15kjcDslmFC6e53miRMqkXPjmv6S1Vzxx/view?usp=drive_link
-    *   **ตำแหน่งที่ต้องวาง:** `backend/best-road-classifier.pt`
+    *   **ตำแหน่งที่ต้องวาง:** `backend/models/best-road-classifier.pt`
 *   **ไฟล์ `ppi_rf_model_v3.pkl`** (โมเดล Random Forest สำหรับคำนวณ Priority Score)
     *   **ดาวน์โหลด:** https://drive.google.com/file/d/1k7lhW311fNC4fYxsdwhjxJmwzqsyTqPh/view?usp=drive_link
-    *   **ตำแหน่งที่ต้องวาง:** `backend/ppi_rf_model_v3.pkl`
+    *   **ตำแหน่งที่ต้องวาง:** `backend/models/ppi_rf_model_v3.pkl`
 
 ### 4. การรันเซิร์ฟเวอร์
 เมื่อวางไฟล์ทั้งหมดครบถ้วนแล้ว สามารถรันระบบได้ตามขั้นตอนดังนี้:

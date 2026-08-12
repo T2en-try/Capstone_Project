@@ -229,6 +229,7 @@ class SystemSettingResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+
 class MapPointItem(BaseModel):
     """จุดพิกัดสำหรับ heatmap / severity map"""
     id: int

@@ -26,11 +26,11 @@
 **คุณต้องขอไฟล์ 4 ไฟล์นี้จากหัวหน้าทีมหรือแอดมิน และนำไปวางไว้ในโฟลเดอร์ให้ถูกต้องก่อนเริ่มระบบ:**
 
 1. **`best.pt`** (ไฟล์โมเดล PyTorch ของ RT-DETR ขนาดประมาน 66MB)
-   * ให้นำไปวางไว้ที่โฟลเดอร์นอกสุดของ `/backend`
+   * ให้นำไปวางไว้ที่โฟลเดอร์ `/backend/models/`
 2. **`best-road-classifier.pt`** (ไฟล์โมเดล YOLO สำหรับคัดกรองรูปภาพถนน ขนาดประมาน 3MB)
-   * ให้นำไปวางไว้ที่โฟลเดอร์นอกสุดของ `/backend`
+   * ให้นำไปวางไว้ที่โฟลเดอร์ `/backend/models/` (ถ้าย้ายมาด้วยกัน) หรือโฟลเดอร์ที่กำหนด
 3. **`ppi_rf_model.pkl`** (ไฟล์โมเดล Random Forest ขนาดประมาน 2.5MB)
-   * ให้นำไปวางไว้ที่โฟลเดอร์นอกสุดของ `/backend`
+   * ให้นำไปวางไว้ที่โฟลเดอร์ `/backend/models/` (ถ้าย้ายมาด้วยกัน) หรือโฟลเดอร์ที่กำหนด
 4. **`Road-maintain.json`** (ไฟล์ Google Cloud Service Account Key)
    * ให้นำไปวางไว้ในโฟลเดอร์ `/backend/app/services/`
 
@@ -113,7 +113,7 @@
 
 สั่งรันสคริปต์สร้างตาราง:
 ```bash
-python reset_db.py
+python scripts/reset_db.py
 ```
 หากสำเร็จ ระบบจะแสดงข้อความว่าตาราง `road_reports`, `ai_analyses`, และ `api_cache_gee_osm` สร้างเสร็จสมบูรณ์
 
@@ -145,4 +145,4 @@ uvicorn main:app --reload
 * **Google Earth Engine Error**: ลองตรวจสอบดูว่าใส่อีเมลใน `GEE_SERVICE_ACCOUNT` ตรงกับไฟล์ JSON หรือไม่ และแน่ใจว่าวางไฟล์ `Road-maintain.json` ไว้ถูกที่ พร้อมระบุ `GEE_PROJECT_ID` ถูกต้อง
 * **Database Connection Error**: เช็คให้ชัวร์ว่าเปิดใช้งาน PostgreSQL ไว้แล้ว (มักจะใช้พอร์ต 5432) และตรวจสอบรหัสผ่านในไฟล์ `.env` ว่าถูกต้อง
 * **CORS Error**: หากเรียก API จาก Frontend แล้วติด CORS ให้ตรวจสอบว่า URL ของ Frontend ถูกเพิ่มลงใน `ALLOWED_ORIGINS` ภายในไฟล์ `.env` หรือยัง
-* **หาไฟล์โมเดลไม่เจอ (Model Not Found)**: ตรวจสอบว่าได้นำไฟล์ `best.pt`, `best-road-classifier.pt` และ `ppi_rf_model.pkl` มาวางไว้ในโฟลเดอร์ `backend/` แล้วหรือไม่
+* **หาไฟล์โมเดลไม่เจอ (Model Not Found)**: ตรวจสอบว่าได้นำไฟล์ `best.pt`, `best-road-classifier.pt` และ `ppi_rf_model.pkl` มาวางไว้ในโฟลเดอร์ `backend/models/` แล้วหรือไม่
