@@ -3,19 +3,16 @@ import requests
 from datetime import datetime, timedelta
 import random 
 import os
-import osmnx as ox
-import networkx as nx
-
-# For local OSM extract
-from pyrosm import OSM
+# import osmnx as ox
+# import networkx as nx
+# from pyrosm import OSM  # No module named 'pyrosm'
 import geopandas as gpd
 from shapely.geometry import Point
 import numpy as np
 
 from app.core.config import settings
 
-# Force OSMnx to timeout quickly if Overpass API is rate-limiting us
-ox.settings.requests_timeout = 10
+
 
 
 def init_gee():

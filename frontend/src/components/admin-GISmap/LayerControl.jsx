@@ -4,6 +4,7 @@ import {
   Typography,
   Space,
   Divider,
+  Tag,
 } from "antd";
 
 import {
@@ -11,7 +12,9 @@ import {
   FireOutlined,
   ApartmentOutlined,
   GlobalOutlined,
+  AppstoreOutlined,
 } from "@ant-design/icons";
+
 
 const { Title, Text } = Typography;
 
@@ -74,6 +77,25 @@ export default function LayerPanel({
       ),
       title: "Satellite",
       description: "เปลี่ยนพื้นหลังเป็นภาพถ่ายดาวเทียม",
+    },
+
+    {
+      key: "grid",
+      icon: (
+        <AppstoreOutlined
+          style={{
+            color: "#13c2c2",
+            fontSize: 20,
+          }}
+        />
+      ),
+      title: "Grid Priority",
+      description: (
+        <span>
+          แสดง CASP Grid ความเร่งด่วน{" "}
+          <Tag color="cyan" style={{ fontSize: 10, padding: "0 4px" }}>CASP</Tag>
+        </span>
+      ),
     },
   ];
 

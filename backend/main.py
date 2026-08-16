@@ -13,6 +13,7 @@ from app.core.config import settings
 from app.core.database import init_db
 from app.reports.router import router as reports_router
 from app.auth.router import router as auth_router
+from app.analytics.router import router as analytics_router
 from app.core.file_utils import ensure_upload_dir
 
 # --- [UPDATE] เปลี่ยนมาใช้ ai_engine ตัวใหม่แทน load_trained_model ---
@@ -80,6 +81,7 @@ app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads"
 
 app.include_router(reports_router)
 app.include_router(auth_router)
+app.include_router(analytics_router)
 
 
 # ─── Health Check ──────────────────────────────────────────────

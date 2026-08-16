@@ -4,6 +4,7 @@ import { MapContainer, TileLayer } from "react-leaflet";
 import MarkerLayer from "./MarkerLayer";
 import RoadLayer from "./RoadLayer";
 import HeatmapLayer from "./HeatmapLayer";
+import GridLayer from "./GridLayer";
 
 import reportMock from "../../mock/reportMock";
 
@@ -13,6 +14,7 @@ export default function GISMap({
     setSelectedRoad,
     layers,
     filters,
+    gridDays = 7,
 }) {
 
     const filteredReports = useMemo(() => {
@@ -45,7 +47,7 @@ export default function GISMap({
     return (
 
         <MapContainer
-            center={[18.799, 98.975]}
+            center={[14.8781, 102.0156]}
             zoom={13}
             style={{
                 height: "650px",
@@ -61,6 +63,9 @@ export default function GISMap({
                         : "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 }
             />
+
+            {/* CASP Grid Layer — แสดง Priority Grid */}
+            <GridLayer visible={!!layers.grid} days={gridDays} />
 
             {
                 layers.road && (

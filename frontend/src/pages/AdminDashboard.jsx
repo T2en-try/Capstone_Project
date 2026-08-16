@@ -1,4 +1,4 @@
-import { Row, Col, Space } from "antd";
+import { Row, Col, Space, Divider, Typography } from "antd";
 
 import SummaryCards from "../components/admin-dashboard/SummaryCards";
 import PriorityReports from "../components/admin-dashboard/PriorityReports";
@@ -6,6 +6,8 @@ import MapCard from "../components/admin-dashboard/MapCard";
 import ReportBarChart from "../components/admin-dashboard/ReportChart";
 import ReportPieChart from "../components/admin-dashboard/ReportPieChart";
 import RecentReports from "../components/admin-dashboard/RecentReports";
+import GridPrioritySummary from "../components/admin-dashboard/GridPrioritySummary";
+import TopPriorityAreas from "../components/admin-dashboard/TopPriorityAreas";
 
 import { priorityReports } from "../mock/priorityReports";
 import { mapReports } from "../mock/mapReports";
@@ -14,6 +16,8 @@ import {
   reportStatusData,
 } from "../mock/chartData";
 import { recentReports } from "../mock/recentReports";
+
+const { Title, Text } = Typography;
 
 export default function DashboardPage() {
   const summaryData = {
@@ -44,6 +48,24 @@ export default function DashboardPage() {
           <PriorityReports reports={priorityReports} />
         </Col>
       </Row>
+
+      {/* ─── CASP Section ─── */}
+      <Divider orientation="left">
+        <span style={{ fontSize: 16, fontWeight: 600 }}>
+          🗺️ Community-Aware Spatial Priority (CASP)
+        </span>
+      </Divider>
+
+      <Text type="secondary" style={{ fontSize: 13 }}>
+        วิเคราะห์พื้นที่เร่งด่วนจากการแจ้งซ้ำของประชาชน รวมกับคะแนน AI (PPI)
+        — Overall Priority = 0.8 × PPI + 0.2 × CUS
+      </Text>
+
+      {/* Grid Priority Summary Cards */}
+      <GridPrioritySummary days={7} />
+
+      {/* Top Priority Areas Table */}
+      <TopPriorityAreas topN={5} />
 
       {/* Charts */}
       <Row gutter={20}>
