@@ -119,6 +119,23 @@ python scripts/reset_db.py
 
 ---
 
+## 6.5 การสร้าง GIS Cache (Road Type / Speed Limit / POI)
+
+`get_road_type()` และ `get_poi_data()` ใน `app/ai/gee_integration.py` อ่านข้อมูลถนน/POI จากไฟล์
+`cached_driving_network.parquet` และ `cached_pois.parquet` — ถ้าไม่มีไฟล์นี้ ระบบจะคืนค่า default
+ทุกครั้งแบบเงียบๆ (`speed_limit=50.0`, `lanes=2`, `highway_type='unknown'`) โดยไม่มี error ใดๆ
+
+1. ดาวน์โหลด OSM extract ของประเทศไทย (.osm.pbf) จาก
+   [Geofabrik](https://download.geofabrik.de/asia/thailand.html) แล้ววางไว้ที่ `backend/data/thailand-latest.osm.pbf`
+2. รันสคริปต์สร้าง cache (ต้องมี CSV ที่มีคอลัมน์ `latitude`/`longitude` ของชุดข้อมูลที่จะประมวลผล):
+   ```bash
+   python scripts/build_gis_cache.py --source-csv path/to/your_manifest.csv
+   ```
+3. ตรวจสอบ log บรรทัด `maxspeed tag coverage: X%` — ถ้าตัวเลขต่ำ แปลว่า field
+   `speed_limit` จะ default เป็น 50.0 บ่อยครั้งสำหรับพื้นที่นั้น ควรรู้ไว้ก่อนใช้เป็น feature
+
+---
+
 ## 7. วิธีเปิดรันเซิร์ฟเวอร์ (Running the Application)
 
 เมื่อตั้งค่าทุกอย่างเสร็จสิ้นแล้ว คุณสามารถเปิดใช้งาน FastAPI เซิร์ฟเวอร์ได้ด้วยคำสั่ง:

@@ -57,10 +57,16 @@ class AIAnalysisResponse(BaseModel):
     road_name: Optional[str] = None
     road_type: Optional[str] = None
     osm_highway_type: Optional[str] = None
+    osm_way_id: Optional[int] = None
     lanes: int = 2
     speed_limit: float = 50.0
     community_impact_score_pi: int
     nearest_poi_distance_m: float = 1000.0
+
+    # Administrative location
+    admin_province: Optional[str] = None
+    admin_district: Optional[str] = None
+    admin_subdistrict: Optional[str] = None
 
     # Crowdsource Context
     crowdsource_report_count_30d: int

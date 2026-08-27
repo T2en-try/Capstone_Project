@@ -1,5 +1,6 @@
 *.pth
 *.pt
+*.pkl
 
 .vscode/
 .idea/
@@ -38,3 +39,13 @@ frontend/test-results/
 backend/cache/
 backend/scratch/
 *.csv
+
+# ML model artifacts
+*.pkl
+
+# GEE service account / config secrets (exclude all .json except npm manifests)
+*.json
+!package.json
+!package-lock.json
+!**/tsconfig*.json
+!**/.eslintrc.json

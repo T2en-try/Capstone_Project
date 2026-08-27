@@ -30,6 +30,7 @@ shapely==2.1.2
 earthengine-api
 osmnx
 networkx
+pyrosm
 
 # --- Cloud Storage & Postgres ---
 asyncpg>=0.29.0

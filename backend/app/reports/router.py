@@ -28,6 +28,7 @@ from app.reports.schemas import (
 )
 from app.core.file_utils import save_upload_file
 from app.services.gps_extractor import extract_gps_from_exif
+from app.auth.router import get_current_admin
 # -----------------------------------------------------
 
 router = APIRouter(prefix="/api/reports", tags=["Reports"])
@@ -171,6 +172,10 @@ async def process_report_background(
                     road_name=cx_d.get("gis", {}).get("road_name") if cx_d.get("gis") else None,
                     road_type=cx_d.get("gis", {}).get("thai_road_type") if cx_d.get("gis") else None,
                     osm_highway_type=cx_d.get("gis", {}).get("osm_highway_type") if cx_d.get("gis") else None,
+                    osm_way_id=cx_d.get("gis", {}).get("osm_way_id") if cx_d.get("gis") else None,
+                    admin_province=cx_d.get("admin", {}).get("province") if cx_d.get("admin") else None,
+                    admin_district=cx_d.get("admin", {}).get("district") if cx_d.get("admin") else None,
+                    admin_subdistrict=cx_d.get("admin", {}).get("subdistrict") if cx_d.get("admin") else None,
                     community_impact_score_pi=cx_d.get("poi", {}).get("community_impact_score_pi", 0) if cx_d.get("poi") else 0,
                     crowdsource_report_count_30d=real_crowd_data["crowdsource_report_count_30d"],
                     days_since_last_report=real_crowd_data["days_since_last_report"],
@@ -229,7 +234,6 @@ async def upload_report(
 ):
     try:
         # 1. บันทึกไฟล์รูปภาพไปยังที่จัดเก็บ
-        file_info = await save_upload_file(image)
         file_info = await save_upload_file(image)
 
         final_lat, final_lon = None, None
@@ -291,8 +295,6 @@ async def upload_report(
 
 
 # ─── GET: ดึงรายการรายงานทั้งหมด (พร้อม Pagination และ Join Table) ───
-        print(e)
-        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get(
@@ -454,12 +456,13 @@ async def get_report(report_id: int, db: AsyncSession = Depends(get_db)):
     "/{report_id}/status",
     response_model=ReportResponse,
     summary="อัปเดตสถานะรายงาน",
-    responses={404: {"model": ErrorResponse}},
+    responses={404: {"model": ErrorResponse}, 401: {"model": ErrorResponse}},
 )
 async def update_report_status(
     report_id: int,
     body: ReportUpdateStatus,
     db: AsyncSession = Depends(get_db),
+    _admin=Depends(get_current_admin),
 ):
     """อัปเดตสถานะการอนุมัติรายงาน"""
     result = await db.execute(
@@ -487,9 +490,9 @@ async def update_report_status(
 @router.delete(
     "/{report_id}",
     summary="ลบรายงาน",
-    responses={404: {"model": ErrorResponse}},
+    responses={404: {"model": ErrorResponse}, 401: {"model": ErrorResponse}},
 )
-async def delete_report(report_id: int, db: AsyncSession = Depends(get_db)):
+async def delete_report(report_id: int, db: AsyncSession = Depends(get_db), _admin=Depends(get_current_admin)):
     """ลบรายงานจากฐานข้อมูล (ความสัมพันธ์ AI Analysis จะโดน Cascade ลบไปด้วยอัตโนมัติ)"""
     result = await db.execute(select(RoadReport).where(RoadReport.id == report_id))
     report = result.scalar_one_or_none()
@@ -501,26 +504,3 @@ async def delete_report(report_id: int, db: AsyncSession = Depends(get_db)):
     await db.commit()
 
     return {"status": "success", "message": f"ลบรายงาน ID: {report_id} สำเร็จ"}
-
-
-@router.get(
-    "/stats/summary",
-    response_model=StatsResponse,
-    summary="ดึงสถิติภาพรวมรายงาน",
-)
-async def get_stats(db: AsyncSession = Depends(get_db)):
-    total = (await db.execute(select(func.count(RoadReport.id)))).scalar() or 0
-
-    async def count_status(s: ReportStatus) -> int:
-        r = await db.execute(
-            select(func.count(RoadReport.id)).where(RoadReport.status == s)
-        )
-        return r.scalar() or 0
-
-    return StatsResponse(
-        total_reports=total,
-        pending_count=await count_status(ReportStatus.PENDING),
-        processing_count=await count_status(ReportStatus.PROCESSING),
-        completed_count=await count_status(ReportStatus.COMPLETED),
-        rejected_count=await count_status(ReportStatus.REJECTED),
-    )

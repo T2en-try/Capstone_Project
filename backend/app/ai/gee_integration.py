@@ -7,6 +7,7 @@ import os
 # import networkx as nx
 # from pyrosm import OSM  # No module named 'pyrosm'
 import geopandas as gpd
+import pandas as pd
 from shapely.geometry import Point
 import numpy as np
 
@@ -206,50 +207,70 @@ def get_road_type(lat, lon, radius_meters=50):
     print("กำลังตรวจสอบประเภทถนนจาก Pyrosm (Local Cache)...")
     
     highway_type = 'unknown'
-    road_name = 'ไม่มีชื่อถนน'
+    road_name = None  # a real NULL, not a placeholder string -- same reasoning as surface_material's is_missing
+    osm_way_id = None
     lanes = 2
     speed_limit = 50.0
-    
+    # Provenance of speed_limit, so downstream consumers (e.g. dataset labeling)
+    # can tell a real OSM tag apart from a silent fallback default:
+    #   "osm_tag"              - parsed from a matched road's maxspeed tag
+    #   "default_no_tag"       - road matched within radius, but no usable maxspeed tag
+    #   "default_no_road_nearby" - cache loaded, but no road within the distance threshold
+    #   "default_no_cache"     - cached_driving_network.parquet missing/empty/unreadable
+    #   "error"                - an exception occurred during lookup (e.g. bad coordinate)
+    speed_limit_source = "default_no_cache"
+
     try:
         edges_proj = get_cached_driving_network()
         if edges_proj is not None and not edges_proj.empty:
             pt = Point(lon, lat)
             pt_gdf = gpd.GeoDataFrame(geometry=[pt], crs="EPSG:4326").to_crs(epsg=3857)
             pt_proj = pt_gdf.geometry.iloc[0]
-            
+
             nearest_idx = edges_proj.sindex.nearest(pt_proj, return_all=False)[1][0]
             nearest_edge = edges_proj.iloc[nearest_idx]
-            
+
             # Distance sanity check
             distance_m = pt_proj.distance(nearest_edge.geometry)
             if distance_m <= 200:
+                speed_limit_source = "default_no_tag"
                 hw = nearest_edge.get("highway", "unknown")
                 highway_type = hw[0] if isinstance(hw, (list, tuple, np.ndarray)) else str(hw)
-                
+
                 if "name" in nearest_edge:
                     nm = nearest_edge["name"]
-                    road_name = nm[0] if isinstance(nm, (list, tuple, np.ndarray)) else str(nm)
-                
+                    nm = nm[0] if isinstance(nm, (list, tuple, np.ndarray)) else nm
+                    if pd.notna(nm):
+                        road_name = str(nm)
+
+                if "id" in nearest_edge and pd.notna(nearest_edge["id"]):
+                    osm_way_id = int(nearest_edge["id"])
+
                 if "lanes" in nearest_edge:
                     ln = nearest_edge["lanes"]
                     ln = ln[0] if isinstance(ln, (list, tuple, np.ndarray)) else str(ln)
                     try: lanes = int(float(ln))
                     except: pass
-                    
+
                 if "maxspeed" in nearest_edge:
                     ms = nearest_edge["maxspeed"]
                     ms = ms[0] if isinstance(ms, (list, tuple, np.ndarray)) else str(ms)
                     import re
                     ms_cleaned = re.sub(r'[^\d.]', '', ms)
                     if ms_cleaned:
-                        try: speed_limit = float(ms_cleaned)
+                        try:
+                            speed_limit = float(ms_cleaned)
+                            speed_limit_source = "osm_tag"
                         except: pass
             else:
+                speed_limit_source = "default_no_road_nearby"
                 print(f"Nearest road is too far ({distance_m:.1f}m), falling back to unknown.")
-                
+
     except Exception as e:
+        speed_limit_source = "error"  # distinct from "default_no_cache" -- don't let an
+        # unrelated exception (e.g. a bad coordinate) silently inherit the "cache missing" label
         print(f"เกิดข้อผิดพลาดในการดึงข้อมูล Pyrosm (Road): {e}")
-        
+
     road_type_mapping = {
         'motorway': 'ทางด่วนพิเศษ',
         'trunk': 'ทางหลวงแผ่นดิน',
@@ -267,9 +288,64 @@ def get_road_type(lat, lon, radius_meters=50):
         "road_name": road_name,
         "osm_highway_type": highway_type,
         "thai_road_type": thai_road_type,
+        "osm_way_id": osm_way_id,
         "lanes": lanes,
-        "speed_limit": speed_limit
+        "speed_limit": speed_limit,
+        "speed_limit_source": speed_limit_source
     }
+
+# --- Admin Boundary Cache (Province / District / Subdistrict) ---
+_cached_admin_boundaries = None
+
+def get_cached_admin_boundaries():
+    global _cached_admin_boundaries
+    if _cached_admin_boundaries is None:
+        cache_path = 'cached_admin_boundaries.parquet'
+        if os.path.exists(cache_path):
+            print("Loading admin boundary cache from Parquet...")
+            _cached_admin_boundaries = gpd.read_parquet(cache_path)
+        else:
+            print("WARNING: cached_admin_boundaries.parquet not found!")
+    return _cached_admin_boundaries
+
+def get_admin_location(lat, lon):
+    """
+    ค้นหาจังหวัด/อำเภอ/ตำบล จากพิกัด GPS โดยใช้ Boundary Cache (Point-in-Polygon)
+    ใช้ cached_admin_boundaries.parquet ที่สร้างจาก pyrosm.get_boundaries()
+    """
+    province = None
+    district = None
+    subdistrict = None
+
+    try:
+        boundaries = get_cached_admin_boundaries()
+        if boundaries is not None and not boundaries.empty:
+            pt = Point(lon, lat)
+            matches = boundaries[boundaries.contains(pt)]
+
+            if not matches.empty:
+                province_match = matches[matches['admin_level'] == '4']
+                if not province_match.empty:
+                    name = province_match.iloc[0].get('name')
+                    if pd.notna(name):
+                        province = str(name)
+
+                district_match = matches[matches['admin_level'] == '6']
+                if not district_match.empty:
+                    name = district_match.iloc[0].get('name')
+                    if pd.notna(name):
+                        district = str(name)
+
+                subdistrict_match = matches[matches['admin_level'] == '8']
+                if not subdistrict_match.empty:
+                    name = subdistrict_match.iloc[0].get('name')
+                    if pd.notna(name):
+                        subdistrict = str(name)
+
+    except Exception as e:
+        print(f"เกิดข้อผิดพลาดในการดึงข้อมูลเขตปกครอง: {e}")
+
+    return {"province": province, "district": district, "subdistrict": subdistrict}
 
 def get_crowdsource_data(lat, lon, radius_meters=50):
     """
