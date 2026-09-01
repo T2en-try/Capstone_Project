@@ -1,0 +1,19 @@
+Building admin boundary cache from data/thailand-latest.osm.pbf (whole-country extent, complete_relations=True)...
+This is a heavier one-time operation than the per-point road/POI caches -- expect it to take a while.
+Extracted 2650 total boundary relations.
+Raw admin_level breakdown:
+admin_level
+6     941
+8     909
+7     483
+10    195
+4      80
+11     13
+9       5
+5       1
+2       1
+Name: count, dtype: int64
+  admin_level=4 (province): 80 polygons
+  admin_level=6 (district): 941 polygons
+  admin_level=8 (subdistrict): 909 polygons
+✅ Saved 1930 boundary polygons to .\cached_admin_boundaries.parquet

@@ -4,7 +4,7 @@ Road Report Backend - Database Models
 """
 
 from datetime import datetime, timezone
-from sqlalchemy import Column, Integer, String, Float, DateTime, Text, ForeignKey, Enum as SAEnum
+from sqlalchemy import Column, Integer, BigInteger, String, Float, DateTime, Text, ForeignKey, Enum as SAEnum
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 import enum
@@ -124,10 +124,16 @@ class AIAnalysis(Base):
     road_name = Column(String(255), nullable=True, comment="ชื่อถนนที่รายงานจาก OpenStreetMap")
     road_type = Column(String(100), nullable=True, comment="ประเภทถนน (Primary, Secondary, Local)")
     osm_highway_type = Column(String(100), nullable=True, comment="ประเภทถนนแบบ Raw Tag (OSM Highway)")
+    osm_way_id = Column(BigInteger, nullable=True, index=True, comment="OSM Way ID ของถนนที่ใกล้ที่สุด (สำหรับ road-segment aggregation)")
     lanes = Column(Integer, default=2, comment="จำนวนเลนของถนน")
     speed_limit = Column(Float, default=50.0, comment="ความเร็วจำกัดของถนน (km/h)")
     community_impact_score_pi = Column(Integer, default=0, comment="คะแนนผลกระทบชุมชนประเมินจาก POIs (โรงพยาบาล/โรงเรียน)")
     nearest_poi_distance_m = Column(Float, default=1000.0, comment="ระยะห่างไปยังสถานที่สำคัญที่ใกล้ที่สุด (เมตร)")
+
+    # Administrative location (from a local pyrosm boundary cache, not a live API)
+    admin_province = Column(String(100), nullable=True, comment="จังหวัด (admin_level=4)")
+    admin_district = Column(String(100), nullable=True, comment="อำเภอ (admin_level=6)")
+    admin_subdistrict = Column(String(100), nullable=True, comment="ตำบล (admin_level=8)")
 
     # 4. Crowdsourced Context Features
     crowdsource_report_count_30d = Column(Integer, default=0, comment="จำนวนการรายงานในรัศมีรอบๆ 30 วันที่ผ่านมา")

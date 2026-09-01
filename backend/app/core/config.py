@@ -39,7 +39,9 @@ class Settings:
     GEE_KEY_PATH: str = os.getenv("GEE_KEY_PATH", "")
 
     # JWT Auth
-    JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", "default-secret-key-change-me")
+    JWT_SECRET_KEY: str = os.getenv("JWT_SECRET_KEY", "")
+    if not JWT_SECRET_KEY:
+        raise ValueError("JWT_SECRET_KEY environment variable is not set")
     JWT_ALGORITHM: str = "HS256"
 
 

@@ -4,7 +4,7 @@ import cv2
 from ultralytics import RTDETR, YOLO
 
 # นำเข้าฟังก์ชันดึง Context
-from app.ai.gee_integration import get_environment_data, get_road_type, get_crowdsource_data, get_poi_data
+from app.ai.gee_integration import get_environment_data, get_road_type, get_crowdsource_data, get_poi_data, get_admin_location
 
 # นำเข้า Fusion Engines ทั้ง 3 ระบบและโครงสร้างข้อมูล
 from app.ai.fusion_engines import RoadReportData, ml_engine, fuzzy_engine, heuristic_engine
@@ -117,7 +117,8 @@ class AIEngine:
         cv_features = self.predict_damage(image_path)
         gee = get_environment_data(lat, lon)
         gis = get_road_type(lat, lon)
-        
+        admin = get_admin_location(lat, lon)
+
         # ป้องกัน error ถ้าไม่มีฟังก์ชัน get_poi_data ใน gee_integration.py
         try:
             poi = get_poi_data(lat, lon, radius_meters=1000)
@@ -206,7 +207,7 @@ class AIEngine:
 
         return {
             "cv_features": cv_features,
-            "context_data": {"gee": gee, "gis": gis, "poi": poi, "crowdsource": crowd},
+            "context_data": {"gee": gee, "gis": gis, "poi": poi, "crowdsource": crowd, "admin": admin},
             "fusion_result": fusion_result
         }
 
