@@ -12,6 +12,12 @@ dist
 dist-ssr
 *.local
 
+# Environment variables -- defensive; no real frontend/.env exists yet,
+# but this repo has already had one credential-leak scare (Airtable token)
+.env
+.env.*
+!.env.example
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

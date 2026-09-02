@@ -211,6 +211,11 @@ def get_road_type(lat, lon, radius_meters=50):
     osm_way_id = None
     lanes = 2
     speed_limit = 50.0
+    surface_osm_tag = None  # raw OSM `surface` tag on the matched road, None if untagged/no road nearby.
+    # cached_driving_network.parquet was already being loaded here for road_type/speed_limit/lanes,
+    # but its `surface` column was never read -- estimated_surface_material (below, Sentinel-2-derived)
+    # is documented elsewhere as 94% blank and superseded by this exact OSM-tag approach for the
+    # research dataset; this backfills the same fix into the live pipeline.
     # Provenance of speed_limit, so downstream consumers (e.g. dataset labeling)
     # can tell a real OSM tag apart from a silent fallback default:
     #   "osm_tag"              - parsed from a matched road's maxspeed tag
@@ -262,6 +267,12 @@ def get_road_type(lat, lon, radius_meters=50):
                             speed_limit = float(ms_cleaned)
                             speed_limit_source = "osm_tag"
                         except: pass
+
+                if "surface" in nearest_edge:
+                    sf = nearest_edge["surface"]
+                    sf = sf[0] if isinstance(sf, (list, tuple, np.ndarray)) else sf
+                    if pd.notna(sf):
+                        surface_osm_tag = str(sf)
             else:
                 speed_limit_source = "default_no_road_nearby"
                 print(f"Nearest road is too far ({distance_m:.1f}m), falling back to unknown.")
@@ -291,7 +302,8 @@ def get_road_type(lat, lon, radius_meters=50):
         "osm_way_id": osm_way_id,
         "lanes": lanes,
         "speed_limit": speed_limit,
-        "speed_limit_source": speed_limit_source
+        "speed_limit_source": speed_limit_source,
+        "surface_osm_tag": surface_osm_tag
     }
 
 # --- Admin Boundary Cache (Province / District / Subdistrict) ---

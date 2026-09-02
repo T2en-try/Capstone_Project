@@ -1,13 +1,17 @@
 import os
 import torch
 import cv2
+import joblib
 from ultralytics import RTDETR, YOLO
 
 # นำเข้าฟังก์ชันดึง Context
 from app.ai.gee_integration import get_environment_data, get_road_type, get_crowdsource_data, get_poi_data, get_admin_location
 
-# นำเข้า Fusion Engines ทั้ง 3 ระบบและโครงสร้างข้อมูล
+# นำเข้า Fusion Engines ทั้ง 3 ระบบและโครงสร้างข้อมูล (heuristic/fuzzy/ml_score:
+# informational side-scores now, not decision-driving -- see calculate_priority_index)
 from app.ai.fusion_engines import RoadReportData, ml_engine, fuzzy_engine, heuristic_engine
+# Random Forest Decision Head (production) -- replaces ml_engine as the final-decision path
+from app.ai.feature_mapping import build_feature_row, predict_priority, PRIORITY_ANCHORS, FINAL_DECISION_LABELS
 
 # กำหนดคลาสและน้ำหนัก
 CLASSES = ['D00', 'D10', 'D20', 'D40']
@@ -18,11 +22,14 @@ SEVERITY_WEIGHTS = {
 # ถ้า best.pt อยู่ที่เดียวกับ main.py ใช้แบบนี้ได้เลย ปลอดภัยที่สุดครับ
 MODEL_PATH = os.path.join(os.getcwd(), 'models', 'best.pt')
 CLASSIFIER_MODEL_PATH = os.path.join(os.getcwd(), 'best-road-classifier.pt')
+PRIORITY_RF_MODEL_PATH = os.path.join(os.getcwd(), 'models', 'priority_class_rf_v1.pkl')
+
 
 class AIEngine:
     def __init__(self):
         self.model = None
         self.classifier_model = None
+        self.priority_rf_artifact = None
 
     def load_model(self):
         """โหลดโมเดล RT-DETR จาก Ultralytics"""
@@ -43,6 +50,13 @@ class AIEngine:
             print(f"✅ โหลดโมเดล Road Classifier สำเร็จ! (ทำงานบน {device.upper()})")
         else:
             print(f"❌ หาไฟล์โมเดลไม่พบที่: {CLASSIFIER_MODEL_PATH}")
+
+        print("🧠 กำลังโหลดโมเดล Priority Class (Random Forest)...")
+        if os.path.exists(PRIORITY_RF_MODEL_PATH):
+            self.priority_rf_artifact = joblib.load(PRIORITY_RF_MODEL_PATH)
+            print(f"✅ โหลดโมเดล Priority Class RF สำเร็จ! (features={len(self.priority_rf_artifact['feature_names'])}, trained_at={self.priority_rf_artifact.get('trained_at_utc')})")
+        else:
+            print(f"❌ หาไฟล์โมเดลไม่พบที่: {PRIORITY_RF_MODEL_PATH}")
 
     def validate_is_road(self, image_path: str) -> bool:
         """ตรวจสอบว่ารูปภาพเป็นถนนหรือไม่ด้วยโมเดล Classification"""
@@ -148,40 +162,50 @@ class AIEngine:
         )
 
         # 🛑 3. Sanity Check (ตัวกรองข้อมูลขยะ / False Positive)
-        is_anomaly = False
-        anomaly_reason = ""
-        
-        # [INTENTIONAL BYPASS]: The NDVI anomaly check is intentionally bypassed for the 
-        # offline labeling dataset because high NDVI (dense vegetation) can occur near legitimate 
-        # rural roads, and we don't want it falsely rejecting valid images.
-        # if fusion_data.ndvi_index > 0.6:
-        #     is_anomaly = True
-        #     anomaly_reason = "GPS does not match the uploaded image"
-        # elif fusion_data.ndvi_index < -0.1:
-        #     is_anomaly = True
-        #     anomaly_reason = "GPS does not match the uploaded image"
+        # Flag-and-defer, not auto-reject: NDVI alone can't distinguish "GPS pin is
+        # wrong" from "this is a real rural road that legitimately runs alongside
+        # dense vegetation/water" -- that ambiguity is exactly why this was bypassed
+        # originally. Instead of guessing, flag it and let the user confirm/re-pin
+        # their location; the report still gets a full, real analysis in the
+        # meantime rather than being blocked on the flag.
+        gps_anomaly_flagged = False
+        gps_anomaly_reason = None
 
-        # 4. สั่งคำนวณคะแนนจากทั้ง 3 ระบบ
-        if is_anomaly:
-            heur_score = 0.0
-            fuzzy_score = 0.0
-            ml_score = 0.0
-            primary_score = 0.0
-            final_decision = f"Rejected: {anomaly_reason}"
-        else:
-            heur_score = heuristic_engine.predict_ppi(fusion_data)
-            fuzzy_score = fuzzy_engine.predict_ppi(fusion_data)
-            ml_score = ml_engine.predict_ppi(fusion_data)
+        if fusion_data.ndvi_index > 0.6:
+            gps_anomaly_flagged = True
+            gps_anomaly_reason = "ndvi_high"
+        elif fusion_data.ndvi_index < -0.1:
+            gps_anomaly_flagged = True
+            gps_anomaly_reason = "ndvi_low"
 
-            # 5. ตัดสินใจสถานะ
-            primary_score = ml_score
-            
-            if primary_score >= 50:
-                final_decision = "Critical (ต้องซ่อมแซมด่วน)"
-            elif primary_score >= 20:
-                final_decision = "Warning (ควรเฝ้าระวัง)"
-            else:
-                final_decision = "Good (สภาพปกติ)"
+        # 4. Informational side-scores (kept for backward compat / display -- not decision-driving)
+        heur_score = heuristic_engine.predict_ppi(fusion_data)
+        fuzzy_score = fuzzy_engine.predict_ppi(fusion_data)
+        ml_score = ml_engine.predict_ppi(fusion_data)
+
+        # 5. Final decision -- Random Forest Decision Head (production, priority_class_rf_v1.pkl)
+        if not self.priority_rf_artifact:
+            raise Exception("Priority Class RF model is not loaded")
+
+        feature_row = build_feature_row(cv_features, gee, gis, poi)
+        rf_result = predict_priority(feature_row, self.priority_rf_artifact)
+        priority_class = rf_result["priority_class"]
+        confidence_score = rf_result["confidence_score"]
+        proba_normal = rf_result["proba_normal"]
+        proba_warning = rf_result["proba_warning"]
+        proba_critical = rf_result["proba_critical"]
+        final_decision = FINAL_DECISION_LABELS[priority_class]
+
+        # [DEPRECATED] final_fusion_score: kept populated for CASP/heatmap/frontend
+        # until they migrate to reading priority_class/proba_* directly. Uses the
+        # same proba-weighted expected-value formula (PRIORITY_ANCHORS, shared from
+        # feature_mapping.py) already planned for CASP's avg_ppi aggregation, so this
+        # isn't a second, independently-arbitrary number competing with that one.
+        primary_score = (
+            proba_normal * PRIORITY_ANCHORS[1]
+            + proba_warning * PRIORITY_ANCHORS[2]
+            + proba_critical * PRIORITY_ANCHORS[3]
+        )
 
         # เวกเตอร์คุณลักษณะเดิม (เก็บไว้เผื่อ Frontend เดิมต้องการใช้)
         cv_vector = [
@@ -197,8 +221,15 @@ class AIEngine:
             "heuristic_score": round(heur_score, 2),
             "fuzzy_score": round(fuzzy_score, 2),
             "ml_score": round(ml_score, 2),
-            "fusion_score": round(primary_score, 2), # คงชื่อตัวแปรเดิมไว้เพื่อให้ Frontend ไม่พัง
+            "fusion_score": round(primary_score, 2), # [DEPRECATED] คงชื่อตัวแปรเดิมไว้เพื่อให้ Frontend ไม่พัง
             "final_decision": final_decision,
+            "priority_class": priority_class,
+            "confidence_score": round(confidence_score, 4),
+            "proba_normal": round(proba_normal, 4),
+            "proba_warning": round(proba_warning, 4),
+            "proba_critical": round(proba_critical, 4),
+            "gps_anomaly_flagged": gps_anomaly_flagged,
+            "gps_anomaly_reason": gps_anomaly_reason,
             "analysis_meta": {
                 "is_high_risk_material": fusion_data.surface_material == "Asphalt",
                 "environmental_impact_factor": "high" if fusion_data.rainfall_12m > 1200 or fusion_data.soil_moisture > 0.4 else "normal"

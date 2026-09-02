@@ -20,6 +20,7 @@ from sqlalchemy.orm import joinedload
 
 from app.core.database import get_db
 from app.reports.models import RoadReport, AIAnalysis, ReportStatus
+from app.ai.feature_mapping import PRIORITY_ANCHORS
 
 router = APIRouter(prefix="/api/analytics", tags=["Analytics"])
 
@@ -183,10 +184,20 @@ async def get_grid_priority(
         row, col = get_grid_id(rpt.latitude, rpt.longitude)
         recency = compute_recency_score(rpt.created_at)
 
-        # ดึง PPI จาก AIAnalysis (final_fusion_score scale 0-100)
-        ppi = 0.0
-        if rpt.ai_analysis and rpt.ai_analysis.final_fusion_score is not None:
-            ppi = float(rpt.ai_analysis.final_fusion_score)
+        # PPI-equivalent: confidence-weighted expected value over the RF's full
+        # class-probability distribution (PRIORITY_ANCHORS shared with engine.py's
+        # deprecated final_fusion_score computation -- same anchors, not a second,
+        # independently-arbitrary copy). None (not 0.0) when priority_class/proba_*
+        # aren't populated -- lets this report be excluded from the PPI mean below
+        # rather than silently dragging the grid cell's average toward 0.
+        ppi = None
+        ana = rpt.ai_analysis
+        if ana and ana.priority_class is not None:
+            ppi = (
+                ana.proba_normal * PRIORITY_ANCHORS[1]
+                + ana.proba_warning * PRIORITY_ANCHORS[2]
+                + ana.proba_critical * PRIORITY_ANCHORS[3]
+            )
 
         key = (row, col)
         if key not in grid_map:
@@ -243,8 +254,13 @@ async def get_grid_priority(
         # CUS
         cus = W_COUNT * c_score + W_DENSITY * d_score + W_RECENCY * r_score
 
-        # PPI เฉลี่ย
-        avg_ppi = sum(i["ppi"] for i in items) / n
+        # PPI เฉลี่ย -- averaged only over reports with a real prediction; a report
+        # with priority_class/proba_* still NULL (not yet backfilled / RF didn't
+        # run) is dropped from this mean, not counted as 0. Report volume signals
+        # (count_score/density_score/recency_score/report_count above) are
+        # unaffected -- they still reflect every report in the cell.
+        ppi_values = [i["ppi"] for i in items if i["ppi"] is not None]
+        avg_ppi = sum(ppi_values) / len(ppi_values) if ppi_values else 0.0
 
         # Overall Priority
         overall = W_PPI * avg_ppi + W_CUS * cus

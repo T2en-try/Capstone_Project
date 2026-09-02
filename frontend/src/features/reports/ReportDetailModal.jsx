@@ -6,6 +6,7 @@ import StatusBadge from '../../components/ui/StatusBadge';
 import DetailItem from '../../components/ui/DetailItem';
 import { BASE_URL } from '../../services/api';
 import { normalizeAiResult } from '../../utils/aiNormalization';
+import GpsPinModal from './GpsPinModal';
 
 const STATUS_LABELS = {
   pending: 'รอรับเรื่อง',
@@ -14,14 +15,26 @@ const STATUS_LABELS = {
   rejected: 'ไม่ผ่านการตรวจ',
 };
 
-export default function ReportDetailModal({ isOpen, report, onClose, onUpdateStatus }) {
+const REJECTION_REASON_LABELS = {
+  not_a_road: 'ภาพที่แจ้งไม่ใช่ภาพถนน (ตรวจพบโดยระบบอัตโนมัติ)',
+  analysis_failed: 'ระบบวิเคราะห์ภาพผิดพลาด กรุณาลองแจ้งใหม่อีกครั้ง',
+};
+
+export default function ReportDetailModal({ isOpen, report, onClose, onUpdateStatus, onConfirmLocation }) {
   const [showAiImage, setShowAiImage] = useState(false);
+  const [showGpsConfirm, setShowGpsConfirm] = useState(false);
   if (!isOpen || !report) return null;
-  
+
   const aiResult = normalizeAiResult(report.ai_result);
   // const [showAiImage, setShowAiImage] = useState(false);
   const hasAiImage = aiResult?.annotatedImage != null;
   const currentImage = showAiImage && hasAiImage ? aiResult.annotatedImage : report.image_filename;
+  const gpsAnomalyFlagged = report.ai_analysis?.gps_anomaly_flagged === true;
+
+  const handleLocationConfirm = (lat, lon) => {
+    setShowGpsConfirm(false);
+    onConfirmLocation?.(report.id, lat, lon);
+  };
 
   return (
     <div className="fixed inset-0 bg-ink/55 backdrop-blur-sm flex items-center justify-center p-4 z-50">
@@ -104,6 +117,34 @@ export default function ReportDetailModal({ isOpen, report, onClose, onUpdateSta
                   )
                 }
               />
+
+              {report.status === 'rejected' && (
+                <div className="bg-danger/10 border border-danger/25 p-3.5 rounded-xl flex items-start gap-2">
+                  <AlertCircle size={16} className="text-danger shrink-0 mt-0.5" />
+                  <p className="text-xs text-danger/90 leading-relaxed">
+                    {REJECTION_REASON_LABELS[report.rejection_reason] ||
+                      'รายงานนี้ไม่ผ่านการตรวจสอบ (ไม่ระบุเหตุผล)'}
+                  </p>
+                </div>
+              )}
+
+              {gpsAnomalyFlagged && (
+                <div className="bg-warn/10 border border-warn/25 p-3.5 rounded-xl flex items-center justify-between gap-3">
+                  <div className="flex items-start gap-2 min-w-0">
+                    <AlertTriangle size={16} className="text-warn shrink-0 mt-0.5" />
+                    <p className="text-xs text-warn/90 leading-relaxed">
+                      พิกัดนี้อาจไม่ตรงกับภาพที่แจ้ง (ตรวจพบจากข้อมูลพืชพรรณ) กรุณายืนยัน
+                      หรือปักหมุดตำแหน่งใหม่
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => setShowGpsConfirm(true)}
+                    className="shrink-0 px-3 py-2 rounded-lg text-xs font-semibold bg-warn text-ink hover:opacity-90 transition-opacity whitespace-nowrap"
+                  >
+                    ยืนยัน/แก้ไขตำแหน่ง
+                  </button>
+                </div>
+              )}
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="bg-mist border border-line p-3.5 rounded-xl">
@@ -206,6 +247,11 @@ export default function ReportDetailModal({ isOpen, report, onClose, onUpdateSta
                     <div className="font-display text-lg">
                       {aiResult.fusionResult?.final_decision || 'ไม่ระบุ'}
                     </div>
+                    {aiResult.fusionResult?.confidence_score != null && (
+                      <p className="text-xs text-paper/60 mt-1">
+                        ความมั่นใจของโมเดล: {(aiResult.fusionResult.confidence_score * 100).toFixed(1)}%
+                      </p>
+                    )}
                     <p className="text-xs text-paper/50 mt-1">
                       คะแนนความเร่งด่วน:{' '}
                       {Number(aiResult.fusionResult?.fusion_score || 0).toFixed(2)}
@@ -236,6 +282,14 @@ export default function ReportDetailModal({ isOpen, report, onClose, onUpdateSta
           </div>
         </div>
       </div>
+
+      {showGpsConfirm && (
+        <GpsPinModal
+          pendingFile={null}
+          onConfirm={handleLocationConfirm}
+          onCancel={() => setShowGpsConfirm(false)}
+        />
+      )}
     </div>
   );
 }

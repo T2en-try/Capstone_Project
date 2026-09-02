@@ -23,6 +23,12 @@ class ReportUpdateStatus(BaseModel):
     status: str = Field(..., description="สถานะใหม่: pending, processing, completed, rejected")
 
 
+class ReportLocationConfirm(BaseModel):
+    """Schema สำหรับผู้ใช้ยืนยัน/แก้ไขพิกัดของรายงานที่มีอยู่แล้ว (เช่น หลังถูก flag ว่า GPS อาจไม่ตรงกับภาพ)"""
+    latitude: float = Field(..., ge=-90, le=90, description="ละติจูดที่ยืนยัน/แก้ไข")
+    longitude: float = Field(..., ge=-180, le=180, description="ลองจิจูดที่ยืนยัน/แก้ไข")
+
+
 # ─── Response Schemas ──────────────────────────────────────────
 
 class GPSData(BaseModel):
@@ -81,6 +87,18 @@ class AIAnalysisResponse(BaseModel):
     # Final
     final_fusion_score: float
     final_decision: str
+
+    # Final -- Random Forest Decision Head (production)
+    priority_class: Optional[int] = None
+    confidence_score: Optional[float] = None
+    proba_normal: Optional[float] = None
+    proba_warning: Optional[float] = None
+    proba_critical: Optional[float] = None
+
+    # GPS/NDVI sanity check
+    gps_anomaly_flagged: Optional[bool] = None
+    gps_anomaly_reason: Optional[str] = None
+
     analyzed_at: datetime
 
     model_config = ConfigDict(from_attributes=True, protected_namespaces=())
@@ -99,6 +117,7 @@ class ReportResponse(BaseModel):
     description: Optional[str] = None
     reporter_name: Optional[str] = None
     status: str
+    rejection_reason: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     
@@ -158,6 +177,7 @@ class ReportResponse(BaseModel):
                 "feature_vector": None,
                 "fusion_score": ana.final_fusion_score,
                 "final_decision": ana.final_decision,
+                "confidence_score": ana.confidence_score,
                 "analysis_meta": {
                     "is_high_risk_material": ana.estimated_surface_material == "ยางมะตอย (Asphalt)",
                     "environmental_impact_factor": "high" if (ana.rainfall_last_12m_mm or 0) > 1200 or (ana.soil_moisture_last_30d_mm or 0) > 0.4 else "normal"

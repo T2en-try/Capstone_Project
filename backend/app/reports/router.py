@@ -4,6 +4,7 @@ API Endpoints สำหรับจัดการรายงานสภาพ
 """
 
 import asyncio
+import os
 from typing import Optional
 from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, Request, BackgroundTasks
@@ -13,13 +14,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 # --- [IMPORT จากโครงสร้าง 3-Table Normalized Schema] ---
 from app.ai.engine import ai_engine
+from app.core.config import settings
 from app.core.database import get_db, async_session
-from app.reports.models import RoadReport, AIAnalysis, ApiCacheGeeOsm, ReportStatus
+from app.reports.models import (
+    RoadReport, AIAnalysis, ApiCacheGeeOsm, ReportStatus, PriorityClass,
+    AiCvFeatures, AiGeeContext, AiGisContext, AiPoiContext, AiCrowdsourceContext,
+    AiPriorityDecision, AiLegacyScores,
+)
 from app.reports.schemas import (
     ErrorResponse,
     MapPointItem,
     MapPointsResponse,
     ReportListResponse,
+    ReportLocationConfirm,
     ReportResponse,
     ReportUpdateStatus,
     StatsResponse,
@@ -34,6 +41,15 @@ from app.auth.router import get_current_admin
 router = APIRouter(prefix="/api/reports", tags=["Reports"])
 
 
+def _to_priority_class(raw_value):
+    """fusion_result['priority_class'] is a plain int (1/2/3) or None -- None for
+    the no-GPS partial_success path, which never calls calculate_priority_index()
+    at all and so has no RF prediction to attach. Wrap into the PriorityClass enum
+    only when a real value exists; leave the column NULL otherwise (nullable=True
+    was chosen specifically for this "not computed" case, not defaulted to Normal)."""
+    return PriorityClass(raw_value) if raw_value is not None else None
+
+
 async def process_report_background(
     report_id: int,
     file_info: dict,
@@ -44,13 +60,17 @@ async def process_report_background(
     """ฟังก์ชันทำงานเบื้องหลังสำหรับ AI Inference และดึงข้อมูล API ภายนอก"""
     async with async_session() as db:
         try:
-            # 1. Gatekeeper — ปิดชั่วคราวสำหรับ Expert Labeling Batch
-            # [INTENTIONAL BYPASS]: Bypassed for offline batch labeling dataset generation.
-            # Do not remove without reconsidering production behavior.
-            # TODO: RE-ENABLE after expert labeling — uncomment the block below:
-            # if ai_engine.classifier_model:
-            #     is_road = await asyncio.to_thread(ai_engine.validate_is_road, file_info["path"])
-            #     if not is_road: (reject and return)
+            # 1. Gatekeeper — ตรวจสอบว่าเป็นภาพถนนจริงหรือไม่
+            if ai_engine.classifier_model:
+                is_road = await asyncio.to_thread(ai_engine.validate_is_road, file_info["path"])
+                if not is_road:
+                    print(f"🚫 Report {report_id}: ภาพไม่ผ่าน Gatekeeper (ไม่ใช่ภาพถนน)")
+                    report = await db.get(RoadReport, report_id)
+                    if report:
+                        report.status = ReportStatus.REJECTED
+                        report.rejection_reason = "not_a_road"
+                        await db.commit()
+                    return
 
             # 2. จัดการแคชข้อมูล API ภายนอก (GEE & OSM)
             cached_gee, cached_osm = None, None
@@ -156,35 +176,64 @@ async def process_report_background(
                     cx_d = ai_analysis.get("context_data", {})
                     fusion_r = ai_analysis.get("fusion_result", {})
 
+                # Normalized construction: one nested satellite object per group,
+                # attached via relationship kwargs on the parent. cascade="save-update"
+                # (relationship default) means the single db.add(ai_rec) below still
+                # cascades to all 7 satellites -- no extra db.add() calls needed.
+                # Fields intentionally omitted here (slope, lanes, speed_limit,
+                # nearest_poi_distance_m) are unchanged from the pre-split code: they
+                # were never set explicitly at insert time either, so each satellite's
+                # own Column(default=...) applies at flush, identical to before.
                 ai_rec = AIAnalysis(
                     report_id=report_id,
                     model_version="RT-DETR-Fold2",
-                    cv_defect_count=cv_f.get("cv_total_defects_count", 0),
-                    cv_damage_ratio_percent=cv_f.get("cv_damage_ratio_percent", 0.0),
-                    cv_max_severity_score=cv_f.get("cv_max_severity_score", 0),
-                    cv_details_json=cv_f.get("cv_details", {}),
-                    annotated_image_filename=cv_f.get("annotated_image_filename"),
-                    rainfall_last_12m_mm=cx_d.get("gee", {}).get("rainfall_last_12m_mm", 0.0) if cx_d.get("gee") else 0.0,
-                    soil_moisture_last_30d_mm=cx_d.get("gee", {}).get("soil_moisture_last_30d_mm", 0.0) if cx_d.get("gee") else 0.0,
-                    ndvi_index=cx_d.get("gee", {}).get("ndvi_index", 0.0) if cx_d.get("gee") else 0.0,
-                    estimated_surface_material=cx_d.get("gee", {}).get("estimated_material", "ไม่ระบุ") if cx_d.get("gee") else "ไม่ระบุ",
-                    nightlight_radiance=cx_d.get("gee", {}).get("nightlight_radiance", 0.0) if cx_d.get("gee") else 0.0,
-                    road_name=cx_d.get("gis", {}).get("road_name") if cx_d.get("gis") else None,
-                    road_type=cx_d.get("gis", {}).get("thai_road_type") if cx_d.get("gis") else None,
-                    osm_highway_type=cx_d.get("gis", {}).get("osm_highway_type") if cx_d.get("gis") else None,
-                    osm_way_id=cx_d.get("gis", {}).get("osm_way_id") if cx_d.get("gis") else None,
-                    admin_province=cx_d.get("admin", {}).get("province") if cx_d.get("admin") else None,
-                    admin_district=cx_d.get("admin", {}).get("district") if cx_d.get("admin") else None,
-                    admin_subdistrict=cx_d.get("admin", {}).get("subdistrict") if cx_d.get("admin") else None,
-                    community_impact_score_pi=cx_d.get("poi", {}).get("community_impact_score_pi", 0) if cx_d.get("poi") else 0,
-                    crowdsource_report_count_30d=real_crowd_data["crowdsource_report_count_30d"],
-                    days_since_last_report=real_crowd_data["days_since_last_report"],
-                    user_severity_score_avg=real_crowd_data["user_severity_score_avg"],
-                    heuristic_score=fusion_r.get("heuristic_score"),
-                    fuzzy_score=fusion_r.get("fuzzy_score"),
-                    ml_score=fusion_r.get("ml_score"),
-                    final_fusion_score=fusion_r.get("fusion_score", 0.0),
-                    final_decision=fusion_r.get("final_decision", "Good (สภาพปกติ)")
+                    cv_features=AiCvFeatures(
+                        cv_defect_count=cv_f.get("cv_total_defects_count", 0),
+                        cv_damage_ratio_percent=cv_f.get("cv_damage_ratio_percent", 0.0),
+                        cv_max_severity_score=cv_f.get("cv_max_severity_score", 0),
+                        cv_details_json=cv_f.get("cv_details", {}),
+                        annotated_image_filename=cv_f.get("annotated_image_filename"),
+                    ),
+                    gee_context=AiGeeContext(
+                        rainfall_last_12m_mm=cx_d.get("gee", {}).get("rainfall_last_12m_mm", 0.0) if cx_d.get("gee") else 0.0,
+                        soil_moisture_last_30d_mm=cx_d.get("gee", {}).get("soil_moisture_last_30d_mm", 0.0) if cx_d.get("gee") else 0.0,
+                        ndvi_index=cx_d.get("gee", {}).get("ndvi_index", 0.0) if cx_d.get("gee") else 0.0,
+                        estimated_surface_material=cx_d.get("gee", {}).get("estimated_material", "ไม่ระบุ") if cx_d.get("gee") else "ไม่ระบุ",
+                        nightlight_radiance=cx_d.get("gee", {}).get("nightlight_radiance", 0.0) if cx_d.get("gee") else 0.0,
+                    ),
+                    gis_context=AiGisContext(
+                        road_name=cx_d.get("gis", {}).get("road_name") if cx_d.get("gis") else None,
+                        road_type=cx_d.get("gis", {}).get("thai_road_type") if cx_d.get("gis") else None,
+                        osm_highway_type=cx_d.get("gis", {}).get("osm_highway_type") if cx_d.get("gis") else None,
+                        osm_way_id=cx_d.get("gis", {}).get("osm_way_id") if cx_d.get("gis") else None,
+                        admin_province=cx_d.get("admin", {}).get("province") if cx_d.get("admin") else None,
+                        admin_district=cx_d.get("admin", {}).get("district") if cx_d.get("admin") else None,
+                        admin_subdistrict=cx_d.get("admin", {}).get("subdistrict") if cx_d.get("admin") else None,
+                    ),
+                    poi_context=AiPoiContext(
+                        community_impact_score_pi=cx_d.get("poi", {}).get("community_impact_score_pi", 0) if cx_d.get("poi") else 0,
+                    ),
+                    crowdsource_context=AiCrowdsourceContext(
+                        crowdsource_report_count_30d=real_crowd_data["crowdsource_report_count_30d"],
+                        days_since_last_report=real_crowd_data["days_since_last_report"],
+                        user_severity_score_avg=real_crowd_data["user_severity_score_avg"],
+                    ),
+                    priority_decision=AiPriorityDecision(
+                        heuristic_score=fusion_r.get("heuristic_score"),
+                        fuzzy_score=fusion_r.get("fuzzy_score"),
+                        ml_score=fusion_r.get("ml_score"),
+                        priority_class=_to_priority_class(fusion_r.get("priority_class")),
+                        confidence_score=fusion_r.get("confidence_score"),
+                        proba_normal=fusion_r.get("proba_normal"),
+                        proba_warning=fusion_r.get("proba_warning"),
+                        proba_critical=fusion_r.get("proba_critical"),
+                        gps_anomaly_flagged=fusion_r.get("gps_anomaly_flagged", False),
+                        gps_anomaly_reason=fusion_r.get("gps_anomaly_reason"),
+                    ),
+                    legacy_scores=AiLegacyScores(
+                        final_fusion_score=fusion_r.get("fusion_score", 0.0),
+                        final_decision=fusion_r.get("final_decision", "Good (สภาพปกติ)"),
+                    ),
                 )
                 db.add(ai_rec)
                 
@@ -198,6 +247,7 @@ async def process_report_background(
                 # ai_analysis is None — set rejected to avoid getting stuck
                 print(f"⚠️ Report {report_id}: ai_analysis=None, ตั้งสถานะเป็น rejected")
                 report.status = ReportStatus.REJECTED
+                report.rejection_reason = "analysis_failed"
 
             await db.commit()
             print(f"✅ ประมวลผลรายงาน {report_id} ในเบื้องหลังสำเร็จ")
@@ -210,6 +260,146 @@ async def process_report_background(
                     err_report = await err_db.get(RoadReport, report_id)
                     if err_report and err_report.status == ReportStatus.PROCESSING:
                         err_report.status = ReportStatus.REJECTED
+                        err_report.rejection_reason = "analysis_failed"
+                        await err_db.commit()
+            except Exception as update_err:
+                print(f"❌ ไม่สามารถอัปเดตสถานะ report {report_id}: {update_err}")
+
+
+async def reprocess_report_location(report_id: int, new_lat: float, new_lon: float):
+    """หลังผู้ใช้ยืนยัน/แก้ไขพิกัด (เช่น ตอบสนองต่อ gps_anomaly_flagged) -- รัน AI
+    วิเคราะห์ใหม่ด้วยพิกัดที่แก้ไขแล้ว ใช้ pipeline เดิมทั้งหมด (GEE/OSM/Fusion ผ่าน
+    ai_engine.calculate_priority_index) เพียงแต่เริ่มจาก report_id + พิกัดใหม่แทนการ
+    อัปโหลดไฟล์ใหม่ อัปเดตแถว AIAnalysis เดิม (ไม่สร้างแถวใหม่) และเคลียร์ flag"""
+    async with async_session() as db:
+        try:
+            result = await db.execute(
+                select(RoadReport).options(joinedload(RoadReport.ai_analysis)).where(RoadReport.id == report_id)
+            )
+            report = result.scalar_one_or_none()
+            if not report:
+                print(f"⚠️ Reprocess: ไม่พบรายงาน {report_id}")
+                return
+
+            image_path = os.path.join(settings.UPLOAD_DIR, report.image_filename)
+            if not os.path.exists(image_path):
+                print(f"⚠️ Reprocess: ไม่พบไฟล์ภาพของรายงาน {report_id}: {image_path}")
+                report.status = ReportStatus.REJECTED
+                await db.commit()
+                return
+
+            # สถิติ Crowdsourcing รอบพิกัดใหม่ (เหมือนตอนอัปโหลดครั้งแรก)
+            real_crowd_data = {
+                "crowdsource_report_count_30d": 0,
+                "days_since_last_report": 999,
+                "user_severity_score_avg": 0.0
+            }
+            try:
+                thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
+                lat_offset, lon_offset = 0.00045, 0.00045
+                crowd_query = select(RoadReport).options(joinedload(RoadReport.ai_analysis)).where(
+                    RoadReport.latitude.between(new_lat - lat_offset, new_lat + lat_offset),
+                    RoadReport.longitude.between(new_lon - lon_offset, new_lon + lon_offset),
+                    RoadReport.created_at >= thirty_days_ago
+                ).order_by(RoadReport.created_at.desc())
+                crowd_result = await db.execute(crowd_query)
+                recent_reports = crowd_result.scalars().all()
+                if recent_reports:
+                    real_crowd_data["crowdsource_report_count_30d"] = len(recent_reports)
+                    real_crowd_data["days_since_last_report"] = (datetime.now(timezone.utc) - recent_reports[0].created_at).days
+                    total_sev, valid_sev = 0, 0
+                    for r in recent_reports:
+                        if r.ai_analysis:
+                            total_sev += int(r.ai_analysis.cv_max_severity_score)
+                            valid_sev += 1
+                    if valid_sev > 0:
+                        real_crowd_data["user_severity_score_avg"] = round(total_sev / valid_sev, 1)
+            except Exception as e:
+                print(f"⚠️ Reprocess Crowdsource Error: {e}")
+
+            ai_analysis = None
+            if ai_engine.model is not None:
+                try:
+                    ai_analysis = await asyncio.to_thread(
+                        ai_engine.calculate_priority_index,
+                        new_lat, new_lon, image_path, real_crowd_data
+                    )
+                except Exception as ai_err:
+                    print(f"⚠️ Reprocess AI Engine Error: {ai_err}")
+
+            if not ai_analysis:
+                print(f"⚠️ Reprocess {report_id}: ai_analysis เป็น None, คงผลเดิมไว้")
+                if report.status == ReportStatus.PROCESSING:
+                    report.status = ReportStatus.COMPLETED  # คงผลวิเคราะห์เดิมไว้ ไม่ค้างที่ processing
+                    await db.commit()
+                return
+
+            cv_f = ai_analysis.get("cv_features", {})
+            cx_d = ai_analysis.get("context_data", {}) or {}
+            fusion_r = ai_analysis.get("fusion_result", {})
+            gee_d = cx_d.get("gee") or {}
+            gis_d = cx_d.get("gis") or {}
+            poi_d = cx_d.get("poi") or {}
+            admin_d = cx_d.get("admin") or {}
+
+            report.latitude = new_lat
+            report.longitude = new_lon
+            report.gps_source = "manual_confirmed"
+
+            existing = report.ai_analysis
+            if existing:
+                existing.cv_defect_count = cv_f.get("cv_total_defects_count", 0)
+                existing.cv_damage_ratio_percent = cv_f.get("cv_damage_ratio_percent", 0.0)
+                existing.cv_max_severity_score = cv_f.get("cv_max_severity_score", 0)
+                existing.cv_details_json = cv_f.get("cv_details", {})
+                existing.annotated_image_filename = cv_f.get("annotated_image_filename")
+                existing.rainfall_last_12m_mm = gee_d.get("rainfall_last_12m_mm", 0.0)
+                existing.soil_moisture_last_30d_mm = gee_d.get("soil_moisture_last_30d_mm", 0.0)
+                existing.ndvi_index = gee_d.get("ndvi_index", 0.0)
+                existing.estimated_surface_material = gee_d.get("estimated_material", "ไม่ระบุ")
+                existing.nightlight_radiance = gee_d.get("nightlight_radiance", 0.0)
+                existing.slope = gee_d.get("slope_deg", 0.0)
+                existing.road_name = gis_d.get("road_name")
+                existing.road_type = gis_d.get("thai_road_type")
+                existing.osm_highway_type = gis_d.get("osm_highway_type")
+                existing.osm_way_id = gis_d.get("osm_way_id")
+                existing.lanes = gis_d.get("lanes", 2)
+                existing.speed_limit = gis_d.get("speed_limit", 50.0)
+                existing.community_impact_score_pi = poi_d.get("community_impact_score_pi", 0)
+                existing.nearest_poi_distance_m = poi_d.get("nearest_poi_distance_m", 1000.0)
+                existing.admin_province = admin_d.get("province")
+                existing.admin_district = admin_d.get("district")
+                existing.admin_subdistrict = admin_d.get("subdistrict")
+                existing.crowdsource_report_count_30d = real_crowd_data["crowdsource_report_count_30d"]
+                existing.days_since_last_report = real_crowd_data["days_since_last_report"]
+                existing.user_severity_score_avg = real_crowd_data["user_severity_score_avg"]
+                existing.heuristic_score = fusion_r.get("heuristic_score")
+                existing.fuzzy_score = fusion_r.get("fuzzy_score")
+                existing.ml_score = fusion_r.get("ml_score")
+                existing.final_fusion_score = fusion_r.get("fusion_score", 0.0)
+                existing.final_decision = fusion_r.get("final_decision", "Good (สภาพปกติ)")
+                existing.priority_class = _to_priority_class(fusion_r.get("priority_class"))
+                existing.confidence_score = fusion_r.get("confidence_score")
+                existing.proba_normal = fusion_r.get("proba_normal")
+                existing.proba_warning = fusion_r.get("proba_warning")
+                existing.proba_critical = fusion_r.get("proba_critical")
+                existing.gps_anomaly_flagged = fusion_r.get("gps_anomaly_flagged", False)
+                existing.gps_anomaly_reason = fusion_r.get("gps_anomaly_reason")
+                existing.analyzed_at = datetime.now(timezone.utc)
+
+            report.status = ReportStatus.COMPLETED
+
+            await db.commit()
+            print(f"✅ Reprocessed report {report_id} ด้วยพิกัดใหม่ ({new_lat}, {new_lon})")
+
+        except Exception as e:
+            import traceback; traceback.print_exc()
+            print(f"❌ Reprocess background task error for report {report_id}: {e}")
+            try:
+                async with async_session() as err_db:
+                    err_report = await err_db.get(RoadReport, report_id)
+                    if err_report and err_report.status == ReportStatus.PROCESSING:
+                        err_report.status = ReportStatus.COMPLETED  # คงผลวิเคราะห์เดิมไว้ ไม่ค้างที่ processing
                         await err_db.commit()
             except Exception as update_err:
                 print(f"❌ ไม่สามารถอัปเดตสถานะ report {report_id}: {update_err}")
@@ -451,6 +641,50 @@ async def get_report(report_id: int, db: AsyncSession = Depends(get_db)):
     return ReportResponse.model_validate(report)
 
 
+# ─── PATCH: ยืนยัน/แก้ไขพิกัดของรายงาน (เช่น หลังถูก flag ว่า GPS อาจไม่ตรงกับภาพ) ──
+@router.patch(
+    "/{report_id}/location",
+    response_model=ReportResponse,
+    summary="ยืนยัน/แก้ไขพิกัดของรายงานที่มีอยู่แล้ว",
+    responses={404: {"model": ErrorResponse}},
+)
+async def confirm_report_location(
+    report_id: int,
+    body: ReportLocationConfirm,
+    background_tasks: BackgroundTasks,
+    db: AsyncSession = Depends(get_db),
+):
+    """ไม่ต้องยืนยันตัวตน (unauthenticated) -- สอดคล้องกับโมเดล public-access เดิมของ
+    ระบบนี้ (upload/list/detail ก็ไม่มี auth เช่นกัน) ผู้แจ้งคนใดก็สามารถแก้ไขพิกัด
+    รายงานที่มองเห็นในรายการสาธารณะได้ อัปเดตพิกัดทันที แล้ววิเคราะห์ AI ใหม่แบบ
+    background (ไม่บล็อก response)"""
+    result = await db.execute(
+        select(RoadReport).options(joinedload(RoadReport.ai_analysis)).where(RoadReport.id == report_id)
+    )
+    report = result.scalar_one_or_none()
+
+    if not report:
+        raise HTTPException(status_code=404, detail=f"ไม่พบรายงาน ID: {report_id}")
+
+    report.latitude = body.latitude
+    report.longitude = body.longitude
+    report.gps_source = "manual_confirmed"
+    report.status = ReportStatus.PROCESSING
+    await db.commit()
+
+    background_tasks.add_task(
+        reprocess_report_location,
+        report_id=report_id,
+        new_lat=body.latitude,
+        new_lon=body.longitude,
+    )
+
+    stmt = select(RoadReport).options(joinedload(RoadReport.ai_analysis)).where(RoadReport.id == report_id)
+    result = await db.execute(stmt)
+    refreshed_report = result.scalar_one()
+    return ReportResponse.model_validate(refreshed_report)
+
+
 # ─── PATCH: อัปเดตสถานะรายงาน ───────────────────────────────────
 @router.patch(
     "/{report_id}/status",
@@ -480,6 +714,11 @@ async def update_report_status(
         raise HTTPException(status_code=400, detail=f"สถานะไม่ถูกต้อง ค่าที่รองรับคือ: {valid}")
 
     report.status = new_status
+    # ReportUpdateStatus ไม่ได้เก็บเหตุผลมาด้วย -- เคลียร์ rejection_reason ทิ้งเมื่อ
+    # สถานะไม่ใช่ rejected อีกต่อไป (กัน reason เก่าค้างอยู่); คงเป็น NULL เมื่อ admin
+    # กด rejected เอง (แยกจาก Gatekeeper/AI-error ที่ตั้งเหตุผลไว้เฉพาะ)
+    if new_status != ReportStatus.REJECTED:
+        report.rejection_reason = None
     await db.commit()
     await db.refresh(report)
 

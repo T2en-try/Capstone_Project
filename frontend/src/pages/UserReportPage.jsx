@@ -144,6 +144,16 @@ export default function UserReportPage() {
     }
   };
 
+  const confirmLocation = async (id, lat, lon) => {
+    try {
+      const res = await axios.patch(`${API_REPORTS}/${id}/location`, { latitude: lat, longitude: lon });
+      setSelectedReport(res.data);
+      fetchData();
+    } catch {
+      alert('อัปเดตพิกัดไม่สำเร็จ');
+    }
+  };
+
   const deleteReport = async (id) => {
     if (!window.confirm('ต้องการลบรายงานนี้หรือไม่?')) return;
     try {
@@ -314,6 +324,7 @@ export default function UserReportPage() {
         report={selectedReport}
         onClose={() => setIsModalOpen(false)}
         onUpdateStatus={updateStatus}
+        onConfirmLocation={confirmLocation}
       />
     </MainLayout>
   );

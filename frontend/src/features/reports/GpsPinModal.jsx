@@ -184,13 +184,15 @@ export default function GpsPinModal({ pendingFile, onConfirm, onCancel }) {
               <X size={18} />
             </button>
           </div>
-          <div className="mt-3 bg-ink-soft/80 rounded-xl px-4 py-2.5 flex items-center gap-2 text-xs">
-            <span className="text-paper/50 shrink-0">ไฟล์</span>
-            <span className="text-paper/80 font-mono truncate">{pendingFile?.name}</span>
-            <span className="ml-auto text-paper/45 shrink-0">
-              {pendingFile ? (pendingFile.size / 1024).toFixed(0) + ' KB' : ''}
-            </span>
-          </div>
+          {pendingFile && (
+            <div className="mt-3 bg-ink-soft/80 rounded-xl px-4 py-2.5 flex items-center gap-2 text-xs">
+              <span className="text-paper/50 shrink-0">ไฟล์</span>
+              <span className="text-paper/80 font-mono truncate">{pendingFile.name}</span>
+              <span className="ml-auto text-paper/45 shrink-0">
+                {(pendingFile.size / 1024).toFixed(0)} KB
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Map */}

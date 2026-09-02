@@ -21,7 +21,7 @@ numpy
 Pillow==12.2.0
 exifread==3.0.0
 pandas
-scikit-learn
+scikit-learn==1.8.0
 scikit-fuzzy
 geopandas==1.1.4
 shapely==2.1.2

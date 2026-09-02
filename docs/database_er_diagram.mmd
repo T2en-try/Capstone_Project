@@ -1,0 +1,152 @@
+%% Road Remaining Life Prediction System -- Database ER Diagram. AI_ANALYSES is normalized into a slimmed parent + 7 satellite tables (see docs/production_migration_log.md for the full rationale); ADMIN_USERS and USERS are two independent user tables by design, not accident (see CLAUDE.md).
+erDiagram
+    ROAD_REPORTS ||--o| AI_ANALYSES : "has AI result for"
+    ROAD_REPORTS ||--o{ REPORT_ACTIONS : "has audit history"
+    USERS ||--o{ REPORT_ACTIONS : "performed by (nullable)"
+    USERS ||--o{ SYSTEM_SETTINGS : "updated by (nullable)"
+
+    AI_ANALYSES ||--|| AI_CV_FEATURES : "1:1"
+    AI_ANALYSES ||--|| AI_GEE_CONTEXT : "1:1"
+    AI_ANALYSES ||--|| AI_GIS_CONTEXT : "1:1"
+    AI_ANALYSES ||--|| AI_POI_CONTEXT : "1:1"
+    AI_ANALYSES ||--|| AI_CROWDSOURCE_CONTEXT : "1:1"
+    AI_ANALYSES ||--|| AI_PRIORITY_DECISION : "1:1"
+    AI_ANALYSES ||--|| AI_LEGACY_SCORES : "1:1 (deprecated)"
+
+    ROAD_REPORTS {
+        int id PK
+        string image_filename
+        string image_original_name
+        int image_size_bytes
+        string image_mime_type
+        float latitude
+        float longitude
+        string gps_source "exif | manual | manual_confirmed | none"
+        text description
+        string reporter_name
+        enum status "pending | processing | completed | rejected"
+        string rejection_reason "not_a_road | analysis_failed | NULL (admin/unknown)"
+        datetime created_at
+        datetime updated_at
+    }
+
+    AI_ANALYSES {
+        int id PK
+        int report_id FK "unique -- 1 report : 0-or-1 analysis"
+        string model_version
+        datetime analyzed_at
+    }
+
+    AI_CV_FEATURES {
+        int analysis_id PK,FK
+        int cv_defect_count
+        float cv_damage_ratio_percent
+        int cv_max_severity_score "D00=2,D10=2,D20=4,D40=5"
+        jsonb cv_details_json "e.g. {D00:1, D40:2}"
+        string annotated_image_filename
+    }
+
+    AI_GEE_CONTEXT {
+        int analysis_id PK,FK
+        float rainfall_last_12m_mm
+        float soil_moisture_last_30d_mm
+        float ndvi_index
+        string estimated_surface_material "Sentinel-2 derived, ~94% blank historically"
+        float nightlight_radiance
+        float slope
+    }
+
+    AI_GIS_CONTEXT {
+        int analysis_id PK,FK
+        string road_name
+        string road_type "Thai-language OSM category"
+        string osm_highway_type "raw OSM tag"
+        bigint osm_way_id "nearest OSM way, for road-segment aggregation"
+        int lanes
+        float speed_limit
+        string admin_province "pyrosm boundary cache, admin_level=4"
+        string admin_district "admin_level=6"
+        string admin_subdistrict "admin_level=8"
+    }
+
+    AI_POI_CONTEXT {
+        int analysis_id PK,FK
+        int community_impact_score_pi "from nearby hospitals/schools"
+        float nearest_poi_distance_m
+    }
+
+    AI_CROWDSOURCE_CONTEXT {
+        int analysis_id PK,FK
+        int crowdsource_report_count_30d
+        int days_since_last_report
+        float user_severity_score_avg
+    }
+
+    AI_PRIORITY_DECISION {
+        int analysis_id PK,FK
+        float heuristic_score "informational only"
+        float fuzzy_score "informational only"
+        float ml_score "informational only, synthetic-trained"
+        enum priority_class "1=Normal, 2=Warning, 3=Critical -- production RF output"
+        float confidence_score "RF predict_proba() for predicted class"
+        float proba_normal
+        float proba_warning
+        float proba_critical
+        boolean gps_anomaly_flagged "NDVI sanity check, active feature"
+        string gps_anomaly_reason "ndvi_high | ndvi_low"
+    }
+
+    AI_LEGACY_SCORES {
+        int analysis_id PK,FK
+        float final_fusion_score "DEPRECATED, superseded by priority_class"
+        string final_decision "DEPRECATED, superseded by priority_class"
+    }
+
+    API_CACHE_GEE_OSM {
+        string coordinate_grid PK "lat,lon rounded to 3dp, ~110m grid"
+        string source_api PK "gee | osm"
+        jsonb cached_response_json
+        datetime fetched_at
+    }
+
+    USERS {
+        int id PK
+        string email UK
+        string hashed_password
+        enum role "officer | admin"
+        int is_active
+        datetime created_at
+        datetime last_login
+    }
+
+    REPORT_ACTIONS {
+        int id PK
+        int report_id FK
+        int officer_id FK "nullable, SET NULL on delete"
+        enum previous_status
+        enum new_status
+        text action_note
+        string repaired_image_filename
+        datetime action_timestamp
+    }
+
+    SYSTEM_SETTINGS {
+        int id PK
+        string config_key UK
+        jsonb config_value
+        int updated_by FK "nullable, SET NULL on delete"
+        datetime updated_at
+    }
+
+    ADMIN_USERS {
+        int id PK
+        string email UK
+        string hashed_password
+        string full_name
+        string role
+        boolean is_active
+        datetime created_at
+        datetime last_login
+        %% Standalone -- backs the live /api/auth/* login flow, independent of
+        %% USERS/REPORT_ACTIONS/SYSTEM_SETTINGS above. No FK relationships.
+    }
