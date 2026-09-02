@@ -11,15 +11,15 @@
 
 ## ภาพรวมโปรเจกต์ (Project Overview)
 
-ระบบทำนายอายุการใช้งานคงเหลือของถนน — เว็บแอปที่ให้ผู้ใช้ทั่วไปอัปโหลดรูปถนนที่ชำรุด และให้ผู้ดูแลระบบ (Admin) ตรวจสอบคะแนนความเร่งด่วนในการซ่อมที่ประเมินโดย AI ผ่าน Dashboard ประกอบด้วย 3 ส่วนหลัก: `backend/` (FastAPI + AI Inference), `frontend/` (React + Vite), `nginx/` (reverse proxy สำหรับ Docker stack)
+ระบบทำนายอายุการใช้งานคงเหลือของถนน เว็บแอปที่ให้ผู้ใช้ทั่วไปอัปโหลดรูปถนนที่ชำรุด และให้ผู้ดูแลระบบ (Admin) ตรวจสอบคะแนนความเร่งด่วนในการซ่อมที่ประเมินโดย AI ผ่าน Dashboard ประกอบด้วย 3 ส่วนหลัก: `backend/` (FastAPI + AI Inference), `frontend/` (React + Vite), `nginx/` (reverse proxy สำหรับ Docker stack)
 
 ## Prerequisites
 
 | อะไร | เวอร์ชันที่ยืนยันว่าใช้งานได้จริง | หมายเหตุ |
 |---|---|---|
-| Python | 3.11 (ทดสอบใช้งานจริงบน local dev) | CI pin ไว้ที่ 3.10, Docker image ใช้ 3.12 — ทั้งสามใช้งานได้ ไม่ต้องยึดติดเวอร์ชันเดียว |
+| Python | 3.11 (ทดสอบใช้งานจริงบน local dev) | CI pin ไว้ที่ 3.10, Docker image ใช้ 3.12 ทั้งสามใช้งานได้ ไม่ต้องยึดติดเวอร์ชันเดียว |
 | Node.js | 20 | ตรงกันทั้ง CI และ Docker |
-| PostgreSQL | 17 (ทดสอบใช้งานจริงบน local dev) | Docker's `db` service ใช้ `postgres:15-alpine` — ต่างเวอร์ชันกันได้ ไม่มีปัญหา compatibility ที่ทราบ |
+| PostgreSQL | 17 (ทดสอบใช้งานจริงบน local dev) | Docker's `db` service ใช้ `postgres:15-alpine` ต่างเวอร์ชันกันได้ ไม่มีปัญหา compatibility ที่ทราบ |
 
 ## วิธีการติดตั้งและตั้งค่าระบบ (Installation & Setup)
 
@@ -34,9 +34,9 @@ python -m venv venv && venv\Scripts\activate     # Windows; source venv/bin/acti
 pip install -r requirements.txt
 ```
 
-### 2. ไฟล์ Credentials และ Secrets — ต้องสร้างเองหรือขอจากทีม ห้าม commit ขึ้น git เด็ดขาด
+### 2. ไฟล์ Credentials และ Secrets ต้องสร้างเองหรือขอจากทีม ห้าม commit ขึ้น git เด็ดขาด
 
-* **`backend/.env`** (ไฟล์ตั้งค่าระบบและฐานข้อมูล) — copy จาก `backend/.env.example` แล้วกรอกค่าจริง:
+* **`backend/.env`** (ไฟล์ตั้งค่าระบบและฐานข้อมูล) copy จาก `backend/.env.example` แล้วกรอกค่าจริง:
   * `JWT_SECRET_KEY` — **สร้างใหม่เองในเครื่องตัวเอง ห้ามขอ/แชร์ค่าจากคนอื่น**:
     ```bash
     python -c "import secrets; print(secrets.token_hex(32))"
@@ -58,32 +58,33 @@ pip install -r requirements.txt
   * **ตำแหน่งที่ต้องวาง:** `backend/models/best.pt`
 * **`best-road-classifier.pt`** (YOLO classifier คัดกรองว่าเป็นรูปถนนจริงหรือไม่ — "Gatekeeper", ~2.8MB)
   * **ดาวน์โหลด:** https://drive.google.com/file/d/15kjcDslmFC6e53miRMqkXPjmv6S1Vzxx/view?usp=drive_link
-  * **ตำแหน่งที่ต้องวาง:** `backend/best-road-classifier.pt` **(⚠️ อยู่ที่ root ของ `backend/` โดยตรง ไม่ใช่ใน `backend/models/` — โค้ดอ่าน path แบบ cwd-relative จากตำแหน่งที่รัน `uvicorn`, path เดิมในเอกสารนี้ผิด แก้ไขแล้ว)**
-* **`priority_class_rf_v1.pkl`** (Random Forest Decision Head — โมเดลที่ใช้จริงในการตัดสิน priority_class/confidence_score ปัจจุบัน, ~2.4MB)
+  * **ตำแหน่งที่ต้องวาง:** `backend/best-road-classifier.pt` **(อยู่ที่ root ของ `backend/` โดยตรง ไม่ใช่ใน `backend/models/` โค้ดอ่าน path แบบ cwd-relative จากตำแหน่งที่รัน `uvicorn`, path เดิมในเอกสารนี้ผิด แก้ไขแล้ว)**
+* **`priority_class_rf_v1.pkl`** (Random Forest Decision Head โมเดลที่ใช้จริงในการตัดสิน priority_class/confidence_score ปัจจุบัน, ~2.4MB)
+  * **ดาวน์โหลด:** https://drive.google.com/file/d/1GjNhx4kjZwd4XcvEPK7LnHad7C0Pdxpw/view?usp=drive_link
   * **ตำแหน่งที่ต้องวาง:** `backend/models/priority_class_rf_v1.pkl`
-  * ขอไฟล์นี้จากทีม (โมเดลใหม่ ยังไม่มี Drive link แชร์ไว้ในเอกสารนี้ — เพิ่มเข้ามาทีหลังตอนย้ายจาก synthetic-trained model ไปเป็นโมเดลที่ผ่านการ validate จริง รายละเอียดใน `docs/production_migration_log.md`)
-* **`ppi_rf_model_v3.pkl`** (โมเดลเก่า — ยังคงถูกอ่านโดย `MLFusionEngine` เป็นค่า informational เท่านั้น ไม่ใช่ตัวตัดสินใจหลักอีกต่อไป, ~4.8MB)
-  * **ตำแหน่งที่ต้องวาง:** `backend/ppi_rf_model_v3.pkl` **(⚠️ อยู่ที่ root ของ `backend/` เช่นกัน ไม่ใช่ `backend/models/`)**
+  * เพิ่มเข้ามาทีหลังตอนย้ายจาก synthetic-trained model ไปเป็นโมเดลที่ผ่านการ validate จริง รายละเอียดใน `docs/production_migration_log.md`
+* **`ppi_rf_model_v3.pkl`** (โมเดลเก่า ยังถูกอ่านโดย `MLFusionEngine` เป็นค่า informational เท่านั้น ไม่ใช่ตัวตัดสินใจหลักอีกต่อไป, ~4.8MB)
+  * **ตำแหน่งที่ต้องวาง:** `backend/ppi_rf_model_v3.pkl` **(อยู่ที่ root ของ `backend/` ไม่ใช่ `backend/models/`)**
   * ถ้าไม่มีไฟล์นี้ แอปจะ auto-train โมเดล synthetic ทดแทนตอน startup (ทำงานได้ แต่เป็นแค่ค่า informational side-score ไม่กระทบผลลัพธ์หลัก)
 
-### 4. ไฟล์ Cache ข้อมูลแผนที่ (GIS Caches) — ไฟล์ใหญ่ ขอจากทีม
+### 4. ไฟล์ Cache ข้อมูลแผนที่ (GIS Caches) 
 
-ไฟล์เหล่านี้ backend อ่านโดยตรงตอนรันจริง (`gee_integration.py`) — ถ้าไม่มี ระบบจะยังรันได้แต่ข้อมูลถนน/ระยะทาง/เขตปกครองจะว่างเปล่า (ไม่ crash แค่ context หายไป):
+ไฟล์เหล่านี้ backend อ่านโดยตรงตอนรันจริง (`gee_integration.py`) ถ้าไม่มี ระบบจะยังรันได้แต่ข้อมูลถนน/ระยะทาง/เขตปกครองจะว่างเปล่า (ไม่ crash แค่ context หายไป):
+
+* **ดาวน์โหลด:** https://drive.google.com/drive/folders/1_uvvUb2gcEC19Xxx2-e3lKPrgKNabwyN?usp=drive_link
 
 * `backend/cached_driving_network.parquet` (~1.6MB)
 * `backend/cached_pois.parquet` (~25KB)
 * `backend/cached_admin_boundaries.parquet` (~91MB)
 
-ขอไฟล์เหล่านี้จากทีมโดยตรง (ไฟล์เล็กพอที่จะแชร์ผ่าน Drive/USB ได้) — **ไม่แนะนำให้ build ใหม่เองถ้าไม่จำเป็น** เพราะต้องดาวน์โหลด `thailand-latest.osm.pbf` (~325MB) มาก่อน แล้วรัน `backend/scripts/build_gis_cache.py` และ `build_admin_boundary_cache.py` ซึ่งใช้เวลานานและกินทรัพยากรมาก
-
-### 5. Environment Variables — รายชื่อ key ทั้งหมดที่ต้องมี (ไม่มีค่าจริงในไฟล์นี้)
+### 5. Environment Variables รายชื่อ key ทั้งหมดที่ต้องมี (ไม่มีค่าจริงในไฟล์นี้)
 
 **`backend/.env`** (copy จาก `backend/.env.example`):
 
 | Key | จำเป็นหรือไม่ | คำอธิบาย |
 |---|---|---|
-| `DATABASE_URL` | **จำเป็น** — แอปจะไม่ start ถ้าไม่มี | ต้องชี้ไปที่ `road_reports_batch_db` |
-| `JWT_SECRET_KEY` | **จำเป็น** — แอปจะไม่ start ถ้าไม่มี | สร้างเองในเครื่อง (คำสั่งด้านบน) |
+| `DATABASE_URL` | **จำเป็น** แอปจะไม่ start ถ้าไม่มี | ต้องชี้ไปที่ `road_reports_batch_db` |
+| `JWT_SECRET_KEY` | **จำเป็น** แอปจะไม่ start ถ้าไม่มี | สร้างเองในเครื่อง (คำสั่งด้านบน) |
 | `HOST` | มีค่า default (`0.0.0.0`) | |
 | `PORT` | มีค่า default (`8000`) | |
 | `UPLOAD_DIR` | มีค่า default (`./uploads`) | |
@@ -93,7 +94,7 @@ pip install -r requirements.txt
 | `GEE_KEY_PATH` | ไม่มีก็รันได้ แต่ GEE features จะ disable | ค่า default ชี้ไปที่ `./app/services/Road-maintain.json` อยู่แล้ว |
 | `GEE_PROJECT_ID` | ไม่มีก็รันได้ แต่ GEE features จะ disable | |
 
-**`frontend/.env`** (optional — copy จาก `frontend/.env.example` ถ้าต้องการ override ค่า default):
+**`frontend/.env`** (optional copy จาก `frontend/.env.example` ถ้าต้องการ override ค่า default):
 
 | Key | จำเป็นหรือไม่ | คำอธิบาย |
 |---|---|---|
@@ -102,14 +103,14 @@ pip install -r requirements.txt
 
 ### 6. การตั้งค่าฐานข้อมูล (Database Setup)
 
-1. ติดตั้ง PostgreSQL แล้วสร้างฐานข้อมูลชื่อ **`road_reports_batch_db`** (ต้องใช้ชื่อนี้ตรงๆ — ดู `docs/production_migration_log.md` สำหรับที่มาว่าทำไมชื่อฐานข้อมูลถึงสำคัญ: โปรเจกต์นี้เคยมีฐานข้อมูล 2 ตัวพร้อมกัน (`road_reports_db` ที่เลิกใช้แล้วกับ 12 แถว vs `road_reports_batch_db` ที่ใช้งานจริงกับข้อมูลหลักพันแถว) และ schema เคย drift ระหว่าง `models.py` กับฐานข้อมูลจริงมาแล้ว 2 ครั้ง — เอกสารนี้บันทึกไว้เพื่อไม่ให้เกิดซ้ำ)
-2. ถ้าเป็นฐานข้อมูลใหม่ (ว่างเปล่า) **ไม่ต้องรัน migration ใดๆ เพิ่มเติม** — ตอน backend start ครั้งแรก `init_db()` จะสร้างตารางทั้งหมดให้อัตโนมัติตาม `models.py` ปัจจุบัน (รวมถึง normalized satellite tables ของ `AIAnalysis` และคอลัมน์ `rejection_reason` ที่เพิ่งเพิ่มเข้ามา)
+1. ติดตั้ง PostgreSQL แล้วสร้างฐานข้อมูลชื่อ **`road_reports_batch_db`** (ต้องใช้ชื่อนี้ตรงๆ ดู `docs/production_migration_log.md` สำหรับที่มาว่าทำไมชื่อฐานข้อมูลถึงสำคัญ: โปรเจกต์นี้เคยมีฐานข้อมูล 2 ตัวพร้อมกัน (`road_reports_db` ที่เลิกใช้แล้วกับ 12 แถว vs `road_reports_batch_db` ที่ใช้งานจริงกับข้อมูลหลักพันแถว) และ schema เคย drift ระหว่าง `models.py` กับฐานข้อมูลจริงมาแล้ว 2 ครั้ง เอกสารนี้บันทึกไว้เพื่อไม่ให้เกิดซ้ำ)
+2. ถ้าเป็นฐานข้อมูลใหม่ (ว่างเปล่า) **ไม่ต้องรัน migration ใดๆ เพิ่มเติม** ตอน backend start ครั้งแรก `init_db()` จะสร้างตารางทั้งหมดให้อัตโนมัติตาม `models.py` ปัจจุบัน (รวมถึง normalized satellite tables ของ `AIAnalysis` และคอลัมน์ `rejection_reason` ที่เพิ่งเพิ่มเข้ามา)
 3. สร้าง admin account เริ่มต้น (จำเป็น เพราะ `init_db()` สร้างแค่ตาราง ไม่ใส่ข้อมูล):
    ```bash
    python seed_admin.py
    # สร้าง admin@roadmonitor.com / admin1234
    ```
-4. ถ้าต้องการล้างฐานข้อมูลทั้งหมดแล้วเริ่มใหม่ (⚠️ ลบข้อมูลทั้งหมด):
+4. ถ้าต้องการล้างฐานข้อมูลทั้งหมดแล้วเริ่มใหม่ (ลบข้อมูลทั้งหมด):
    ```bash
    python scripts/reset_db.py
    ```
