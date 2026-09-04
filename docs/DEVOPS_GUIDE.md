@@ -99,15 +99,15 @@ Playwright tests อยู่ใน `frontend/src/tests` — ต้องมี 
 
 ---
 
-## 3. Docker: สถานะปัจจุบัน (อัปเดต — บั๊ก startup หลักแก้แล้ว, frontend production build ยัง deferred)
+## 3. Docker: สถานะปัจจุบัน (อัปเดต — บั๊ก startup หลักแก้แล้ว, asset-delivery strategy confirmed, frontend build อยู่ระหว่างทีม frontend ยืนยัน)
 
 ### สถาปัตยกรรม
 
-`docker-compose.yml` มี 4 services: `db` (postgres:15-alpine, port 5433→5432) → `backend` (FastAPI) → `frontend` (Vite dev server, **ไม่ใช่ production build** — `frontend/Dockerfile`'s `CMD` คือ `npm run dev -- --host`) → `nginx` (reverse proxy, port `${NGINX_PORT:-8081}`) แต่ละ service มี healthcheck และ `depends_on: condition: service_healthy` เรียงต่อกันเป็น chain
+`docker-compose.yml` มี 4 services: `db` (postgres:15-alpine, port 5433→5432) → `backend` (FastAPI) → `frontend` → `nginx` (reverse proxy, port `${NGINX_PORT:-8081}`) แต่ละ service มี healthcheck และ `depends_on: condition: service_healthy` เรียงต่อกันเป็น chain
 
-`backend/Dockerfile`: `python:3.12`, ติดตั้ง `libgl1`/`libglib2.0-0` (จำเป็นสำหรับ `opencv-python-headless`), `pip install -r requirements.txt`, รัน `uvicorn main:app --host 0.0.0.0 --port 8000`
+`backend/Dockerfile`: `python:3.12`, ติดตั้ง `libgl1`/`libglib2.0-0` (จำเป็นสำหรับ `opencv-python-headless`), `pip install -r requirements.txt`, รัน `uvicorn main:app --host 0.0.0.0 --port 8000` — models/GIS caches ถูก bake เข้า image ตอน build (ดูกล่อง "✅ Confirmed" ด้านล่าง สำหรับเหตุผล)
 
-`frontend/Dockerfile`: `node:20-alpine`, `npm install`, รัน dev server — **ยังไม่เปลี่ยนเป็น production build โดยเจตนา (deferred)**, ดูกล่อง "⏸️ Deferred" ด้านล่าง
+`frontend/Dockerfile`: มาจาก PR #38 (Thana) -- multi-stage build (`node:20-alpine` → `npm run build` → serve ผ่าน `nginx:alpine` บน port 5173) แทนที่ dev server เดิม **ยังไม่ confirm ว่าพร้อม production โดยทีม frontend** (Thana ทิ้งไว้เป็น draft) -- เก็บไว้ตามที่ merge มา ไม่แตะทั้งสองทาง จนกว่าทีม frontend จะยืนยัน
 
 ### ✅ แก้แล้ว — บั๊ก startup ที่เคย block `docker compose up`
 
@@ -153,24 +153,30 @@ GEE_PROJECT_ID: ${GEE_PROJECT_ID}
 
 **หมายเหตุสำคัญเรื่อง scope**: ไม่มี root-level `.dockerignore` โดยเจตนา — `docker-compose.yml`'s `build: ./backend`/`build: ./frontend` ทำให้ build context เป็นแต่ละโฟลเดอร์ย่อย ไม่ใช่ root ของ repo ดังนั้น Docker จะอ่านแค่ `.dockerignore` ที่อยู่ใน root ของ context นั้นๆ เท่านั้น (`backend/.dockerignore`, `frontend/.dockerignore`) — ไฟล์ที่ root repo จะไม่ถูกอ่านเลย ไม่ต้องสร้างไว้ (สร้างไว้เฉยๆ จะหลอกว่ามี coverage ทั้งที่ไม่มีผลจริง)
 
-### ⏸️ Deferred โดยเจตนา — `frontend/Dockerfile` ยังไม่เปลี่ยนเป็น production build
+### ✅ Confirmed — bake-into-image (ไม่ใช่ bind-mount) คือทางเลือกสุดท้ายของทีม
 
-**ทีม frontend ยังพัฒนาไม่เสร็จ** — การบังคับเปลี่ยนเป็น production build (`vite build` + serve แบบ static) ตอนนี้จะกลาย stale/พังทันทีที่มีฟีเจอร์ใหม่เข้ามา จึงตัดสินใจ**เลื่อนงานนี้ออกไปก่อน จนกว่าทีม frontend จะส่งสัญญาณว่าพร้อม** — `frontend/Dockerfile` ยังคงเป็น dev server (`npm run dev -- --host`) เหมือนเดิมทุกประการ ไม่มีการเปลี่ยนแปลงใดๆ ในรอบนี้
+Thana เสนอ PR #38 ให้เปลี่ยนมา bind-mount models/GIS-caches/`Road-maintain.json` จาก host แทนการ bake เข้า image (เหตุผลที่อ้างตอนนั้น: build time) -- ก่อน merge ได้ตรวจสอบ root cause ของ build time ก่อน (ดูหัวข้อถัดไป) แล้วเจอว่า**ไม่ใช่เพราะไฟล์ที่ bake เข้าไป** (~165MB ใช้เวลาแค่ ~0.6 วินาทีที่ layer `COPY . .`) แต่เป็นเพราะ `torch`/`torchvision` ที่ unpinned ดึง CUDA wheels เต็มรูปแบบ (~1-2GB, ส่วนใหญ่ของเวลา build ~11 นาทีที่วัดไว้) เมื่อคุยกับ Thana แล้ว **ทีมยืนยันคงการตัดสินใจเดิม (bake-into-image) และแก้ปัญหาจริงที่ root cause แทน** (CPU-only torch pin, ดูหัวข้อ 4)
 
-**สิ่งที่ยังไม่แก้ (ยังคงอยู่ ตั้งใจปล่อยไว้)**:
-- Dev server ไม่เหมาะกับ production traffic จริง (ประสิทธิภาพ/HMR overhead ที่ไม่จำเป็น)
-- `vite.config.js` ไม่มี `server.allowedHosts` ตั้งไว้ — Vite (pin ที่ v8) default บล็อก request ที่ `Host` header ไม่ใช่ `localhost`/IP/allowed host ที่ตั้งไว้ (DNS-rebinding protection) เมื่อ deploy จริง `nginx/nginx.conf`'s reverse proxy จะ forward `Host` header จริงของ domain เข้าไป (`proxy_set_header Host $host;`) ซึ่ง**มีโอกาสสูงที่จะโดน Vite ปฏิเสธด้วย 403** — ยังไม่ได้ verify จริงเพราะยังไม่ได้ deploy แต่เป็นพฤติกรรม documented ของ Vite เอง
+Merge PR #38 เข้ามาแล้ว โดยเลือกเก็บเฉพาะส่วนที่ไม่ขัดกับการตัดสินใจนี้:
+- **เก็บ**: `.env.example`'s `POSTGRES_DB`/`DATABASE_URL` fix (แก้เป็น `road_reports_batch_db` ถูกต้องแล้ว), `.gitignore` เพิ่มเติม, `ci.yml`'s `frontend-e2e` job (wire Playwright เข้า CI -- ตรงกับ recommendation ในหัวข้อ 7 เป๊ะ), frontend feature/test files (`UserDashboard.jsx`, Playwright spec ใหม่, `package.json`/lockfile), และ `frontend/Dockerfile` + `frontend/nginx.conf` ใหม่ (เก็บไว้ตามที่ merge มา แต่ยัง**ไม่ confirm ว่าพร้อม production** -- ดูหัวข้อสถาปัตยกรรมด้านบน)
+- **ไม่เก็บ / revert กลับ**: `backend/.dockerignore`'s การเพิ่ม exclude `models/`/`*.pt`/`*.pkl`/`*.parquet`/`Road-maintain.json`, และ `docker-compose.yml`'s bind-mount entries สำหรับไฟล์เหล่านั้น -- กลับไปเป็นเวอร์ชัน bake-into-image เดิม `backend_uploads:/app/uploads` named volume (สำหรับรูปที่ผู้ใช้อัปโหลด ไม่ใช่ model/asset files) **เก็บไว้** เพราะเป็นคนละประเด็นกับ bake-vs-mount -- ไม่มีมันแปลว่ารูปที่อัปโหลดหายทุกครั้งที่ container restart/redeploy ซึ่งเป็นปัญหาจริงที่ควรแก้ไม่ว่าจะเลือก asset-delivery strategy แบบไหน
 
-**เมื่อทีม frontend พร้อมและจะหยิบงานนี้ต่อ**: แผนที่เตรียมไว้แล้ว (ยังไม่ implement) คือ multi-stage build — stage แรก `node:20-alpine` รัน `npm run build` ได้ static bundle ใน `dist/`, stage สองใช้ `nginx:alpine` serve `dist/` บน port 5173 เดิม (ไม่ต้องแก้ `docker-compose.yml`'s port/healthcheck) พร้อม config เล็กๆ ที่มี `try_files $uri $uri/ /index.html;` สำหรับ React Router — แก้ปัญหา `allowedHosts` ไปในตัวเพราะ static nginx ไม่มี host-check แบบ dev server เลย **อย่าทำงานนี้ซ้ำโดยไม่เช็คกับทีม frontend ก่อนว่าพร้อมหรือยัง**
+### ✅ แก้แล้ว — build time ที่แท้จริงมาจาก unpinned `torch`/`torchvision` ดึง CUDA wheels ไม่ใช่ asset baking
+
+Root cause ที่แท้จริงของ build ~11 นาที: `torch`/`torchvision` ที่ไม่ pin เวอร์ชันจะได้ CUDA-bundled wheels เป็น default (ติด `nvidia-*`/`cuda-*` packages ~1-2GB ที่ไม่เคยใช้เลย เพราะ deploy target ของโปรเจกต์นี้ไม่มี GPU) ไม่ใช่ไฟล์ model/GIS-cache ที่ bake เข้า image (~165MB ใช้เวลาแค่ ~0.6 วินาทีที่ layer `COPY . .` -- วัดจริงแล้ว)
+
+**แก้แล้ว**: เพิ่ม `--extra-index-url https://download.pytorch.org/whl/cpu` เข้า `requirements.txt` (บรรทัดแรกของไฟล์) แล้ว pin `torch==2.14.0+cpu` / `torchvision==0.29.0+cpu` -- ใช้ `--extra-index-url` ไม่ใช่ `--index-url` เพื่อให้ package อื่นทั้งหมดยังหาจาก PyPI ตามปกติ มีแค่ torch/torchvision ที่มาจาก index นี้ พร้อมกันนี้ pin `ultralytics==8.4.138` และ `opencv-python-headless==5.0.0.93` ด้วย (เดิมไม่ pin เลย ตามที่หัวข้อ 4 เคยแนะนำไว้)
+
+**เช็คความปลอดภัยของการเปลี่ยนไป CPU-only แล้ว**: จุดเดียวในโค้ดทั้งหมดที่เลือก device คือ `app/ai/engine.py`'s `device = 'cuda' if torch.cuda.is_available() else 'cpu'` -- เป็น conditional อยู่แล้ว บน CPU-only wheel `torch.cuda.is_available()` จะคืนค่า `False` เฉยๆ ไม่ crash ไม่มีจุดอื่นในโค้ดที่เรียก `.cuda()`/`.half()`/`torch.device`/`device_map` เลย (grep ทั้ง `backend/` แล้ว) -- ปลอดภัยที่จะเปลี่ยน ไม่ต้องแก้โค้ดอะไรเพิ่ม
+
+**Verification ที่ทำจริง** (วัดจริง ไม่ใช่แค่เดา): ดูตัวเลขจริงใน `docs/production_migration_log.md`'s "bake-into-image confirmed + CPU-only torch fix" entry -- มีทั้ง cold build (`--no-cache`) เทียบกับ baseline ~11 นาทีเดิม และ warm-cache build ยืนยัน fast-path (~1 นาที) ยังทำงานเหมือนเดิม
 
 ### รันแบบเต็ม stack
 
 ```bash
-docker compose up --build   # db (postgres:5433) -> backend -> frontend (ยังเป็น dev server) -> nginx (proxy ที่ $NGINX_PORT, default 8081)
+docker compose up --build   # db (postgres:5433) -> backend -> frontend -> nginx (proxy ที่ $NGINX_PORT, default 8081)
 ```
 ต้องมี root `.env` (copy จาก `.env.example`) — ตอนนี้ต้องมี `JWT_SECRET_KEY`/`ALLOWED_ORIGINS`/`GEE_*` ครบด้วย ไม่ใช่แค่ `POSTGRES_*`/`DATABASE_URL`/`NGINX_PORT`/`CLOUD_*` เหมือนก่อนหน้านี้ (ดูบล็อก environment ด้านบน)
-
-**Verification ที่ทำจริงรอบนี้** (ไม่ใช่แค่เดาว่า diff ถูก): `docker build -f backend/Dockerfile backend` รันจริงกับ Docker daemon ในเครื่อง ผลลัพธ์บันทึกไว้ท้ายเอกสารนี้ยังไม่รวม — ดู `production_migration_log.md`'s entry ล่าสุดสำหรับผลการ build แบบเต็ม เพราะ frontend build ถูก defer ไม่ได้รัน `docker compose up` แบบเต็ม stack รอบนี้
 
 ---
 
@@ -179,7 +185,8 @@ docker compose up --build   # db (postgres:5433) -> backend -> frontend (ยั�
 `backend/requirements.txt`:
 - **`scikit-learn==1.8.0`** — pin แบบเจาะจงมาก ไม่ใช่ความบังเอิญ: production Random Forest model (`priority_class_rf_v1.pkl`) ถูก train ด้วย scikit-learn เวอร์ชันนี้เป๊ะๆ ตอนที่เพิ่ม pin เข้าไป (`docs/production_migration_log.md`) เจอว่า PyPI latest ตอนนั้น (1.9.0) เป็นคนละเวอร์ชันกับตัวที่ train โมเดล แปลว่าถ้า `docker compose up --build` รันด้วย requirements ที่ unpinned จะได้ scikit-learn คนละเวอร์ชันจากตอน train model ทันที — **ห้าม bump เวอร์ชันนี้โดยไม่เช็คว่าโมเดล pickle โหลด/predict ได้ถูกต้องเหมือนเดิมก่อน** (pickle ของ sklearn ผูกกับเวอร์ชันที่ save ค่อนข้างแน่น เปลี่ยนเวอร์ชันแล้วโหลดพังเงียบๆ ได้)
 - `geopandas==1.1.4` / `shapely==2.1.2` — pinned เช่นกัน (ใช้ใน GIS/GEE integration — `geopandas.datasets` เพิ่งถูกลบออกในเวอร์ชันนี้ ถ้ามีโค้ดใหม่ที่พึ่ง bundled dataset ของ geopandas จะพังทันที)
-- `torch`/`torchvision`/`ultralytics`/`opencv-python-headless` — **ไม่ pin เวอร์ชัน** ใช้ AI model จริง (RT-DETR ผ่าน `ultralytics`) ถ้า CI/build environment เปลี่ยนเวอร์ชันเหล่านี้โดยไม่รู้ตัวอาจกระทบผลการ inference ได้ (ยังไม่มี pin, ยังไม่มีปัญหาที่บันทึกไว้ แต่เป็นความเสี่ยงแบบเดียวกับที่ scikit-learn เจอมาแล้ว — ควรพิจารณา pin เพิ่มถ้าจะทำ deploy จริง)
+- **`torch==2.14.0+cpu` / `torchvision==0.29.0+cpu`** — pinned แล้ว (เดิมไม่ pin) พร้อม `--extra-index-url https://download.pytorch.org/whl/cpu` ที่หัวไฟล์ -- CPU-only โดยเจตนา เพราะ deploy target ไม่มี GPU ป้องกันทั้งความเสี่ยงแบบ scikit-learn (เวอร์ชันขยับโดยไม่รู้ตัว) และดึง CUDA wheels ~1-2GB ที่ไม่เคยใช้เลยมาโดยไม่จำเป็น (root cause ของ build time ~11 นาที ดูหัวข้อ 3)
+- **`ultralytics==8.4.138` / `opencv-python-headless==5.0.0.93`** — pinned แล้วเช่นกัน (เดิมไม่ pin) ตาม pattern เดียวกับ `scikit-learn`
 
 `frontend/package.json`: ใช้ `^` range ปกติ (React 19, Vite 8, antd 6) ไม่มี pin แบบเจาะจงพิเศษ
 
@@ -262,10 +269,10 @@ Postgres server เดียวกันเคยมี database 2 ตัวพ�
 
 1. **เปิด automatic trigger** — เปลี่ยน `ci.yml` จาก `workflow_dispatch`-only ให้มี `on: push`/`on: pull_request` อย่างน้อยสำหรับ `main` branch หรือ PR เข้า `main` (ตอนนี้ไม่มีอะไรกันโค้ดพังเข้า `main` เลยถ้าไม่มีคนกดรัน manual)
 2. ~~แก้บั๊ก `JWT_SECRET_KEY` ใน `docker-compose.yml` ก่อน~~ **แก้แล้ว** (หัวข้อ 3 — พร้อม `ALLOWED_ORIGINS`/`GEE_*` ที่เจอเพิ่มระหว่างแก้) — แต่ `docker-build.yml`'s `docker-compose-check` job (ที่แค่ validate syntax) ยังจับบั๊กแบบนี้ไม่ได้อยู่ดีถ้ามันเกิดซ้ำในอนาคต ถ้าจะให้ CI จับบั๊กประเภทนี้ได้จริง ต้องเปลี่ยนจาก `docker compose config` เป็นการรัน `docker compose up` จริงแล้วเช็ค healthcheck ผ่าน — ยังเป็น recommendation ที่เปิดอยู่
-3. **Wire Playwright E2E เข้า CI** — ตอนนี้มี test อยู่แล้วแต่ไม่ได้รัน ต้องมี backend service พร้อม dependencies ปลอมหรือจริงให้ CI runner ก่อน (models/GEE อาจ mock/skip สำหรับ E2E level)
+3. ~~Wire Playwright E2E เข้า CI~~ **แก้แล้ว** — PR #38 เพิ่ม `frontend-e2e` job เข้า `ci.yml` แล้ว (ยังเป็น `workflow_dispatch`-only เหมือนเดิม ดูข้อ 1 — job มีแล้วแต่ trigger อัตโนมัติยังไม่มี)
 4. **พิจารณาเพิ่ม schema-parity check** เป็น CI job (หัวข้อ 6 — ทีมแนะนำไว้เองใน migration log แล้ว)
-5. **พิจารณา pin `torch`/`torchvision`/`ultralytics`** เพิ่มเติม — ตอนนี้ unpinned ขณะที่ `scikit-learn` โดน pin เพราะเจอปัญหาจริงมาแล้วครั้งหนึ่ง ความเสี่ยงแบบเดียวกันมีกับ AI libs ตัวอื่นที่ยัง unpinned
-6. **ยังไม่มี deployment pipeline เลย** — ถ้าจะ deploy production จริง ต้องเริ่มจาก 0: เลือก target (VM/container registry/PaaS), เขียน `deploy.yml`, จัดการ secrets ผ่าน GitHub Secrets หรือเทียบเท่า, และแก้ `frontend/Dockerfile` ให้ build production bundle แทนการรัน `npm run dev` (**deferred โดยเจตนา ณ ตอนนี้ เพราะทีม frontend ยังพัฒนาไม่เสร็จ — ดูหัวข้อ 3's "⏸️ Deferred" box สำหรับแผนที่เตรียมไว้แล้ว อย่าเริ่มงานนี้โดยไม่เช็คกับทีม frontend ก่อนว่าพร้อมหรือยัง**)
+5. ~~พิจารณา pin `torch`/`torchvision`/`ultralytics`~~ **แก้แล้ว** — pinned เป็น CPU-only แล้วทั้งคู่ (หัวข้อ 3/4) พร้อม `opencv-python-headless`
+6. **ยังไม่มี deployment pipeline เลย** — ถ้าจะ deploy production จริง ต้องเริ่มจาก 0: เลือก target (VM/container registry/PaaS), เขียน `deploy.yml`, จัดการ secrets ผ่าน GitHub Secrets หรือเทียบเท่า, และยืนยันกับทีม frontend ว่า `frontend/Dockerfile`'s production build (จาก PR #38) พร้อมใช้จริงหรือยัง (ดูหัวข้อ 3's สถาปัตยกรรม)
 
 ---
 

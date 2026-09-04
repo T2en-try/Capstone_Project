@@ -11,23 +11,37 @@ __pycache__/
 *.pyd
 *.db
 .env
+.env.*
+!.env.example
+!**/.env.example
 venv/
 env/
 .venv/
 .venv-test/
+.cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+coverage.xml
+htmlcov/
 
 Road-maintain.json
 
 node_modules/
 dist/
 build/
+coverage/
 
 uploads/
 images/
 
 data/
+tmp/
+temp/
 
 .DS_Store
+Thumbs.db
+ehthumbs.db
 
 # Playwright artifacts
 frontend/playwright-report/
@@ -49,3 +63,7 @@ backend/scratch/
 !package-lock.json
 !**/tsconfig*.json
 !**/.eslintrc.json
+
+# Local Docker overrides and generated diagnostics
+docker-compose.override.yml
+*.log

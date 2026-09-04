@@ -32,6 +32,7 @@ services:
       CLOUD_ACCESS_KEY: ${CLOUD_ACCESS_KEY}
       CLOUD_SECRET_KEY: ${CLOUD_SECRET_KEY}
       BUCKET_NAME: ${BUCKET_NAME}
+      UPLOAD_DIR: /app/uploads
       # init_gee() (app/ai/gee_integration.py) raises and crashes the app at
       # startup if any of these 3 are missing -- NOT a graceful degrade, despite
       # docs/DEVOPS_GUIDE.md previously (incorrectly) saying otherwise. See
@@ -39,6 +40,15 @@ services:
       GEE_SERVICE_ACCOUNT: ${GEE_SERVICE_ACCOUNT}
       GEE_KEY_PATH: ${GEE_KEY_PATH}
       GEE_PROJECT_ID: ${GEE_PROJECT_ID}
+    volumes:
+      # Only the runtime-generated uploads directory is a real volume -- models,
+      # GIS caches, and the GEE credential file are baked into the image at build
+      # time (see backend/Dockerfile / backend/.dockerignore) rather than
+      # bind-mounted from the host. Decision confirmed (not reverted-then-redecided):
+      # ~165MB of assets costs ~0.6s at the COPY . . layer, not the multi-minute
+      # cost that motivated the earlier bind-mount proposal -- see
+      # docs/production_migration_log.md's "bake-into-image confirmed" entry.
+      - backend_uploads:/app/uploads
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health')"]
       interval: 10s
@@ -53,8 +63,6 @@ services:
     build: ./frontend
     container_name: road_frontend
     restart: always
-    environment:
-      VITE_DEV_PROXY_TARGET: http://backend:8000
     expose:
       - "5173"
     healthcheck:
@@ -89,3 +97,4 @@ services:
 
 volumes:
   postgres_data:
+  backend_uploads:

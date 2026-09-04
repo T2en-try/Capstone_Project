@@ -709,3 +709,131 @@ have `bcrypt`/`python-jose` installed as a side effect of something else
 will hit this exact same `ModuleNotFoundError` running the backend locally.
 Flagged prominently in `docs/DEVOPS_GUIDE.md` for this reason -- it belongs
 in the "how to run this locally" story, not just the Docker one.
+
+## Follow-up — bake-into-image confirmed (not reverted-then-redecided) + CPU-only torch fix
+
+### Why this came up again
+
+A teammate (Thana) merged PR #38 ("fix deploy configuration and cloud storage
+setup") on top of the earlier push, motivated by Docker build times. It
+switched `backend/.dockerignore` to *exclude* `models/`/`*.pt`/`*.pkl`/
+`*.parquet`/`Road-maintain.json` from the image and added per-file
+`docker-compose.yml` bind mounts for each of them instead -- the opposite of
+the bake-into-image decision already recorded in this log. Push was blocked
+(non-fast-forward) before this was noticed; investigated the overlap file by
+file rather than merging blind. Full root-cause investigation (separate
+session turn, no files changed) found: **the build-time complaint almost
+certainly misdiagnosed the cause**. `backend/Dockerfile` already orders
+`COPY requirements.txt .` / `RUN pip install` *before* `COPY . .`, so a
+normal (non-`--no-cache`) rebuild reuses the `pip install` layer entirely
+regardless of code or asset changes -- verified empirically: a cached rebuild
+with nothing changed finished in under a minute, with `apt-get`,
+`COPY requirements.txt .`, and `RUN pip install` all showing `CACHED`, only
+`COPY . .` re-running (0.6s). The ~165MB of baked-in models/GIS-caches costs
+~0.6s at that `COPY . .` step -- not the multi-minute cost anyone was
+actually experiencing. Reported this to the user, who took it back to Thana;
+**team agreed to keep bake-into-image and fix the real root cause instead**.
+
+### Real root cause: unpinned `torch`/`torchvision` pulling full CUDA wheels
+
+Every *cold* build (`--no-cache`, or a fresh clone/CI runner with no prior
+layer cache) was paying for `torch`/`torchvision` resolving their default
+CUDA-bundled wheels -- `nvidia-cublas`, `nvidia-cudnn`, `cuda-toolkit`,
+`triton`, and ~15 more `nvidia-*`/`cuda-*` packages -- despite this project's
+deploy target having no GPU. This, not the model files, was the actual
+multi-minute cost.
+
+### Fix
+
+Added to the top of `requirements.txt`:
+```
+--extra-index-url https://download.pytorch.org/whl/cpu
+```
+(`--extra-index-url`, not `--index-url`, so every other package still
+resolves from PyPI as normal -- only `torch`/`torchvision` pull from this
+index.) Confirmed via a real install what this actually resolves to on this
+project's Python version (3.12): `torch==2.14.0+cpu`,
+`torchvision==0.29.0+cpu` -- pinned to these exact versions, matching the
+project's existing pattern of pinning dependencies that have caused or could
+cause a real problem (`scikit-learn==1.8.0`), not leaving them open-ended.
+Also pinned `ultralytics==8.4.138` and `opencv-python-headless==5.0.0.93` (a
+`DEVOPS_GUIDE.md` recommendation from earlier this session, previously
+unaddressed) to the versions a fresh resolve already produced.
+
+**CUDA-safety check, done before assuming this was safe**: grepped the
+entire backend for `.cuda()`, `device_map`, `.half()`, `torch.device`, and
+`cuda` more broadly. Exactly one hit outside library code:
+`app/ai/engine.py:37` --
+`device = 'cuda' if torch.cuda.is_available() else 'cpu'` -- already
+conditional. On a CPU-only build, `torch.cuda.is_available()` simply returns
+`False`; no crash, no other GPU-specific assumption anywhere in the AI
+pipeline. Nothing needed patching.
+
+### Verification -- measured, not assumed
+
+**Cold build** (`docker build --no-cache`, wrapped in `time` for a genuine
+wall-clock measurement of the whole command, not just BuildKit's own
+per-step timers):
+- New CPU-only cold build: **7m12s (432s) total**; the `pip install` layer
+  itself: 316.2s (~5.3 min).
+- Previous baseline (this session, same method of reading BuildKit's step
+  timers, both pre-CPU-pin cold builds): `pip install` step alone was 676.7s
+  and 699.0s (~11.3-11.65 min) across the two earlier cold builds; adding the
+  image-export step each time (304.9s / 300.7s) put full cold-build wall time
+  at roughly 16.4-16.7 minutes total both times.
+- Net: **cold build time roughly cut in half or better** (~16.5 min -> 7m12s
+  total; ~11.5 min -> 5.3 min for the dependency-install step specifically).
+- Confirmed via the install log: only `nvidia-ml-py` (a small monitoring
+  library `ultralytics` itself depends on, not a CUDA runtime package) got
+  installed this time, vs. the full `nvidia-*`/`cuda-*`/`triton` set before.
+- **Image size: 12.8GB -> 5.26GB** (more than halved), consistent with no
+  longer shipping unused CUDA runtime libraries.
+
+**Warm-cache build** (nothing changed since the prior build, normal caching):
+finished in **1.01 seconds**, all 6 layers `CACHED` including `COPY . .` --
+confirms the already-correct Dockerfile layer ordering still gives the fast
+path with the new pin in place.
+
+### Merge resolution -- what was kept from PR #38, what was reverted
+
+Merged `origin/main` (PR #38 + the earlier README-only commit) into local
+`main` with `git merge --no-commit` first, to inspect and adjust before
+finalizing rather than accepting the merge result blind.
+
+**Kept as-is** (clean, additive, no conflict with the bake-into-image
+decision):
+- `.env.example`: `POSTGRES_DB`/`DATABASE_URL` corrected to
+  `road_reports_batch_db` (the actual live database name -- see the
+  two-database incident earlier in this log).
+- `.gitignore`: additional exclusions (`.env.*`, cache/coverage directories,
+  `docker-compose.override.yml`, etc.) -- no overlap with either
+  `.dockerignore`.
+- `.github/workflows/ci.yml`: adds a `frontend-e2e` job running Playwright --
+  directly matches this document's own earlier recommendation to wire E2E
+  into CI. Still `workflow_dispatch`-only (the "no automatic trigger" gap
+  remains open).
+- Frontend feature/test files: `UserDashboard.jsx`, a new Playwright spec
+  (`frontend/src/tests/user-dashboard.spec.js`), `package.json`/
+  `package-lock.json`/`playwright.config.js` updates.
+- `frontend/Dockerfile` + new `frontend/nginx.conf`: a multi-stage
+  production build (`node:20-alpine` -> `nginx:alpine`, serving on the same
+  port 5173) -- left exactly as merged, **not confirmed production-ready by
+  the frontend team** (Thana said it was a draft). Not touched either
+  direction this pass; whoever confirms frontend readiness should revisit
+  `DEVOPS_GUIDE.md` §3's architecture note.
+
+**Reverted back to the bake-into-image version** (this session's changes,
+not PR #38's):
+- `backend/.dockerignore`: removed PR #38's added exclusions for `models/`,
+  `*.pt`, `*.pth`, `*.pkl`, `*.parquet`, `*.pbf`, `app/services/*.json`,
+  `Road-maintain.json` -- these assets stay baked into the image.
+- `docker-compose.yml`: removed the 6 per-file `bind` volume-mount entries
+  PR #38 added for the model/cache/credential files. **Kept**
+  `backend_uploads:/app/uploads` (a named volume) and the `UPLOAD_DIR:
+  /app/uploads` env var PR #38 also added -- deliberately, since that volume
+  is for persisting *user-uploaded report photos* across container
+  restarts/redeploys, a real and separate concern from the model/asset-baking
+  question. Without it, every redeploy would silently wipe every previously
+  uploaded report image regardless of which asset-delivery strategy wins.
+  Flagged this interpretation explicitly to the user rather than deciding
+  silently, since it wasn't itemized in the merge instructions.

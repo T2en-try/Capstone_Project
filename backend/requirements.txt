@@ -1,3 +1,13 @@
+# CPU-only PyTorch wheel index -- this project's deploy target has no GPU
+# (confirmed). --extra-index-url (not --index-url) so pip still resolves every
+# other package from PyPI as normal; only torch/torchvision come from here.
+# Without this, pip installs the default CUDA-bundled wheels, pulling ~1-2GB of
+# nvidia-*/cuda-* packages that are never used and were most of the ~11-minute
+# cold-build time measured this session -- not the baked-in model/GIS-cache
+# files, which cost ~0.6s at the COPY . . layer (see
+# docs/production_migration_log.md for the measured before/after).
+--extra-index-url https://download.pytorch.org/whl/cpu
+
 # --- Web & API ---
 fastapi==0.139.0
 uvicorn==0.30.6
@@ -22,10 +32,17 @@ sqlalchemy==2.0.35
 greenlet
 
 # --- AI, Image & GPS Processing ---
-torch
-torchvision
-ultralytics
-opencv-python-headless
+# torch/torchvision pinned to the CPU-only build (+cpu, resolved from the
+# --extra-index-url above) -- confirmed safe: the only device-selection site in
+# the codebase (app/ai/engine.py) already does
+# `device = 'cuda' if torch.cuda.is_available() else 'cpu'`, which simply
+# returns False on a CPU-only build, no crash, no other CUDA-specific code
+# anywhere in the AI pipeline (checked for .cuda()/.half()/torch.device/
+# device_map -- none found outside this one already-conditional site).
+torch==2.14.0+cpu
+torchvision==0.29.0+cpu
+ultralytics==8.4.138
+opencv-python-headless==5.0.0.93
 numpy
 Pillow==12.2.0
 exifread==3.0.0
