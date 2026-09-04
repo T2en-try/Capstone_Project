@@ -26,11 +26,19 @@ services:
       - "8000"
     environment:
       DATABASE_URL: ${DATABASE_URL}
-      ALLOWED_ORIGINS: "http://localhost,http://localhost:5173"
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
       CLOUD_ENDPOINT: ${CLOUD_ENDPOINT}
       CLOUD_ACCESS_KEY: ${CLOUD_ACCESS_KEY}
       CLOUD_SECRET_KEY: ${CLOUD_SECRET_KEY}
       BUCKET_NAME: ${BUCKET_NAME}
+      # init_gee() (app/ai/gee_integration.py) raises and crashes the app at
+      # startup if any of these 3 are missing -- NOT a graceful degrade, despite
+      # docs/DEVOPS_GUIDE.md previously (incorrectly) saying otherwise. See
+      # production_migration_log.md's "GEE init is a hard startup requirement" entry.
+      GEE_SERVICE_ACCOUNT: ${GEE_SERVICE_ACCOUNT}
+      GEE_KEY_PATH: ${GEE_KEY_PATH}
+      GEE_PROJECT_ID: ${GEE_PROJECT_ID}
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health')"]
       interval: 10s

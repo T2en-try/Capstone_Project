@@ -1,0 +1,52 @@
+# Secrets -- must never end up in an image layer (see production_migration_log.md's
+# "dockerignore / secret-leak risk" finding). COPY . . in the Dockerfile would
+# otherwise silently bake in whatever happens to exist on the host at build time.
+.env
+.env.*
+!.env.example
+
+# Local virtualenvs -- the Dockerfile does its own `pip install`, a host venv/ is
+# never needed and can be hundreds of MB
+venv/
+env/
+.venv/
+.venv-test/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Local databases
+*.db
+*.sqlite3
+road_reports.db
+
+# User-uploaded runtime data -- not part of the image, populated at runtime
+uploads/
+
+# GEE/OSM API response cache -- dev-only, rebuilt on demand at runtime
+cache/
+
+# One-off scratch scripts, never imported by the app
+scratch/
+
+# Raw OSM source data used only to BUILD the parquet caches offline (~325MB).
+# The app reads the *.parquet outputs at the repo root, never this file --
+# see backend/scripts/build_gis_cache.py / build_admin_boundary_cache.py.
+data/
+
+# Test suite and its config -- not needed at runtime, keeps image smaller
+tests/
+pytest.ini
+
+# Dev-only logs, one-off backfill script inputs, sample/debug images
+*.log
+*.csv
+IMG_*.jpg
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store

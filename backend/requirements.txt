@@ -8,6 +8,15 @@ aiofiles==24.1.0
 requests
 httpx
 
+# --- Auth ---
+# app/auth/utils.py imports these directly (bcrypt for password hashing, jose for
+# JWT) -- pinned, not left unpinned, matching this project's precedent of pinning
+# dependencies that have caused a real problem (scikit-learn) rather than every
+# dependency by default. Versions are what a genuinely fresh install resolves to
+# as of the fix (see production_migration_log.md's "missing auth deps" entry).
+bcrypt==5.0.0
+python-jose[cryptography]==3.5.0
+
 # --- Database ---
 sqlalchemy==2.0.35
 greenlet

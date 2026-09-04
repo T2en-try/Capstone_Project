@@ -439,3 +439,273 @@ timeline. Logged here as a known, accepted-risk item: if the team wants
 extra defense-in-depth later (or before a more permanent/public release),
 rotating this service account remains a straightforward option -- nothing
 about leaving it as-is forecloses that.
+
+## Follow-up — Cloud Image URL (S3-compatible dual-write)
+
+**⚠️ Implemented by Claude Code as investigation/scaffolding for Phase C's
+"Cloud Image URL" item — needs that teammate's review and sign-off before
+merging. Not a unilaterally-decided feature; the storage-mode decision below
+was made by the user in-session, not inferred.**
+
+### Why this happened
+
+`boto3==1.35.0` had been sitting in `requirements.txt` unused since before this
+session (under a `# --- Cloud Storage & Postgres ---` header), and
+`CLOUD_ENDPOINT`/`CLOUD_ACCESS_KEY`/`CLOUD_SECRET_KEY`/`BUCKET_NAME` were
+already passed through in `docker-compose.yml` and listed (empty) in the root
+`.env.example` — all staged for this feature, never wired up. `file_utils.py`'s
+`StorageService.save_file()` had a literal `# TODO: S3 Cloud Storage
+Integration (to be implemented by teammate)` stub. Investigation (this
+session) confirmed: none of the 4 settings were declared on `Settings` in
+`app/core/config.py`, no `image_url`-equivalent column existed on `RoadReport`,
+and a full-history `git log -S"AKIA"` + `.env.example` diff scan turned up no
+real AWS-style credentials ever committed, at any point.
+
+### Storage-mode decision: dual-write, not S3-only
+
+`process_report_background()` and `reprocess_report_location()` both require a
+**local file path** — `ai_engine.validate_is_road()`, `ai_engine.predict_damage()`,
+and `ai_engine.calculate_priority_index()` all read `file_info["path"]`/
+`os.path.join(settings.UPLOAD_DIR, report.image_filename)` directly off disk.
+A strict "S3 when configured, else local" branch would have left no local file
+for RT-DETR/Gatekeeper to read once cloud settings were present, and would have
+broken `reprocess_report_location` for any already-S3-stored report. Decision
+(confirmed with the user): `StorageService.save_file()` **always** writes to
+local disk exactly as before (zero changes needed anywhere in the AI pipeline),
+and **additionally** uploads to S3-compatible storage when all 4 `CLOUD_*`
+settings are non-empty, returning the resulting URL. Local disk remains the
+source of truth for processing; the S3 URL is purely for display.
+
+### Changes
+
+- `app/core/config.py`: added `CLOUD_ENDPOINT`/`CLOUD_ACCESS_KEY`/
+  `CLOUD_SECRET_KEY`/`BUCKET_NAME`, all `os.getenv("X", "")` with no `raise` —
+  matches the `GEE_*` graceful-degrade pattern, not the `DATABASE_URL`/
+  `JWT_SECRET_KEY` hard-raise pattern. The app boots fine with all 4 empty.
+- `app/reports/models.py`: added `RoadReport.image_url` (`String(500)`,
+  nullable). `image_filename` is unchanged and still required — it remains the
+  local working-copy reference used by the AI pipeline and by
+  `AiCvFeatures.annotated_image_filename`'s sibling logic.
+- `app/core/file_utils.py`: `StorageService.__init__` builds a `boto3` S3
+  client (path-style addressing, via `endpoint_url=CLOUD_ENDPOINT` — generic
+  S3-compatible, not AWS-specific) only when `_cloud_configured()` is true.
+  `save_file()` writes local disk unconditionally (unchanged from before),
+  then calls `_upload_to_s3()`; a failed/absent upload returns `None` and does
+  **not** fail the request — the local file already succeeded and remains
+  fully usable via the existing `image_filename`/`/uploads` path. Returned
+  dict gained a `"url"` key.
+- `app/reports/schemas.py`: `ReportResponse` gained `image_url: Optional[str]`.
+- `app/reports/router.py`: `upload_report` now passes
+  `image_url=file_info.get("url")` when constructing `RoadReport`.
+
+### Existing rows / migration step (not yet applied to the live DB)
+
+`init_db()` (`app/core/database.py`) only runs `Base.metadata.create_all` —
+per the two schema-drift incidents logged above, this **does not** add columns
+to tables that already exist live. The ~1,400+ existing `road_reports` rows
+need this additive statement run manually against the live DB before this
+code is deployed there:
+
+```sql
+ALTER TABLE road_reports ADD COLUMN image_url VARCHAR(500);
+```
+
+New rows get `image_url` automatically (`NULL` unless cloud settings are
+configured at upload time); existing rows simply get `NULL` and keep working
+exactly as today via `image_filename` + `/uploads` — nothing about this change
+touches or requires touching historical rows. Not run as part of this session
+(no live DB access here) — flagging as the one deployment step this feature
+still needs.
+
+### Explicitly not done in this pass
+
+- No frontend changes — `ReportResponse.image_url` is now available for the
+  frontend to prefer over `/uploads/{image_filename}` when present, but no
+  frontend component was touched. See `docs/FRONTEND_GUIDE.md`.
+- No backfill of `image_url` for existing local-only images (i.e. no bulk
+  upload of the ~1,400 existing files to cloud storage) — out of scope here,
+  and a separate cost/throughput decision for whoever owns this feature.
+- `boto3` client construction happens once at `StorageService` singleton
+  init (`storage_service = StorageService()` at import time) — if
+  `CLOUD_*` values are added/changed later, the process needs a restart to
+  pick them up, same as every other `Settings` value in this codebase (no
+  hot-reload of env vars anywhere in `config.py`).
+
+## Follow-up — Cloud deployment readiness pass (dockerignore, docker-compose startup bugs, frontend build deferred)
+
+Full context, priority ordering, and every option considered lives in
+`docs/DEVOPS_GUIDE.md` §3 — this entry is the changelog-style record of what
+actually changed, per this project's established pattern.
+
+### Finding 1 (most severe) — no `.dockerignore` anywhere, real secret-leak risk
+
+Neither `backend/` nor `frontend/` had a `.dockerignore`. Both Dockerfiles do
+`COPY . .`. Concretely: a developer following the README's local-dev setup
+(`backend/.env` created from `.env.example`, `venv/` created *inside*
+`backend/` per `cd backend && python -m venv venv`) who then runs
+`docker compose up --build` (build context for `backend` is `./backend`, per
+`docker-compose.yml`) would have `.env` — real `JWT_SECRET_KEY`,
+`DATABASE_URL` credentials, GEE service-account details — copied straight
+into an image layer. If that image is ever pushed to a registry, the secret
+persists in layer history permanently, retrievable even after a later layer
+"deletes" the file. Same failure category as the GEE-identifier git-history
+exposure logged above, different channel (image layers vs. commits), and
+this one is push-button easy to trigger by accident, not a one-time mistake.
+
+**Fixed**: added `backend/.dockerignore` and `frontend/.dockerignore`,
+excluding `.env`/`.env.*` (keeping `!.env.example`), `venv/`, `__pycache__/`,
+`.pytest_cache/`, `*.db`, `uploads/`, `cache/`, `scratch/`, `tests/`,
+`pytest.ini`, `node_modules/`, `dist/`, Playwright artifacts, and dev-only
+logs/CSVs/sample images. Also excluded `backend/data/` — this holds
+`thailand-latest.osm.pbf` (~325MB), the raw OSM source used only to *build*
+the `*.parquet` GIS caches offline (`scripts/build_gis_cache.py`,
+`scripts/build_admin_boundary_cache.py`); the app never reads this file at
+runtime, only the parquet outputs, which live at the `backend/` root and are
+**not** excluded.
+
+**Deliberately no root-level `.dockerignore`**: `docker-compose.yml`'s
+`build: ./backend` / `build: ./frontend` means each service's build context
+is its own subdirectory, not repo root — Docker only reads a `.dockerignore`
+from the root of the build context in use. A root-level file would never be
+consulted and would only create a false sense of coverage.
+
+### Finding 2 — `docker-compose.yml` startup bugs: 3 env vars missing, 1 hardcoded
+
+`backend.environment` was missing `JWT_SECRET_KEY` entirely (the
+already-documented bug — `config.py` raises on import without it, crashing
+the container at startup) **and**, discovered while fixing it,
+`GEE_SERVICE_ACCOUNT`/`GEE_KEY_PATH`/`GEE_PROJECT_ID` were missing too.
+`app/ai/gee_integration.py`'s `init_gee()` raises `ValueError`/`RuntimeError`
+if any of those 3 is missing or invalid, and `main.py`'s `lifespan` calls it
+unguarded (no `try/except`) — **identical failure class to `JWT_SECRET_KEY`**,
+not a graceful degrade. `docs/DEVOPS_GUIDE.md` previously stated GEE vars
+were optional; that was wrong (my own error when writing that doc earlier
+this session) and has been corrected there.
+
+Separately, `ALLOWED_ORIGINS` was hardcoded to
+`"http://localhost,http://localhost:5173"` directly in `docker-compose.yml`
+rather than sourced from `${ALLOWED_ORIGINS}`. Harmless for local
+`docker compose up` (where `localhost` is exactly the right origin), but
+would silently CORS-reject every request from a real deployed frontend
+domain, no matter what `.env` says.
+
+**Fixed**: `backend.environment` now reads
+```yaml
+JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
+GEE_SERVICE_ACCOUNT: ${GEE_SERVICE_ACCOUNT}
+GEE_KEY_PATH: ${GEE_KEY_PATH}
+GEE_PROJECT_ID: ${GEE_PROJECT_ID}
+```
+Root `.env.example` and `backend/.env.example` both updated with these keys
+and comments explaining which are hard startup requirements.
+
+### Finding 3 — `frontend/Dockerfile` still runs `npm run dev`, plus a Vite `allowedHosts` risk
+
+Confirmed (not yet fixed): `vite.config.js` sets `server.host: '0.0.0.0'` but
+never sets `server.allowedHosts`. Vite (pinned to v8 here) defaults to
+rejecting requests whose `Host` header isn't `localhost`/an IP/an explicitly
+allowed host, as DNS-rebinding protection. `nginx/nginx.conf` forwards the
+real client `Host` header unmodified to the frontend container
+(`proxy_set_header Host $host;`). Locally that header is always `localhost`
+so this never surfaces; behind a real domain it's very likely a 403. This
+compounds the already-known "dev server isn't a production image" problem
+with a second, independent reason the current frontend container would
+likely not work once actually deployed.
+
+**Explicitly deferred, not fixed, by direct instruction this session**:
+frontend development is still in progress; switching to a production build
+now would go stale the moment new frontend work lands. `frontend/Dockerfile`
+was **reverted back to its original `npm run dev -- --host` form** after a
+production-build version (multi-stage `node:20-alpine` build → `nginx:alpine`
+static serve on port 5173, with a `try_files $uri $uri/ /index.html;`
+SPA-fallback config) was drafted and then explicitly rolled back mid-session
+per the user's scope-change instruction. **Do not redo this work without
+checking with the frontend team that they're ready** — the plan above is
+ready to apply as soon as they are; re-deriving it isn't necessary, re-doing
+it prematurely just wastes the work a second time.
+
+### Verification
+
+`docker build -f backend/Dockerfile backend` run against a live Docker
+daemon in this session (Docker Desktop was not running at the start of the
+session; started it, confirmed daemon reachable, then ran the real build --
+not just a syntax check). Build succeeded (~11 min, full dependency install,
+exit code 0). Then actually inspected the built image rather than trusting
+the Dockerfile text:
+- `.dockerignore` exclusions confirmed by running `ls`/existence checks
+  *inside* the built image: `.env`, `venv`, `data`, `uploads`, `cache`,
+  `scratch`, `tests`, `road_reports.db` all confirmed absent.
+- Required assets confirmed present in the same way: `models/
+  priority_class_rf_v1.pkl`, `best-road-classifier.pt`, all 3 `.parquet`
+  caches, `app/services/Road-maintain.json` all confirmed present.
+- `JWT_SECRET_KEY`'s existing startup guard re-tested inside the built image
+  (`docker run` with no env vars) -- fires exactly as before, no regression
+  from the `.dockerignore`/docker-compose changes.
+
+This same verification pass is what surfaced the missing `bcrypt`/`jose`
+dependency finding immediately below -- caught precisely because a real
+container was run, not just a diff read back.
+
+Frontend build/`docker compose up` full-stack verification **not** run this
+pass — `frontend/Dockerfile` is unchanged from before this session (reverted,
+per above), so there was nothing new on the frontend side to verify, and
+running the full stack wasn't needed to validate the backend-only changes.
+
+## Follow-up — missing `bcrypt`/`python-jose` dependencies (found via the Docker verification above, not Docker-specific)
+
+### What was missing
+
+`app/auth/utils.py` imports `bcrypt` (password hashing) and `jose`
+(`python-jose`, JWT encode/decode) directly at module level. **Neither
+package was listed in `requirements.txt`, at all.** Discovered while
+verifying the Docker fixes above: running `python -c "import main"` inside a
+container built from a genuinely fresh `pip install -r requirements.txt`
+raised `ModuleNotFoundError: No module named 'bcrypt'` before the app could
+even finish importing -- before `JWT_SECRET_KEY`'s check, before
+`init_db()`, before anything else in this log gets a chance to matter.
+
+### Why it was masked
+
+Every dev's local venv apparently already had `bcrypt`/`python-jose`
+installed -- most likely a leftover from some earlier dependency (or a
+manual `pip install` during initial auth development) that was never removed
+even after whatever originally pulled it in changed. Nobody had rebuilt from
+a truly clean environment since `app/auth/utils.py` started depending on
+them directly, so `requirements.txt` silently drifted out of sync with what
+the code actually imports -- the exact same failure shape as the
+`scikit-learn` unpin incident logged earlier in this file, just on a
+dependency nobody had reason to suspect until a clean-room build forced it
+to the surface.
+
+### Fix
+
+Determined the exact versions a fresh install resolves to (`python:3.12`,
+matching `backend/Dockerfile`'s base image): `bcrypt==5.0.0`,
+`python-jose==3.5.0` (installed via the `[cryptography]` extra, pulling
+`cryptography==50.0.1`). Added to `requirements.txt` under a new `# ---
+Auth ---` section, pinned (not left unpinned) -- matching this project's
+existing precedent of pinning specifically the dependencies that have
+already caused a real problem (`scikit-learn==1.8.0`), rather than pinning
+everything or nothing:
+```
+bcrypt==5.0.0
+python-jose[cryptography]==3.5.0
+```
+
+### Re-verification
+
+Rebuilt the backend image with `docker build --no-cache` (not reusing any
+layer from the earlier ad-hoc-patched container -- a genuinely clean build
+from the updated `requirements.txt`) and confirmed the app now imports and
+proceeds past the previous failure point without any manual intervention.
+
+### Not just a Docker problem -- affects local dev too
+
+This bug is independent of Docker entirely. Anyone setting up a fresh local
+venv (`python -m venv venv && pip install -r requirements.txt`, per the
+README's own documented setup) whose environment doesn't happen to already
+have `bcrypt`/`python-jose` installed as a side effect of something else
+will hit this exact same `ModuleNotFoundError` running the backend locally.
+Flagged prominently in `docs/DEVOPS_GUIDE.md` for this reason -- it belongs
+in the "how to run this locally" story, not just the Docker one.

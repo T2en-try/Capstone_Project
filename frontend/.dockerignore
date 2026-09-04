@@ -1,0 +1,23 @@
+# Secrets -- must never end up in an image layer
+.env
+.env.*
+!.env.example
+
+# Installed/built locally -- the Dockerfile's build stage runs its own
+# `npm install` and `npm run build`; a host node_modules/dist would only be
+# stale and/or built for the wrong platform
+node_modules/
+dist/
+
+# Playwright artifacts -- dev-only, not part of the app bundle
+playwright-report/
+test-results/
+
+# Dev-only logs
+*.log
+npm-debug.log*
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
