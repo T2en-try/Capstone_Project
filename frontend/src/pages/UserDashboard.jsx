@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import Navbar from "../layouts/Navbar";
 
 import NewsSection from "../components/user-dashboard/NewSection";
-import MapView from "../components/user-dashboard/MapView";
+import MapView from "../components/user-dashboard/Mapview";
 import StatusCard from "../components/user-dashboard/StatusCard";
 import SearchBar from "../components/user-dashboard/SearchBar";
 import SearchResults from "../components/user-dashboard/SearchResults";
