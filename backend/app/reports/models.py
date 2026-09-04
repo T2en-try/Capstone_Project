@@ -43,6 +43,13 @@ class RoadReport(Base):
     image_original_name = Column(String(255), nullable=True, comment="ชื่อไฟล์ต้นฉบับจากฝั่งผู้ใช้")
     image_size_bytes = Column(Integer, nullable=True, comment="ขนาดไฟล์รูปภาพ (bytes)")
     image_mime_type = Column(String(50), nullable=True, comment="ประเภทไฟล์ เช่น image/jpeg, image/png")
+    image_url = Column(
+        String(500), nullable=True,
+        comment="URL ถาวรบน Cloud Storage (S3-compatible) -- ตั้งค่าเมื่อ CLOUD_* "
+                "ครบ 4 ตัวใน config.py เท่านั้น; NULL = ยังไม่มี (ใช้ image_filename "
+                "ผ่าน /uploads แทน). เพิ่มเข้ามาทีหลัง แถวเดิมทั้งหมดเป็น NULL และยัง "
+                "ใช้งานได้ปกติผ่าน local path"
+    )
 
     # ข้อมูลพิกัดและตำแหน่ง (สกัดจาก EXIF หรือส่งมาแบบ Manual)
     latitude = Column(Float, nullable=True, index=True, comment="ละติจูด (Latitude)")

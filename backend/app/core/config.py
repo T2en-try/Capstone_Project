@@ -44,5 +44,14 @@ class Settings:
         raise ValueError("JWT_SECRET_KEY environment variable is not set")
     JWT_ALGORITHM: str = "HS256"
 
+    # Cloud Storage (S3-compatible) -- optional, graceful-degrade like GEE above.
+    # Local disk (see file_utils.py) is always the working storage; these 4 are
+    # only used to additionally upload images to S3-compatible cloud storage
+    # when all 4 are present. Empty by default so the app boots fine without them.
+    CLOUD_ENDPOINT: str = os.getenv("CLOUD_ENDPOINT", "")
+    CLOUD_ACCESS_KEY: str = os.getenv("CLOUD_ACCESS_KEY", "")
+    CLOUD_SECRET_KEY: str = os.getenv("CLOUD_SECRET_KEY", "")
+    BUCKET_NAME: str = os.getenv("BUCKET_NAME", "")
+
 
 settings = Settings()

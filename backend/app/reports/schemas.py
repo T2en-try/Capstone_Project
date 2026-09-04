@@ -111,6 +111,7 @@ class ReportResponse(BaseModel):
     image_original_name: Optional[str] = None
     image_size_bytes: Optional[int] = None
     image_mime_type: Optional[str] = None
+    image_url: Optional[str] = None  # ถ้ามี ให้ frontend ใช้แทน /uploads/{image_filename}; NULL = ยังไม่มี Cloud URL, ใช้ path local แทน
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     gps_source: Optional[str] = None

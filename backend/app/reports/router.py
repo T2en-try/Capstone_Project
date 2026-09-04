@@ -444,6 +444,7 @@ async def upload_report(
             image_original_name=file_info["original_name"],
             image_size_bytes=file_info["size_bytes"],
             image_mime_type=file_info["mime_type"],
+            image_url=file_info.get("url"),
             latitude=final_lat,
             longitude=final_lon,
             gps_source=gps_source,
