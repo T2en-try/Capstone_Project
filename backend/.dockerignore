@@ -26,6 +26,18 @@ road_reports.db
 # User-uploaded runtime data -- not part of the image, populated at runtime
 uploads/
 
+# Large model/cache artifacts and private service-account files are mounted at
+# runtime by docker-compose.yml. Keeping them out of image layers prevents huge
+# builds and avoids baking secrets into images.
+models/
+*.pt
+*.pth
+*.pkl
+*.parquet
+*.pbf
+app/services/*.json
+Road-maintain.json
+
 # GEE/OSM API response cache -- dev-only, rebuilt on demand at runtime
 cache/
 
