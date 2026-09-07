@@ -5,7 +5,6 @@ import {
     ClockCircleOutlined,
     SyncOutlined,
     CheckCircleOutlined,
-    ArrowUpOutlined,
 } from "@ant-design/icons";
 
 const SummaryCards = ({ data }) => {
@@ -121,17 +120,6 @@ const SummaryCards = ({ data }) => {
                             }}
                         />
 
-                        <div
-                            style={{
-                                marginTop: 4,
-
-                                fontSize: 12,
-
-                                color: "#52c41a",
-                            }}
-                        >
-                            <ArrowUpOutlined /> 12% เดือนนี้
-                        </div>
                     </Card>
                 </Col>
             ))}

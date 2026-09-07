@@ -11,12 +11,12 @@ import {
 } from "recharts";
 
 
-const ReportBarChart = ({ data }) => {
+const ReportBarChart = ({ data, title = "Report By Type" }) => {
 
     return (
 
         <Card
-            title="Report By Type"
+            title={title}
             style={{
                 borderRadius:12,
             }}

@@ -15,7 +15,9 @@ import {
 
 const { RangePicker } = DatePicker;
 
-const FilterBar = () => {
+const FilterBar = ({ filters, onChange }) => {
+  const updateFilter = (key, value) => onChange({ ...filters, [key]: value });
+
   return (
     <Row gutter={[16, 16]} align="middle">
       {/* Search */}
@@ -24,6 +26,8 @@ const FilterBar = () => {
           allowClear
           prefix={<SearchOutlined />}
           placeholder="Search Report ID, Road Name..."
+          value={filters.keyword}
+          onChange={(event) => updateFilter("keyword", event.target.value)}
         />
       </Col>
 
@@ -32,11 +36,14 @@ const FilterBar = () => {
         <Select
           style={{ width: "100%" }}
           placeholder="Status"
+          value={filters.status}
+          onChange={(value) => updateFilter("status", value)}
           options={[
             { label: "All", value: "all" },
-            { label: "Pending", value: "Pending" },
-            { label: "Processing", value: "Processing" },
-            { label: "Completed", value: "Completed" },
+            { label: "Pending", value: "pending" },
+            { label: "Processing", value: "processing" },
+            { label: "Completed", value: "completed" },
+            { label: "Rejected", value: "rejected" },
           ]}
         />
       </Col>
@@ -46,6 +53,8 @@ const FilterBar = () => {
         <Select
           style={{ width: "100%" }}
           placeholder="Priority"
+          value={filters.priority}
+          onChange={(value) => updateFilter("priority", value)}
           options={[
             { label: "All", value: "all" },
             { label: "Very High", value: "Very High" },
@@ -78,7 +87,10 @@ const FilterBar = () => {
       {/* Reset */}
       <Col span={24}>
         <Space>
-          <Button icon={<ReloadOutlined />}>
+          <Button
+            icon={<ReloadOutlined />}
+            onClick={() => onChange({ keyword: "", status: "all", priority: "all" })}
+          >
             Reset Filters
           </Button>
         </Space>

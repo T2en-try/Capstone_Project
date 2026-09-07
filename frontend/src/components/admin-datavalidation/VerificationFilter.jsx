@@ -82,7 +82,7 @@ export default function VerificationFilter({
             options={[
               { label: "Waiting", value: "WAITING" },
               { label: "Verified", value: "VERIFIED" },
-              { label: "Corrected", value: "CORRECTED" },
+              { label: "Rejected", value: "CORRECTED" },
             ]}
           />
         </Col>

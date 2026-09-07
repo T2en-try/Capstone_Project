@@ -7,9 +7,7 @@ import {
   CheckCircleOutlined,
 } from "@ant-design/icons";
 
-import aiVerificationMock from "../../mock/aiVerificationMock";
-
-export default function VerificationTable() {
+export default function VerificationTable({ reports = [] }) {
 const [selectedReport, setSelectedReport] = useState(null);
 
 const [drawerOpen, setDrawerOpen] = useState(false);
@@ -217,7 +215,7 @@ const [drawerOpen, setDrawerOpen] = useState(false);
     <Table
       rowKey="id"
       columns={columns}
-      dataSource={aiVerificationMock}
+      dataSource={reports}
       pagination={{
         pageSize: 8,
       }}

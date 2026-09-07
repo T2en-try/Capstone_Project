@@ -7,12 +7,12 @@ import {
     CheckCircleOutlined,
 } from "@ant-design/icons";
 
-const SummaryCards = () => {
+const SummaryCards = ({ stats = {}, loading = false }) => {
     const cards = [
         {
             title: "รายงานทั้งหมด",
 
-            value: 126,
+            value: stats.total_reports ?? 0,
 
             icon: <FileTextOutlined />,
 
@@ -24,7 +24,7 @@ const SummaryCards = () => {
         {
             title: "รอตรวจสอบ",
 
-            value: 58,
+            value: stats.pending_count ?? 0,
 
             icon: <ClockCircleOutlined />,
 
@@ -36,7 +36,7 @@ const SummaryCards = () => {
         {
             title: "กำลังดำเนินการ",
 
-            value: 42,
+            value: stats.processing_count ?? 0,
 
             icon: <SyncOutlined spin />,
 
@@ -48,7 +48,7 @@ const SummaryCards = () => {
         {
             title: "ดำเนินการเสร็จสิ้น",
 
-            value: 26,
+            value: stats.completed_count ?? 0,
 
             icon: <CheckCircleOutlined />,
 
@@ -57,6 +57,10 @@ const SummaryCards = () => {
             bg: "#f6ffed",
         },
     ];
+
+    if (loading) {
+        return <div>กำลังโหลดสถิติ...</div>;
+    }
 
     return (
         <Row gutter={[16, 16]}>
