@@ -170,6 +170,11 @@ def predict_priority(row: dict, model_artifact: dict) -> dict:
     proba_by_class = dict(zip(model.classes_, proba))
     predicted_class = int(model.predict(x)[0])
 
+    if predicted_class not in FINAL_DECISION_LABELS:
+        raise ValueError(
+            f"Unsupported priority class {predicted_class}; expected one of 1, 2, 3"
+        )
+
     return {
         "priority_class": predicted_class,
         "confidence_score": float(proba_by_class[predicted_class]),

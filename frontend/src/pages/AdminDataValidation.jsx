@@ -4,26 +4,16 @@ import { Alert, Col, Row, Spin } from "antd";
 import SummaryCards from "../components/admin-datavalidation/SummaryCards";
 import VerificationFilter from "../components/admin-datavalidation/VerificationFilter";
 import VerificationTable from "../components/admin-datavalidation/VerificationTable";
-import AccuracyChart from "../components/admin-datavalidation/AccuracyChart";
 import { fetchReports } from "../services/dashboardService";
-
-const normalizeDecision = (decision) => {
-  const value = String(decision || "").toLowerCase();
-  if (value.includes("critical") || value.includes("วิกฤต")) return "Critical";
-  if (value.includes("warning") || value.includes("high") || value.includes("เตือน")) return "Warning";
-  if (value.includes("moderate") || value.includes("ปานกลาง")) return "Moderate";
-  return "Low";
-};
+import { getConfidencePercent, getPriorityLabel, normalizePriorityClass } from "../utils/priorityMapping";
 
 const toVerificationReport = (report) => {
   const analysis = report.ai_analysis;
-  const confidence = Number(analysis?.confidence_score ?? 0);
-  const fusionScore = Number(analysis?.final_fusion_score ?? 0);
   const statusMap = {
     pending: "WAITING",
     processing: "WAITING",
     completed: "VERIFIED",
-    rejected: "CORRECTED",
+    rejected: "REJECTED",
   };
 
   return {
@@ -34,9 +24,12 @@ const toVerificationReport = (report) => {
     createdAt: report.created_at
       ? new Date(report.created_at).toLocaleString("th-TH")
       : "-",
-    aiDecision: normalizeDecision(analysis?.final_decision),
-    confidence: Math.round(Math.max(0, Math.min(1, confidence)) * 100),
-    fusionScore: fusionScore.toFixed(3),
+    priorityClass: normalizePriorityClass(analysis?.priority_class),
+    aiDecision: getPriorityLabel(analysis?.priority_class),
+    confidence: getConfidencePercent(analysis?.confidence_score),
+    probaNormal: analysis?.proba_normal,
+    probaWarning: analysis?.proba_warning,
+    probaCritical: analysis?.proba_critical,
     verificationStatus: statusMap[report.status] || "WAITING",
     image: report.image_url || `/uploads/${report.image_filename}`,
     annotatedImage: analysis?.annotated_image_filename
@@ -109,15 +102,9 @@ export default function AIVerificationPage() {
 
       <br />
 
-      <Row gutter={16}>
-        <Col span={17}>
-          <VerificationTable
-            reports={filteredReports}
-          />
-        </Col>
-
-        <Col span={7}>
-          <AccuracyChart reports={reports} />
+      <Row>
+        <Col span={24}>
+          <VerificationTable reports={filteredReports} />
         </Col>
       </Row>
         </>

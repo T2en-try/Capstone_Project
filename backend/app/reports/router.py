@@ -554,20 +554,12 @@ async def get_stats(db: AsyncSession = Depends(get_db)):
     )
 
 
-def _classify_damage_level(decision: Optional[str], fusion_score: float, severity_score: float) -> str:
-    """จัดระดับความเสียหายจากผลโมเดล fusion / CV"""
-    text = (decision or "").lower()
-    if "reject" in text:
+def _classify_damage_level(priority_class) -> str:
+    """Map production RF priority class to the map severity label."""
+    if priority_class is None:
         return "unknown"
-    if "critical" in text or "วิกฤต" in text or fusion_score >= 0.75 or severity_score >= 5:
-        return "critical"
-    if "warning" in text or "เตือน" in text or fusion_score >= 0.5 or severity_score >= 4:
-        return "warning"
-    if fusion_score >= 0.3 or severity_score >= 2:
-        return "moderate"
-    if decision:
-        return "good"
-    return "unknown"
+    value = int(priority_class.value) if hasattr(priority_class, "value") else int(priority_class)
+    return {1: "good", 2: "warning", 3: "critical"}.get(value, "unknown")
 
 
 # ─── GET: จุดพิกัดสำหรับ Heatmap / Severity Map ─────────────────
@@ -601,8 +593,8 @@ async def get_map_points(
     for r in reports:
         ana = r.ai_analysis
         severity = float(ana.cv_max_severity_score) if ana and ana.cv_max_severity_score is not None else 0.0
-        fusion = float(ana.final_fusion_score) if ana and ana.final_fusion_score is not None else 0.0
         decision = ana.final_decision if ana else None
+        priority_class = ana.priority_class if ana else None
         points.append(
             MapPointItem(
                 id=r.id,
@@ -611,11 +603,21 @@ async def get_map_points(
                 status=r.status.value if hasattr(r.status, "value") else str(r.status),
                 reporter_name=r.reporter_name,
                 created_at=r.created_at,
+                osm_way_id=(int(ana.osm_way_id) if ana and ana.osm_way_id is not None else None),
                 severity_score=severity,
-                fusion_score=fusion,
+                priority_class=(
+                    int(priority_class.value)
+                    if priority_class is not None and hasattr(priority_class, "value")
+                    else priority_class
+                ),
+                confidence_score=ana.confidence_score if ana else None,
+                proba_normal=ana.proba_normal if ana else None,
+                proba_warning=ana.proba_warning if ana else None,
+                proba_critical=ana.proba_critical if ana else None,
+                fusion_score=float(ana.final_fusion_score) if ana and ana.final_fusion_score is not None else 0.0,
                 decision=decision,
                 road_name=ana.road_name if ana else None,
-                damage_level=_classify_damage_level(decision, fusion, severity),
+                damage_level=_classify_damage_level(priority_class),
             )
         )
 

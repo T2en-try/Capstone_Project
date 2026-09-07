@@ -139,9 +139,15 @@ export default function VerificationDetailDrawer({
             <br />
 
             <Statistic
-              title="Fusion Score"
-              value={report.fusionScore}
+              title="Priority Class"
+              value={report.priorityClass ?? "-"}
             />
+
+            <div style={{ marginTop: 12 }}>
+              <div>Normal: {report.probaNormal == null ? "-" : `${Math.round(report.probaNormal * 100)}%`}</div>
+              <div>Warning: {report.probaWarning == null ? "-" : `${Math.round(report.probaWarning * 100)}%`}</div>
+              <div>Critical: {report.probaCritical == null ? "-" : `${Math.round(report.probaCritical * 100)}%`}</div>
+            </div>
 
             <br />
 
@@ -214,10 +220,6 @@ export default function VerificationDetailDrawer({
                     {
                       label: "Low",
                       value: "Low",
-                    },
-                    {
-                      label: "Moderate",
-                      value: "Moderate",
                     },
                     {
                       label: "Warning",

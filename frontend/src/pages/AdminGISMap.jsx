@@ -21,6 +21,7 @@ import Legend from "../components/admin-GISmap/Legend";
 import RoadInfoCard from "../components/admin-GISmap/RoadInfoCard";
 
 import { fetchMapPoints } from "../services/mapService";
+import { fetchRoadSegmentPriority } from "../services/analyticsService";
 
 const { Title, Text } = Typography;
 
@@ -47,6 +48,7 @@ export default function AdminGISPage() {
   const [mapPoints, setMapPoints] = useState([]);
   const [mapLoading, setMapLoading] = useState(true);
   const [mapError, setMapError] = useState(null);
+  const [segmentData, setSegmentData] = useState([]);
 
   const [layers, setLayers] = useState({
     road: true,
@@ -54,6 +56,7 @@ export default function AdminGISPage() {
     marker: true,
     satellite: false,
     grid: true,
+    segment: true,
   });
 
   const [filters, setFilters] = useState({
@@ -71,11 +74,15 @@ export default function AdminGISPage() {
         setMapLoading(true);
         setMapError(null);
 
-        const data = await fetchMapPoints(false);
+        const [data, segmentResult] = await Promise.all([
+          fetchMapPoints(false),
+          fetchRoadSegmentPriority(30),
+        ]);
 
         console.log("GIS Map Points:", data);
 
         setMapPoints(data?.points || []);
+        setSegmentData(segmentResult?.segments || []);
       } catch (error) {
         console.error("Failed to load GIS map points:", error);
 
@@ -294,6 +301,7 @@ export default function AdminGISPage() {
                 filters={filters}
                 gridDays={gridDays}
                 mapPoints={mapPoints}
+                segmentData={segmentData}
               />
             )}
           </Card>

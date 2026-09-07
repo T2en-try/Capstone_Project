@@ -26,7 +26,7 @@ Report ID : {report.reportId}
 <Space>
 
 <Tag color="red">
-Priority : {report.priorityScore}
+Priority : {report.priorityLabel || "ยังไม่มีผลวิเคราะห์"}
 </Tag>
 
 

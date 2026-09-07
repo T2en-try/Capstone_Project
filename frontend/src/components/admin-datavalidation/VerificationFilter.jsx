@@ -62,10 +62,9 @@ export default function VerificationFilter({
               handleChange("decision", value)
             }
             options={[
-              { label: "Critical", value: "Critical" },
-              { label: "Warning", value: "Warning" },
-              { label: "Moderate", value: "Moderate" },
-              { label: "Low", value: "Low" },
+              { label: "Critical", value: "Critical (ต้องซ่อมแซมด่วน)" },
+              { label: "Warning", value: "Warning (ควรเฝ้าระวัง)" },
+              { label: "Good", value: "Good (สภาพปกติ)" },
             ]}
           />
         </Col>
@@ -82,7 +81,7 @@ export default function VerificationFilter({
             options={[
               { label: "Waiting", value: "WAITING" },
               { label: "Verified", value: "VERIFIED" },
-              { label: "Rejected", value: "CORRECTED" },
+              { label: "Rejected", value: "REJECTED" },
             ]}
           />
         </Col>

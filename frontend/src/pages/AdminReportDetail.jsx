@@ -21,6 +21,7 @@ import {
 
 import { useEffect, useState } from "react";
 import { fetchReportById, getReportImageUrl } from "../services/dashboardService";
+import { getConfidencePercent, getPriorityLabel, normalizePriorityClass } from "../utils/priorityMapping";
 
 import ReportHeader from "../components/admin-priority/admin-prioritydetail/ReportHeader";
 import ReportInfoCard from "../components/admin-priority/admin-prioritydetail/ReportInfoCard";
@@ -51,21 +52,21 @@ const AdminReportDetail = () => {
 
                 const data = result.data;
                 const analysis = data.ai_analysis;
-                const score = Math.round(
-                    Math.max(0, Math.min(1, Number(analysis?.final_fusion_score ?? 0))) * 100
-                );
-                const confidence = Math.round(
-                    Math.max(0, Math.min(1, Number(analysis?.confidence_score ?? 0))) * 100
-                );
+                const priorityClass = normalizePriorityClass(analysis?.priority_class);
+                const confidence = getConfidencePercent(analysis?.confidence_score);
 
                 setReport({
                     ...data,
                     reportId: `RPT-${data.id}`,
                     title: analysis?.road_name || `รายงานปัญหาถนน #${data.id}`,
-                    priorityScore: score,
+                    priorityClass,
+                    priorityLabel: getPriorityLabel(priorityClass),
                     gee: Math.round(Number(analysis?.community_impact_score_pi ?? 0)),
                     aiConfidence: confidence,
-                    aiResult: analysis?.final_decision || "ยังไม่มีผลวิเคราะห์",
+                    aiResult: getPriorityLabel(priorityClass),
+                    probaNormal: analysis?.proba_normal,
+                    probaWarning: analysis?.proba_warning,
+                    probaCritical: analysis?.proba_critical,
                     engineer: "ยังไม่มีข้อมูล",
                     verificationStatus: "รอการตรวจสอบ",
                     confirmedDamage: "ยังไม่มีข้อมูลการยืนยัน",
@@ -233,10 +234,16 @@ const AdminReportDetail = () => {
                                     <Progress percent={report.aiConfidence} />
                                 </Descriptions.Item>
 
-                                <Descriptions.Item label="Priority Score">
+                                <Descriptions.Item label="Priority Class">
                                     <Tag color="red">
-                                        {report.priorityScore}
+                                        {report.priorityLabel || "ยังไม่มีผลวิเคราะห์"}
                                     </Tag>
+                                </Descriptions.Item>
+
+                                <Descriptions.Item label="Probability">
+                                    Normal {report.probaNormal == null ? "-" : `${Math.round(report.probaNormal * 100)}%`}, {" "}
+                                    Warning {report.probaWarning == null ? "-" : `${Math.round(report.probaWarning * 100)}%`}, {" "}
+                                    Critical {report.probaCritical == null ? "-" : `${Math.round(report.probaCritical * 100)}%`}
                                 </Descriptions.Item>
 
                                 <Descriptions.Item label="GEE Score">
