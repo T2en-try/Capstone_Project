@@ -19,7 +19,8 @@ import {
     SafetyCertificateOutlined,
 } from "@ant-design/icons";
 
-import priorityReportMock from "../mock/priorityReportMock";
+import { useEffect, useState } from "react";
+import { fetchReportById, getReportImageUrl } from "../services/dashboardService";
 
 import ReportHeader from "../components/admin-priority/admin-prioritydetail/ReportHeader";
 import ReportInfoCard from "../components/admin-priority/admin-prioritydetail/ReportInfoCard";
@@ -33,8 +34,81 @@ const AdminReportDetail = () => {
     const { id } = useParams();
 
     const navigate = useNavigate();
+    const [report, setReport] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
 
-    const report = priorityReportMock.find((item) => String(item.id) === id);
+    useEffect(() => {
+        let active = true;
+
+        fetchReportById(id)
+            .then((result) => {
+                if (!active) return;
+                if (!result.success) {
+                    setError(result.error || "ไม่สามารถโหลดรายงานได้");
+                    return;
+                }
+
+                const data = result.data;
+                const analysis = data.ai_analysis;
+                const score = Math.round(
+                    Math.max(0, Math.min(1, Number(analysis?.final_fusion_score ?? 0))) * 100
+                );
+                const confidence = Math.round(
+                    Math.max(0, Math.min(1, Number(analysis?.confidence_score ?? 0))) * 100
+                );
+
+                setReport({
+                    ...data,
+                    reportId: `RPT-${data.id}`,
+                    title: analysis?.road_name || `รายงานปัญหาถนน #${data.id}`,
+                    priorityScore: score,
+                    gee: Math.round(Number(analysis?.community_impact_score_pi ?? 0)),
+                    aiConfidence: confidence,
+                    aiResult: analysis?.final_decision || "ยังไม่มีผลวิเคราะห์",
+                    engineer: "ยังไม่มีข้อมูล",
+                    verificationStatus: "รอการตรวจสอบ",
+                    confirmedDamage: "ยังไม่มีข้อมูลการยืนยัน",
+                    engineerRemark: "ยังไม่มีหมายเหตุจากวิศวกร",
+                    reporter: data.reporter_name || "ไม่ระบุชื่อ",
+                    location: analysis?.road_name || `${data.latitude ?? "-"}, ${data.longitude ?? "-"}`,
+                    category: analysis?.road_type || "Road Damage",
+                    createdDate: data.created_at
+                        ? new Date(data.created_at).toLocaleString("th-TH")
+                        : "-",
+                    updatedDate: data.updated_at
+                        ? new Date(data.updated_at).toLocaleString("th-TH")
+                        : "-",
+                    image: getReportImageUrl(data),
+                    history: [
+                        {
+                            title: "Report Submitted",
+                            date: data.created_at
+                                ? new Date(data.created_at).toLocaleString("th-TH")
+                                : "-",
+                        },
+                    ],
+                });
+            })
+            .catch((loadError) => {
+                if (active) setError(loadError.message);
+            })
+            .finally(() => {
+                if (active) setLoading(false);
+            });
+
+        return () => {
+            active = false;
+        };
+    }, [id]);
+
+    if (loading) {
+        return <Card>กำลังโหลดข้อมูลรายงาน...</Card>;
+    }
+
+    if (error) {
+        return <Card><Title level={3}>ไม่สามารถโหลดรายงานได้</Title><Text type="danger">{error}</Text></Card>;
+    }
 
     if (!report) {
         return (

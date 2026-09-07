@@ -29,11 +29,7 @@ export default function Sidebar() {
       icon: <RobotOutlined />,
       label: <Link to="/admin/ai" className="font-medium">AI Analysis</Link>,
     },
-    {
-      key: "/admin/analytics",
-      icon: <BarChartOutlined />,
-      label: <Link to="/admin/analytics" className="font-medium">Analytics</Link>,
-    },
+ 
     {
       key: "/admin/map",
       icon: <EnvironmentOutlined />,
@@ -44,11 +40,11 @@ export default function Sidebar() {
       icon: <UserOutlined />,
       label: <Link to="/admin/employees" className="font-medium">Employees</Link>,
     },
-    {
-      key: "/admin/settings",
-      icon: <SettingOutlined />,
-      label: <Link to="/admin/settings" className="font-medium">Settings</Link>,
-    },
+    // {
+    //   key: "/admin/settings",
+    //   icon: <SettingOutlined />,
+    //   label: <Link to="/admin/settings" className="font-medium">Settings</Link>,
+    // },
   ];
 
   return (

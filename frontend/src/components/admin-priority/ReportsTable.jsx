@@ -8,9 +8,24 @@ import {
 
 import { useNavigate } from "react-router-dom";
 
-import priorityReportMock from "../../mock/priorityReportMock";
 
-const ReportsTable = () => {
+const ReportsTable = ({ reports = [], loading = false }) => {
+    const getPriorityScore = (report) => Math.round(
+        Math.max(0, Math.min(1, Number(report.ai_analysis?.final_fusion_score ?? 0))) * 100
+    );
+
+    const tableData = reports.map((report) => ({
+        ...report,
+        reportId: `RPT-${report.id}`,
+        roadName: report.ai_analysis?.road_name || "ไม่ระบุชื่อถนน",
+        damageType: report.ai_analysis?.final_decision || "ยังไม่มีผลวิเคราะห์",
+        priorityScore: getPriorityScore(report),
+        gee: Math.round(Math.max(0, Math.min(1, Number(report.ai_analysis?.community_impact_score_pi ?? 0) / 100)) * 100),
+        status: report.status,
+        reportDate: report.created_at
+            ? new Date(report.created_at).toLocaleDateString("th-TH")
+            : "-",
+    }));
     const navigate = useNavigate();
 
     const getPriorityColor = (score) => {
@@ -23,13 +38,13 @@ const ReportsTable = () => {
 
     const getStatusColor = (status) => {
         switch (status) {
-            case "Pending":
+            case "pending":
                 return "gold";
 
-            case "Processing":
+            case "processing":
                 return "blue";
 
-            case "Completed":
+            case "completed":
                 return "green";
 
             default:
@@ -200,7 +215,8 @@ const ReportsTable = () => {
         <Table
             rowKey="id"
             columns={columns}
-            dataSource={priorityReportMock}
+            dataSource={tableData}
+            loading={loading}
             scroll={{
                 x: 1200,
             }}

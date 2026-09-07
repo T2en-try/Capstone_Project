@@ -17,14 +17,11 @@ import {
   Pie,
   Column,
 } from "@ant-design/plots";
-import aiVerificationMock from "../../mock/aiVerificationMock";
-
-
-export default function AccuracyChart() {
+export default function AccuracyChart({ reports = [] }) {
 
 
 const correct =
-aiVerificationMock.filter(
+reports.filter(
  item =>
  item.verificationStatus==="VERIFIED"
 ).length;
@@ -32,7 +29,7 @@ aiVerificationMock.filter(
 
 
 const incorrect =
-aiVerificationMock.filter(
+reports.filter(
  item =>
  item.verificationStatus==="CORRECTED"
 ).length;
@@ -59,17 +56,17 @@ const pieData=[
 
     {
       type: "Verified",
-      value: 82,
+      value: correct,
     },
 
     {
       type: "Corrected",
-      value: 18,
+      value: incorrect,
     },
 
     {
       type: "Waiting",
-      value: 25,
+      value: reports.filter((item) => item.verificationStatus === "WAITING").length,
     },
 
   ];
@@ -131,7 +128,7 @@ const pieData=[
 
               title="AI Accuracy"
 
-              value={82}
+              value={reports.length ? Math.round((correct / (correct + incorrect || 1)) * 100) : 0}
 
               suffix="%"
 
@@ -149,7 +146,7 @@ const pieData=[
 
               title="Verified"
 
-              value={82}
+              value={correct}
 
               prefix={
                 <CheckCircleOutlined/>
@@ -177,7 +174,7 @@ const pieData=[
 
               title="Corrected"
 
-              value={18}
+              value={incorrect}
 
               prefix={
                 <CloseCircleOutlined/>
@@ -197,7 +194,7 @@ const pieData=[
 
               title="Waiting"
 
-              value={25}
+              value={reports.filter((item) => item.verificationStatus === "WAITING").length}
 
               prefix={
                 <ClockCircleOutlined/>

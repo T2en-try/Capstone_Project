@@ -7,18 +7,16 @@ import {
   SafetyCertificateOutlined,
 } from "@ant-design/icons";
 
-import aiVerificationMock from "../../mock/aiVerificationMock";
-
-export default function SummaryCards() {
-  const waiting = aiVerificationMock.filter(
+export default function SummaryCards({ reports = [] }) {
+  const waiting = reports.filter(
     (item) => item.verificationStatus === "WAITING"
   ).length;
 
-  const verified = aiVerificationMock.filter(
+  const verified = reports.filter(
     (item) => item.verificationStatus === "VERIFIED"
   ).length;
 
-  const corrected = aiVerificationMock.filter(
+  const corrected = reports.filter(
     (item) => item.verificationStatus === "CORRECTED"
   ).length;
 
