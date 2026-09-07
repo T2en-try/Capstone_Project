@@ -26,6 +26,8 @@ export default function UserReportPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
   const [aiResult, setAiResult] = useState(null);
+  const [processingMessage, setProcessingMessage] = useState('');
+  const pollingRef = useRef(null);
 
   const [showPinModal, setShowPinModal] = useState(false);
   const [pendingFile, setPendingFile] = useState(null);
@@ -35,7 +37,14 @@ export default function UserReportPage() {
   const [mapPoints, setMapPoints] = useState([]);
   const [mapLoading, setMapLoading] = useState(false);
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => {
+    fetchData();
+    return () => {
+      if (pollingRef.current) {
+        clearTimeout(pollingRef.current);
+      }
+    };
+  }, []);
 
   const fetchData = async () => {
     setMapLoading(true);
@@ -59,17 +68,76 @@ export default function UserReportPage() {
     setLoading(true);
     try {
       const res = await axios.post(`${API_REPORTS}/upload`, formPayload);
-      if (res.data.ai_result) {
-        setAiResult(res.data.ai_result);
+      const reportId = res.data.report?.id;
+      setProcessingMessage(
+        reportId
+          ? `ส่งรายงานแล้ว ระบบกำลังวิเคราะห์ภาพ #${reportId}...`
+          : 'ส่งรายงานสำเร็จแล้ว ระบบกำลังประมวลผล...'
+      );
+      setFormData({ description: '', reporter_name: '' });
+      fetchData();
+
+      if (reportId) {
+        pollReportResult(reportId);
       } else {
         alert('ส่งรายงานสำเร็จแล้ว');
       }
-      setFormData({ description: '', reporter_name: '' });
-      fetchData();
     } catch (err) {
       alert(err.response?.data?.detail || 'ไม่สามารถติดต่อเซิร์ฟเวอร์ได้ กรุณาลองใหม่');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const pollReportResult = async (reportId, attempt = 0) => {
+    const maxAttempts = 30;
+    try {
+      const detail = await axios.get(`${API_REPORTS}/${reportId}`);
+      const report = detail.data;
+
+      if (report.status === 'completed') {
+        setProcessingMessage('วิเคราะห์รายงานเสร็จแล้ว');
+        setAiResult(report.ai_result || null);
+        fetchData();
+        if (!report.ai_result) {
+          alert('ส่งรายงานสำเร็จแล้ว แต่ยังไม่มีผล AI สำหรับรายงานนี้');
+        }
+        return;
+      }
+
+      if (report.status === 'rejected') {
+        setProcessingMessage('รายงานไม่ผ่านการตรวจสอบ');
+        alert(
+          report.rejection_reason === 'not_a_road'
+            ? 'ภาพที่ส่งไม่ใช่ภาพถนน ระบบจึงปฏิเสธรายงาน'
+            : 'ระบบไม่สามารถวิเคราะห์รายงานนี้ได้'
+        );
+        fetchData();
+        return;
+      }
+
+      if (attempt >= maxAttempts) {
+        setProcessingMessage('ระบบยังประมวลผลไม่เสร็จ สามารถดูสถานะได้จากรายการรายงาน');
+        fetchData();
+        return;
+      }
+
+      setProcessingMessage(
+        report.status === 'processing'
+          ? `กำลังวิเคราะห์รายงาน #${reportId}...`
+          : `กำลังรอระบบรับรายงาน #${reportId}...`
+      );
+      pollingRef.current = setTimeout(() => {
+        pollReportResult(reportId, attempt + 1);
+      }, 2000);
+    } catch {
+      if (attempt >= maxAttempts) {
+        setProcessingMessage('ไม่สามารถตรวจสอบผล AI ได้ กรุณาเปิดรายละเอียดรายงานภายหลัง');
+        return;
+      }
+      pollingRef.current = setTimeout(() => {
+        pollReportResult(reportId, attempt + 1);
+      }, 2000);
     }
   };
 
@@ -211,6 +279,12 @@ export default function UserReportPage() {
               <StatCard title="รอรับเรื่อง" value={stats.pending_count} />
               <StatCard title="กำลังดำเนินการ" value={stats.processing_count} />
               <StatCard title="เสร็จสิ้น" value={stats.completed_count} />
+            </div>
+          )}
+
+          {processingMessage && (
+            <div className="mb-5 rounded-xl border border-mark/30 bg-mark/10 px-4 py-3 text-sm text-ink">
+              {processingMessage}
             </div>
           )}
 

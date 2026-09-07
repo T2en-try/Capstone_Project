@@ -4,7 +4,6 @@ import {
   ClockCircleOutlined,
   CheckCircleOutlined,
   EditOutlined,
-  SafetyCertificateOutlined,
 } from "@ant-design/icons";
 
 export default function SummaryCards({ reports = [] }) {
@@ -16,16 +15,9 @@ export default function SummaryCards({ reports = [] }) {
     (item) => item.verificationStatus === "VERIFIED"
   ).length;
 
-  const corrected = reports.filter(
-    (item) => item.verificationStatus === "CORRECTED"
+  const rejected = reports.filter(
+    (item) => item.verificationStatus === "REJECTED"
   ).length;
-
-  const reviewed = verified + corrected;
-
-  const accuracy =
-    reviewed === 0
-      ? 0
-      : Math.round((verified / reviewed) * 1000) / 10;
 
   const cards = [
     {
@@ -41,17 +33,10 @@ export default function SummaryCards({ reports = [] }) {
       color: "#52c41a",
     },
     {
-      title: "Corrected",
-      value: corrected,
+      title: "Rejected",
+      value: rejected,
       icon: <EditOutlined />,
       color: "#1677ff",
-    },
-    {
-      title: "AI Accuracy",
-      value: accuracy,
-      suffix: "%",
-      icon: <SafetyCertificateOutlined />,
-      color: "#722ed1",
     },
   ];
 

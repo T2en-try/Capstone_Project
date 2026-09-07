@@ -28,11 +28,10 @@ const statusMap = {
   },
 };
 
-const decisionMap = {
-  critical: "วิกฤต",
-  warning: "สูง",
-  moderate: "ปานกลาง",
-  good: "ต่ำ",
+const priorityMap = {
+  1: "Good (สภาพปกติ)",
+  2: "Warning (ควรเฝ้าระวัง)",
+  3: "Critical (ต้องซ่อมแซมด่วน)",
 };
 
 export default function ReportDetailModal({
@@ -217,17 +216,27 @@ export default function ReportDetailModal({
                   />
 
                   <AnalysisItem
-                    label="Fusion Score"
-                    value={ai.final_fusion_score}
+                    label="Priority Class"
+                    value={ai.priority_class ?? "-"}
+                  />
+
+                  <AnalysisItem
+                    label="Confidence"
+                    value={ai.confidence_score == null ? "-" : `${Math.round(ai.confidence_score * 100)}%`}
+                  />
+
+                  <AnalysisItem
+                    label="Probability"
+                    value={
+                      ai.proba_normal == null
+                        ? "-"
+                        : `Normal ${Math.round(ai.proba_normal * 100)}% / Warning ${ai.proba_warning == null ? "-" : `${Math.round(ai.proba_warning * 100)}%`} / Critical ${ai.proba_critical == null ? "-" : `${Math.round(ai.proba_critical * 100)}%`}`
+                    }
                   />
 
                   <AnalysisItem
                     label="AI Decision"
-                    value={
-                      decisionMap[ai.final_decision] ||
-                      ai.final_decision ||
-                      "-"
-                    }
+                    value={priorityMap[ai.priority_class] || "-"}
                   />
 
                   <AnalysisItem

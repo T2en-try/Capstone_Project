@@ -5,7 +5,7 @@ export default function Legend() {
     <Card title="Legend">
       <p><Tag color="red">High</Tag> Severe Damage</p>
 
-      <p><Tag color="orange">Medium</Tag> Moderate Damage</p>
+      <p><Tag color="orange">Warning</Tag> เฝ้าระวัง</p>
 
       <p><Tag color="green">Low</Tag> Minor Damage</p>
     </Card>

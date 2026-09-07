@@ -13,6 +13,7 @@ import FilterBar from "../components/admin-priority/FilterBar";
 import ReportsTable from "../components/admin-priority/ReportsTable";
 import GridPriorityTable from "../components/admin-priority/GridPriorityTable";
 import { fetchDashboardStats, fetchReports } from "../services/dashboardService";
+import { getPriorityLabel, normalizePriorityClass } from "../utils/priorityMapping";
 
 const { Title, Text } = Typography;
 
@@ -58,11 +59,8 @@ const PriorityReportsPage = () => {
     }, [loadReports]);
 
     const getPriority = (report) => {
-        const score = Number(report.ai_analysis?.final_fusion_score ?? 0) * 100;
-        if (score >= 75) return "Very High";
-        if (score >= 50) return "High";
-        if (score >= 30) return "Medium";
-        return "Low";
+        const priorityClass = normalizePriorityClass(report.ai_analysis?.priority_class);
+        return priorityClass ? getPriorityLabel(priorityClass) : "ยังไม่มีผลวิเคราะห์";
     };
 
     const filteredReports = reports.filter((report) => {

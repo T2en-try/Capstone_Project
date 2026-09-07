@@ -43,11 +43,25 @@ const RecentReports = ({ reports }) => {
         },
 
         {
+            title: "AI Confidence",
+            dataIndex: "confidence",
+            key: "confidence",
+            render: (value) => value == null ? "-" : `${value}%`,
+        },
+
+        {
             title: "Status",
             dataIndex: "status",
             key: "status",
 
             render: (status) => <Tag>{status}</Tag>,
+        },
+
+        {
+            title: "Rejection Reason",
+            dataIndex: "rejectionReason",
+            key: "rejectionReason",
+            render: (value) => value || "-",
         },
 
         {

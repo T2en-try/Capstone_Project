@@ -51,6 +51,7 @@ pandas
 scikit-learn==1.8.0
 scikit-fuzzy
 geopandas==1.1.4
+pyarrow
 shapely==2.1.2
 
 # --- External Services ---

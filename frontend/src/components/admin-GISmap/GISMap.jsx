@@ -5,6 +5,7 @@ import MarkerLayer from "./MarkerLayer";
 import RoadLayer from "./RoadLayer";
 import HeatmapLayer from "./HeatmapLayer";
 import GridLayer from "./GridLayer";
+import SegmentLayer from "./SegmentLayer";
 
 import "leaflet/dist/leaflet.css";
 
@@ -14,6 +15,7 @@ export default function GISMap({
     filters = {},
     gridDays = 7,
     mapPoints = [],
+    segmentData = [],
 }) {
     // ========================================
     // Transform API data → Map data
@@ -55,7 +57,7 @@ export default function GISMap({
                         : point.damage_level === "warning"
                         ? "High"
                         : point.damage_level === "moderate"
-                        ? "Medium"
+                        ? "High"
                         : point.damage_level === "good"
                         ? "Low"
                         : "Low",
@@ -149,6 +151,13 @@ export default function GISMap({
                 <GridLayer
                     visible={true}
                     days={gridDays}
+                />
+            )}
+
+            {layers.segment && (
+                <SegmentLayer
+                    reports={filteredReports}
+                    segments={segmentData}
                 />
             )}
 

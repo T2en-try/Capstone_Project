@@ -13,6 +13,7 @@ import {
   ApartmentOutlined,
   GlobalOutlined,
   AppstoreOutlined,
+  NodeIndexOutlined,
 } from "@ant-design/icons";
 
 
@@ -50,20 +51,26 @@ export default function LayerPanel({
       title: "Heatmap",
       description: "แสดงความหนาแน่นของการแจ้งปัญหา",
     },
-
-    {
-      key: "road",
-      icon: (
-        <ApartmentOutlined
-          style={{
-            color: "#52c41a",
-            fontSize: 20,
-          }}
-        />
-      ),
-      title: "Road GIS",
-      description: "แสดงเส้นถนนจากข้อมูล GIS",
+       {
+      key: "segment",
+      icon: <NodeIndexOutlined style={{ color: "#fa8c16", fontSize: 20 }} />,
+      title: "Road Segment Priority",
+      description: "รวมจุดตาม OSM Way ID ด้วย Max Severity",
     },
+
+    // {
+    //   key: "road",
+    //   icon: (
+    //     <ApartmentOutlined
+    //       style={{
+    //         color: "#52c41a",
+    //         fontSize: 20,
+    //       }}
+    //     />
+    //   ),
+    //   title: "Road GIS",
+    //   description: "แสดงเส้นถนนจากข้อมูล GIS",
+    // },
 
     {
       key: "satellite",

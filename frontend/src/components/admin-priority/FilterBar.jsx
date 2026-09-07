@@ -57,10 +57,9 @@ const FilterBar = ({ filters, onChange }) => {
           onChange={(value) => updateFilter("priority", value)}
           options={[
             { label: "All", value: "all" },
-            { label: "Very High", value: "Very High" },
-            { label: "High", value: "High" },
-            { label: "Medium", value: "Medium" },
-            { label: "Low", value: "Low" },
+            { label: "Good", value: "Good (สภาพปกติ)" },
+            { label: "Warning", value: "Warning (ควรเฝ้าระวัง)" },
+            { label: "Critical", value: "Critical (ต้องซ่อมแซมด่วน)" },
           ]}
         />
       </Col>

@@ -9,12 +9,19 @@ import ReportPieChart from "../components/admin-dashboard/ReportPieChart";
 import RecentReports from "../components/admin-dashboard/RecentReports";
 import GridPrioritySummary from "../components/admin-dashboard/GridPrioritySummary";
 import TopPriorityAreas from "../components/admin-dashboard/TopPriorityAreas";
+import RoadSegmentPriority from "../components/admin-dashboard/RoadSegmentPriority";
 
 import {
   fetchDashboardStats,
   fetchMapPoints,
   fetchReports,
 } from "../services/dashboardService";
+import {
+  getConfidencePercent,
+  getPriorityLabel,
+  getSeverityLabel,
+  normalizePriorityClass,
+} from "../utils/priorityMapping";
 
 const { Title, Text } = Typography;
 
@@ -59,20 +66,6 @@ export default function DashboardPage() {
           completed: "Completed",
           rejected: "Rejected",
         };
-        const severityLabels = {
-          critical: "Critical",
-          warning: "High",
-          moderate: "Medium",
-          good: "Low",
-          unknown: "Low",
-        };
-        const getSeverity = (value) =>
-          severityLabels[String(value || "unknown").toLowerCase()] || "Low";
-        const getConfidence = (report) => {
-          const score = report.ai_analysis?.confidence_score ??
-            report.ai_analysis?.final_fusion_score ?? 0;
-          return Math.round(Math.max(0, Math.min(1, Number(score))) * 100);
-        };
         const getLocation = (report) =>
           report.ai_analysis?.road_name ||
           (report.latitude != null && report.longitude != null
@@ -84,7 +77,15 @@ export default function DashboardPage() {
           id: report.id,
           description: report.description || "ไม่มีรายละเอียด",
           location: getLocation(report),
-          severity: getSeverity(report.ai_analysis?.final_decision),
+          severity: getSeverityLabel(report.ai_analysis?.priority_class),
+          priorityClass: normalizePriorityClass(report.ai_analysis?.priority_class),
+          priorityLabel: getPriorityLabel(report.ai_analysis?.priority_class),
+          priorityScore: report.ai_analysis?.final_fusion_score ?? null,
+          confidence: getConfidencePercent(report.ai_analysis?.confidence_score),
+          rejectionReason: report.rejection_reason,
+          probaNormal: report.ai_analysis?.proba_normal,
+          probaWarning: report.ai_analysis?.proba_warning,
+          probaCritical: report.ai_analysis?.proba_critical,
           status: statusLabels[report.status] || report.status || "Unknown",
           reporter: report.reporter_name || "ไม่ระบุชื่อ",
           createdAt: new Date(report.created_at).toLocaleString("th-TH"),
@@ -94,8 +95,14 @@ export default function DashboardPage() {
           id: report.id,
           title: report.description || `รายงาน #${report.id}`,
           location: getLocation(report),
-          severity: getSeverity(report.ai_analysis?.final_decision),
-          confidence: getConfidence(report),
+          severity: getSeverityLabel(report.ai_analysis?.priority_class),
+          priorityClass: normalizePriorityClass(report.ai_analysis?.priority_class),
+          priorityLabel: getPriorityLabel(report.ai_analysis?.priority_class),
+          priorityScore: report.ai_analysis?.final_fusion_score ?? null,
+          confidence: getConfidencePercent(report.ai_analysis?.confidence_score),
+          probaNormal: report.ai_analysis?.proba_normal,
+          probaWarning: report.ai_analysis?.proba_warning,
+          probaCritical: report.ai_analysis?.proba_critical,
         }));
 
         const mapReports = pointsResult.data.points.map((point) => ({
@@ -104,11 +111,13 @@ export default function DashboardPage() {
           location: point.road_name || `${point.latitude}, ${point.longitude}`,
           latitude: point.latitude,
           longitude: point.longitude,
-          severity: getSeverity(point.damage_level),
-          confidence: Math.round(
-            Math.max(0, Math.min(1, Number(point.fusion_score || 0))) * 100
-          ),
-          fusionScore: point.fusion_score,
+          severity: getSeverityLabel(point.priority_class),
+          priorityClass: normalizePriorityClass(point.priority_class),
+          priorityLabel: getPriorityLabel(point.priority_class),
+          confidence: getConfidencePercent(point.confidence_score),
+          probaNormal: point.proba_normal,
+          probaWarning: point.proba_warning,
+          probaCritical: point.proba_critical,
           status: point.status,
         }));
 
@@ -118,6 +127,7 @@ export default function DashboardPage() {
             pendingReports: stats.pending_count,
             processingReports: stats.processing_count,
             completedReports: stats.completed_count,
+            rejectedReports: stats.rejected_count,
           },
           mapReports,
           priorityReports,
@@ -197,6 +207,8 @@ export default function DashboardPage() {
 
       {/* Top Priority Areas Table */}
       <TopPriorityAreas topN={5} />
+
+      <RoadSegmentPriority />
 
       {/* Charts */}
       <Row gutter={20}>

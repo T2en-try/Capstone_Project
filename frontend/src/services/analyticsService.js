@@ -16,3 +16,13 @@ export async function fetchGridPriority(days = 7) {
   if (!res.ok) throw new Error(`Failed to fetch grid priority: ${res.status}`);
   return res.json();
 }
+
+/**
+ * ดึง Priority ที่รวมตาม OSM Way ID ด้วย Max Severity
+ * @param {number} days - ช่วงเวลาย้อนหลัง (default 30)
+ */
+export async function fetchRoadSegmentPriority(days = 30) {
+  const res = await fetch(`${API_ANALYTICS}/road-segment-priority?days=${days}`);
+  if (!res.ok) throw new Error(`Failed to fetch road segment priority: ${res.status}`);
+  return res.json();
+}

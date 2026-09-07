@@ -31,7 +31,7 @@ export default function HeatmapLayer({ reports = [] }) {
                         break;
 
                     case "moderate":
-                        intensity = 0.6;
+                        intensity = 0.8;
                         break;
 
                     case "good":

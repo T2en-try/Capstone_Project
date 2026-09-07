@@ -137,7 +137,7 @@ function HeatmapLayer({ points }) {
                 const intensityMap = {
                     critical: 1.0,
                     warning: 0.85,
-                    moderate: 0.65,
+                    moderate: 0.85,
                     good: 0.45,
                     low: 0.45,
                     unknown: 0.55,
@@ -407,10 +407,10 @@ const getDamageInfo = (damageLevel) => {
         },
 
         moderate: {
-            label: "ปานกลาง",
+            label: "สูง",
             color: "#eab308",
-            bg: "bg-yellow-50",
-            text: "text-yellow-600",
+            bg: "bg-orange-50",
+            text: "text-orange-600",
         },
 
         good: {
@@ -772,7 +772,7 @@ export default function MapView({
 
         warning: createIcon("#f97316"),
 
-        moderate: createIcon("#eab308"),
+        moderate: createIcon("#f97316"),
 
         good: createIcon("#22c55e"),
 

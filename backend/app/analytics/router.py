@@ -9,7 +9,7 @@ Overall Priority = 0.8×PPI + 0.2×CUS
 """
 
 import math
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, Query
@@ -21,6 +21,7 @@ from sqlalchemy.orm import joinedload
 from app.core.database import get_db
 from app.reports.models import RoadReport, AIAnalysis, ReportStatus
 from app.ai.feature_mapping import PRIORITY_ANCHORS
+from app.ai.gee_integration import get_cached_road_geometry
 
 router = APIRouter(prefix="/api/analytics", tags=["Analytics"])
 
@@ -87,6 +88,30 @@ class GridPriorityResponse(BaseModel):
     study_area: dict
     grids: List[GridCellResponse]
     summary: dict
+
+
+class RoadSegmentPriorityItem(BaseModel):
+    segment_id: int
+    road_name: Optional[str] = None
+    road_type: Optional[str] = None
+    admin_province: Optional[str] = None
+    admin_district: Optional[str] = None
+    report_count: int
+    priority_class: Optional[int] = None
+    priority_label: str
+    priority_score: Optional[float] = None
+    confidence_score: Optional[float] = None
+    worst_report_id: Optional[int] = None
+    geometry: Optional[dict] = None
+    report_ids: List[int]
+
+
+class RoadSegmentPriorityResponse(BaseModel):
+    generated_at: str
+    aggregation_method: str
+    total_segments: int
+    total_reports_analyzed: int
+    segments: List[RoadSegmentPriorityItem]
 
 
 # ─── Helper Functions ─────────────────────────────────────────────────────────
@@ -303,4 +328,91 @@ async def get_grid_priority(
             **summary_count,
             "total_reports_analyzed": len(reports),
         },
+    )
+
+
+@router.get(
+    "/road-segment-priority",
+    response_model=RoadSegmentPriorityResponse,
+    summary="รวม Priority ตามช่วงถนนจาก OSM Way ID",
+)
+async def get_road_segment_priority(
+    days: int = Query(default=30, ge=1, le=365, description="ช่วงเวลาย้อนหลัง (วัน)"),
+    db: AsyncSession = Depends(get_db),
+):
+    """รวมรายงานที่อยู่บน OSM Way เดียวกันด้วย Max Severity.
+
+    ใช้ priority_class จาก Decision Head เป็นแหล่งข้อมูลหลักและไม่นำ
+    final_fusion_score ซึ่งเป็น legacy score มาใช้จัดอันดับ.
+    """
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    result = await db.execute(
+        select(RoadReport)
+        .options(joinedload(RoadReport.ai_analysis))
+        .where(
+            RoadReport.status == ReportStatus.COMPLETED,
+            RoadReport.created_at >= cutoff,
+            RoadReport.latitude.isnot(None),
+            RoadReport.longitude.isnot(None),
+        )
+        .order_by(RoadReport.created_at.desc())
+    )
+    reports = result.scalars().all()
+    grouped: dict[int, list[RoadReport]] = {}
+
+    for report in reports:
+        analysis = report.ai_analysis
+        if analysis is None or analysis.osm_way_id is None:
+            continue
+        grouped.setdefault(int(analysis.osm_way_id), []).append(report)
+
+    def class_value(report: RoadReport) -> int | None:
+        value = report.ai_analysis.priority_class if report.ai_analysis else None
+        if value is None:
+            return None
+        return int(value.value) if hasattr(value, "value") else int(value)
+
+    labels = {1: "Normal", 2: "Warning", 3: "Critical"}
+    items: list[RoadSegmentPriorityItem] = []
+    for segment_id, segment_reports in grouped.items():
+        ranked = sorted(
+            segment_reports,
+            key=lambda report: class_value(report) or 0,
+            reverse=True,
+        )
+        worst = ranked[0]
+        worst_class = class_value(worst)
+        worst_analysis = worst.ai_analysis
+        items.append(
+            RoadSegmentPriorityItem(
+                segment_id=segment_id,
+                road_name=worst_analysis.road_name if worst_analysis else None,
+                road_type=worst_analysis.road_type if worst_analysis else None,
+                admin_province=worst_analysis.admin_province if worst_analysis else None,
+                admin_district=worst_analysis.admin_district if worst_analysis else None,
+                report_count=len(segment_reports),
+                priority_class=worst_class,
+                priority_label=labels.get(worst_class, "ไม่มีผลวิเคราะห์"),
+                priority_score=(
+                    float(worst_analysis.final_fusion_score)
+                    if worst_analysis and worst_analysis.final_fusion_score is not None
+                    else None
+                ),
+                confidence_score=worst_analysis.confidence_score if worst_analysis else None,
+                worst_report_id=worst.id,
+                geometry=get_cached_road_geometry(segment_id),
+                report_ids=[report.id for report in segment_reports],
+            )
+        )
+
+    items.sort(
+        key=lambda item: (item.priority_class or 0, item.report_count),
+        reverse=True,
+    )
+    return RoadSegmentPriorityResponse(
+        generated_at=datetime.now(timezone.utc).isoformat(),
+        aggregation_method="max_severity",
+        total_segments=len(items),
+        total_reports_analyzed=sum(len(value) for value in grouped.values()),
+        segments=items,
     )
