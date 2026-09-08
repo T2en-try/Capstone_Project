@@ -40,7 +40,7 @@ def _convert_to_degrees(value) -> float:
 
         return d + (m / 60.0) + (s / 3600.0)
     except Exception as e:
-        print(f"❌ Error converting DMS to DD: {e}")
+        print(f"Error converting DMS to DD: {e}")
         return 0.0
 
 
@@ -78,11 +78,11 @@ def extract_gps_from_exif(image_bytes: bytes) -> Tuple[Optional[float], Optional
 
             latitude = round(lat, 6)
             longitude = round(lon, 6)
-            print(f"📍 [exifread] พบพิกัด GPS: {latitude}, {longitude}")
+            print(f"[exifread] พบพิกัด GPS: {latitude}, {longitude}")
             return latitude, longitude
 
     except Exception as e:
-        print(f"⚠️ exifread ไม่สามารถอ่าน EXIF ได้: {e}")
+        print(f"exifread ไม่สามารถอ่าน EXIF ได้: {e}")
 
     # วิธีที่ 2: Fallback ใช้ Pillow
     try:
@@ -109,11 +109,11 @@ def extract_gps_from_exif(image_bytes: bytes) -> Tuple[Optional[float], Optional
 
                 latitude = round(lat, 6)
                 longitude = round(lon, 6)
-                print(f"📍 [Pillow] พบพิกัด GPS: {latitude}, {longitude}")
+                print(f"[Pillow] พบพิกัด GPS: {latitude}, {longitude}")
                 return latitude, longitude
 
     except Exception as e:
-        print(f"⚠️ Pillow ไม่สามารถอ่าน EXIF ได้: {e}")
+        print(f"Pillow ไม่สามารถอ่าน EXIF ได้: {e}")
 
-    print("❌ ไม่พบข้อมูล GPS ในรูปภาพ")
+    print("ไม่พบข้อมูล GPS ในรูปภาพ")
     return None, None

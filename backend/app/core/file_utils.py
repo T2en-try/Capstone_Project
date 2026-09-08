@@ -97,7 +97,7 @@ class StorageService:
             )
             return f"{settings.CLOUD_ENDPOINT.rstrip('/')}/{settings.BUCKET_NAME}/{unique_name}"
         except (BotoCoreError, ClientError) as e:
-            print(f"⚠️ อัปโหลดขึ้น Cloud Storage ไม่สำเร็จ (ใช้ไฟล์ local ต่อไป): {e}")
+            print(f"อัปโหลดขึ้น Cloud Storage ไม่สำเร็จ (ใช้ไฟล์ local ต่อไป): {e}")
             return None
 
     async def save_file(self, file: UploadFile) -> dict:
@@ -129,7 +129,7 @@ class StorageService:
         image_url = self._upload_to_s3(unique_name, contents, file.content_type)
 
         print(
-            f"✅ บันทึกไฟล์สำเร็จ: {unique_name} ({file_size:,} bytes)"
+            f"บันทึกไฟล์สำเร็จ: {unique_name} ({file_size:,} bytes)"
             + (" + Cloud Storage" if image_url else "")
         )
 

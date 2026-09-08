@@ -144,7 +144,7 @@ class FuzzyFusionEngine:
             self.fuzzy_sim.compute()
             return float(self.fuzzy_sim.output['ppi'])
         except Exception as e:
-            print(f"⚠️ [FuzzyLogic Error]: No rules triggered, falling back to heuristic. Details: {e}")
+            print(f"[FuzzyLogic Error]: No rules triggered, falling back to heuristic. Details: {e}")
             return HeuristicFusionEngine.predict_ppi(data)
 
 # =====================================================================

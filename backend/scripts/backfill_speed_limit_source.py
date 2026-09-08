@@ -64,12 +64,12 @@ def bucket_speed_limit(speed_limit, source):
 
 def backfill(source_csv: str, output_csv: str):
     if not os.path.exists(source_csv):
-        sys.exit(f"❌ Source CSV not found: {source_csv}")
+        sys.exit(f"Source CSV not found: {source_csv}")
 
     df = pd.read_csv(source_csv)
     missing_cols = [c for c in ("image_id", "latitude", "longitude") if c not in df.columns]
     if missing_cols:
-        sys.exit(f"❌ Source CSV is missing required column(s): {missing_cols}")
+        sys.exit(f"Source CSV is missing required column(s): {missing_cols}")
 
     print(f"Re-checking {len(df)} rows from {source_csv} against the current GIS cache...\n")
 
@@ -98,7 +98,7 @@ def backfill(source_csv: str, output_csv: str):
 
     result_df = pd.DataFrame(results)
     result_df.to_csv(output_csv, index=False)
-    print(f"✅ Per-row results written to {output_csv}\n")
+    print(f"Per-row results written to {output_csv}\n")
 
     counts = result_df["speed_limit_source"].value_counts()
     total = len(result_df)
@@ -122,7 +122,7 @@ def backfill(source_csv: str, output_csv: str):
     real_pct = 100 * counts.get("osm_tag", 0) / total if total else 0.0
     print(f"\nReal OSM-tagged speed_limit coverage: {real_pct:.1f}% of rows.")
     if real_pct < 30:
-        print("⚠️  Below ~30% real coverage — speed_limit as currently computed is dominated by a")
+        print("Below ~30% real coverage — speed_limit as currently computed is dominated by a")
         print("   constant default and is unlikely to carry real signal for the 5 Decision Heads.")
         print("   Consider: dropping it, replacing it with a road_type-based proxy, or keeping it")
         print("   only alongside speed_limit_source so a model/analysis can down-weight defaulted rows.")

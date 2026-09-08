@@ -21,22 +21,22 @@ def init_gee():
     Initialize Google Earth Engine during application startup.
     Fails fast (raises an exception) if configuration is missing or invalid.
     """
-    print("🌍 กำลังเริ่มต้น Google Earth Engine...")
+    print("กำลังเริ่มต้น Google Earth Engine...")
     SERVICE_ACCOUNT = settings.GEE_SERVICE_ACCOUNT
     KEY_PATH = settings.GEE_KEY_PATH
     PROJECT_ID = settings.GEE_PROJECT_ID
 
     if not SERVICE_ACCOUNT or not KEY_PATH or not PROJECT_ID:
         error_msg = "GEE_SERVICE_ACCOUNT, GEE_KEY_PATH, or GEE_PROJECT_ID is missing from environment variables!"
-        print(f"❌ ERROR: {error_msg}")
+        print(f"ERROR: {error_msg}")
         raise ValueError(error_msg)
     
     try:
         credentials = ee.ServiceAccountCredentials(SERVICE_ACCOUNT, KEY_PATH)
         ee.Initialize(credentials, project=PROJECT_ID)
-        print("✅ Google Earth Engine พร้อมใช้งาน")
+        print("Google Earth Engine พร้อมใช้งาน")
     except Exception as e:
-        print(f"❌ Failed to initialize Google Earth Engine: {e}")
+        print(f"Failed to initialize Google Earth Engine: {e}")
         raise RuntimeError(f"GEE Initialization Failed: {e}")
 
 def get_environment_data(lat, lon):
@@ -77,7 +77,7 @@ def get_environment_data(lat, lon):
         ).get('avg_rad').getInfo()
         if val: nightlight = val
     except Exception as e:
-        print(f"⚠️ ข้ามการดึง Nightlight: {e}")
+        print(f"ข้ามการดึง Nightlight: {e}")
     gee_times['nightlight'] = round(time.time() - t0, 2)
 
     # 2. Rainfall (น้ำฝนสะสม)
@@ -90,7 +90,7 @@ def get_environment_data(lat, lon):
         ).get('precipitation').getInfo()
         if val: rainfall = val
     except Exception as e:
-        print(f"⚠️ ข้ามการดึง Rainfall: {e}")
+        print(f"ข้ามการดึง Rainfall: {e}")
     gee_times['rainfall'] = round(time.time() - t0, 2)
 
     # 3. Soil Moisture (ความชื้นดิน)
@@ -103,7 +103,7 @@ def get_environment_data(lat, lon):
         ).get('sm_surface').getInfo()
         if val: soil_moisture = val
     except Exception as e:
-        print(f"⚠️ ข้ามการดึง Soil Moisture: {e}")
+        print(f"ข้ามการดึง Soil Moisture: {e}")
     gee_times['soil'] = round(time.time() - t0, 2)
 
     # 4. NDVI & Surface Material (Sentinel-2 แทน MODIS)
@@ -134,7 +134,7 @@ def get_environment_data(lat, lon):
             else: # ถ้าสะท้อนแสงน้อยดูดซับความร้อน = ยางมะตอย
                 estimated_material = "ยางมะตอย (Asphalt)"
     except Exception as e:
-        print(f"⚠️ ข้ามการดึง Sentinel-2 (NDVI & Material): {e}")
+        print(f"ข้ามการดึง Sentinel-2 (NDVI & Material): {e}")
     gee_times['ndvi_material'] = round(time.time() - t0, 2)
 
     # 5. Elevation & Slope (SRTM DEM)
@@ -153,7 +153,7 @@ def get_environment_data(lat, lon):
         ).get('slope').getInfo()
         if slope_val is not None: slope = slope_val
     except Exception as e:
-        print(f"⚠️ ข้ามการดึง Elevation & Slope: {e}")
+        print(f"ข้ามการดึง Elevation & Slope: {e}")
     gee_times['elevation'] = round(time.time() - t0, 2)
     
     total_gee = round(time.time() - total_start, 2)
@@ -458,7 +458,7 @@ if __name__ == "__main__":
     poi_data = get_poi_data(target_lat, target_lon)
     
     # --- รวมร่างข้อมูลทั้งหมดเป็น Attribute Vector ---
-    print(f"\n--- 🌟 สรุปข้อมูล Feature Vector เตรียมเข้า Model 🌟 ---")
+    print(f"\n--- สรุปข้อมูล Feature Vector เตรียมเข้า Model ---")
     print(f"พิกัด (Lat, Lon): {target_lat}, {target_lon}")
     print(f"[{'GIS':<12}] ประเภทถนน: {road_data['thai_road_type']} (OSM Tag: {road_data['osm_highway_type']})")
     print(f"[{'GIS':<12}] เลน: {road_data['lanes']}, ความเร็วจำกัด: {road_data['speed_limit']} km/h")
@@ -480,4 +480,4 @@ if __name__ == "__main__":
     else:
          print(f"[{'Crowdsource':<12}] ไม่มีประวัติการแจ้งเหตุจากประชาชนในบริเวณนี้")
     
-    print("\n✅ ท่อข้อมูลพร้อม 100%! ขั้นตอนต่อไปคือการสร้าง API รวมร่างกับโมเดล RT-DETR ครับ 🚀")
+    print("\nท่อข้อมูลพร้อม 100%! ขั้นตอนต่อไปคือการสร้าง API รวมร่างกับโมเดล RT-DETR ครับ")

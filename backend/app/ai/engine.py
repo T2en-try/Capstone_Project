@@ -33,35 +33,35 @@ class AIEngine:
 
     def load_model(self):
         """โหลดโมเดล RT-DETR จาก Ultralytics"""
-        print("🧠 กำลังโหลดโมเดล RT-DETR (Fold 2)...")
+        print("กำลังโหลดโมเดล RT-DETR (Fold 2)...")
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
         
         if os.path.exists(MODEL_PATH):
             self.model = RTDETR(MODEL_PATH)
             self.model.to(device)
-            print(f"✅ โหลดโมเดล RT-DETR สำเร็จ! (ทำงานบน {device.upper()})")
+            print(f"โหลดโมเดล RT-DETR สำเร็จ! (ทำงานบน {device.upper()})")
         else:
-            print(f"❌ หาไฟล์โมเดลไม่พบที่: {MODEL_PATH}")
+            print(f"หาไฟล์โมเดลไม่พบที่: {MODEL_PATH}")
             
-        print("🧠 กำลังโหลดโมเดล Road Classifier...")
+        print("กำลังโหลดโมเดล Road Classifier...")
         if os.path.exists(CLASSIFIER_MODEL_PATH):
             self.classifier_model = YOLO(CLASSIFIER_MODEL_PATH)
             self.classifier_model.to(device)
-            print(f"✅ โหลดโมเดล Road Classifier สำเร็จ! (ทำงานบน {device.upper()})")
+            print(f"โหลดโมเดล Road Classifier สำเร็จ! (ทำงานบน {device.upper()})")
         else:
-            print(f"❌ หาไฟล์โมเดลไม่พบที่: {CLASSIFIER_MODEL_PATH}")
+            print(f"หาไฟล์โมเดลไม่พบที่: {CLASSIFIER_MODEL_PATH}")
 
-        print("🧠 กำลังโหลดโมเดล Priority Class (Random Forest)...")
+        print("กำลังโหลดโมเดล Priority Class (Random Forest)...")
         if os.path.exists(PRIORITY_RF_MODEL_PATH):
             self.priority_rf_artifact = joblib.load(PRIORITY_RF_MODEL_PATH)
-            print(f"✅ โหลดโมเดล Priority Class RF สำเร็จ! (features={len(self.priority_rf_artifact['feature_names'])}, trained_at={self.priority_rf_artifact.get('trained_at_utc')})")
+            print(f"โหลดโมเดล Priority Class RF สำเร็จ! (features={len(self.priority_rf_artifact['feature_names'])}, trained_at={self.priority_rf_artifact.get('trained_at_utc')})")
         else:
-            print(f"❌ หาไฟล์โมเดลไม่พบที่: {PRIORITY_RF_MODEL_PATH}")
+            print(f"หาไฟล์โมเดลไม่พบที่: {PRIORITY_RF_MODEL_PATH}")
 
     def validate_is_road(self, image_path: str) -> bool:
         """ตรวจสอบว่ารูปภาพเป็นถนนหรือไม่ด้วยโมเดล Classification"""
         if not self.classifier_model:
-            print("⚠️ โมเดล Classifier ยังไม่ได้โหลด ข้ามการตรวจสอบ")
+            print("โมเดล Classifier ยังไม่ได้โหลด ข้ามการตรวจสอบ")
             return True
             
         results = self.classifier_model.predict(source=image_path, verbose=False)
@@ -94,7 +94,7 @@ class AIEngine:
             annotated_path = os.path.join(base_dir, annotated_filename)
             cv2.imwrite(annotated_path, annotated_img)
         except Exception as e:
-            print(f"⚠️ ไม่สามารถสร้างภาพ Bounding Box ได้: {e}")
+            print(f"ไม่สามารถสร้างภาพ Bounding Box ได้: {e}")
         
         total_area_px = 0
         max_severity = 0
@@ -161,7 +161,7 @@ class AIEngine:
             nearest_poi_distance_m=poi.get("nearest_poi_distance_m", 1000.0)
         )
 
-        # 🛑 3. Sanity Check (ตัวกรองข้อมูลขยะ / False Positive)
+        # 3. Sanity Check (ตัวกรองข้อมูลขยะ / False Positive)
         # Flag-and-defer, not auto-reject: NDVI alone can't distinguish "GPS pin is
         # wrong" from "this is a real rural road that legitimately runs alongside
         # dense vegetation/water" -- that ambiguity is exactly why this was bypassed

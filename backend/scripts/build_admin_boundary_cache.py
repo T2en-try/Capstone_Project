@@ -38,7 +38,7 @@ ADMIN_LEVELS_TO_KEEP = ['4', '6', '8']  # province (จังหวัด) / dis
 def build_cache(pbf_path: str, output_dir: str):
     if not os.path.exists(pbf_path):
         sys.exit(
-            f"❌ OSM extract not found: {pbf_path}\n"
+            f"OSM extract not found: {pbf_path}\n"
             f"   Download the Thailand extract from Geofabrik "
             f"(https://download.geofabrik.de/asia/thailand.html) and place it there."
         )
@@ -54,7 +54,7 @@ def build_cache(pbf_path: str, output_dir: str):
     boundaries = osm.get_boundaries(boundary_type='administrative')
 
     if boundaries is None or boundaries.empty:
-        sys.exit("❌ No boundaries extracted -- cache would be empty. Aborting.")
+        sys.exit("No boundaries extracted -- cache would be empty. Aborting.")
 
     print(f"Extracted {len(boundaries)} total boundary relations.")
     print("Raw admin_level breakdown:")
@@ -62,17 +62,17 @@ def build_cache(pbf_path: str, output_dir: str):
 
     filtered = boundaries[boundaries['admin_level'].isin(ADMIN_LEVELS_TO_KEEP)].copy()
     if filtered.empty:
-        sys.exit(f"❌ None of the target admin levels {ADMIN_LEVELS_TO_KEEP} were found. Aborting.")
+        sys.exit(f"None of the target admin levels {ADMIN_LEVELS_TO_KEEP} were found. Aborting.")
 
     for level, label in [('4', 'province'), ('6', 'district'), ('8', 'subdistrict')]:
         n = (filtered['admin_level'] == level).sum()
         print(f"  admin_level={level} ({label}): {n} polygons")
         if n == 0:
-            print(f"  ⚠️ No {label}-level boundaries found -- admin_{label} will be NULL for all reports.")
+            print(f"  No {label}-level boundaries found -- admin_{label} will be NULL for all reports.")
 
     out_path = os.path.join(output_dir, 'cached_admin_boundaries.parquet')
     filtered.to_parquet(out_path)
-    print(f"✅ Saved {len(filtered)} boundary polygons to {out_path}")
+    print(f"Saved {len(filtered)} boundary polygons to {out_path}")
 
 
 if __name__ == "__main__":

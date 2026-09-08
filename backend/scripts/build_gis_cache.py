@@ -35,10 +35,10 @@ except AttributeError:
 
 def build_cache(source_csv: str, pbf_path: str, output_dir: str):
     if not os.path.exists(source_csv):
-        sys.exit(f"❌ Source CSV not found: {source_csv}")
+        sys.exit(f"Source CSV not found: {source_csv}")
     if not os.path.exists(pbf_path):
         sys.exit(
-            f"❌ OSM extract not found: {pbf_path}\n"
+            f"OSM extract not found: {pbf_path}\n"
             f"   Download the Thailand extract from Geofabrik "
             f"(https://download.geofabrik.de/asia/thailand.html) and place it there."
         )
@@ -46,7 +46,7 @@ def build_cache(source_csv: str, pbf_path: str, output_dir: str):
     print(f"Building OSM cache from {source_csv} using {pbf_path} ...")
     df = pd.read_csv(source_csv)
     if "latitude" not in df.columns or "longitude" not in df.columns:
-        sys.exit("❌ Source CSV must have 'latitude' and 'longitude' columns.")
+        sys.exit("Source CSV must have 'latitude' and 'longitude' columns.")
 
     all_edges, all_pois = [], []
 
@@ -77,17 +77,17 @@ def build_cache(source_csv: str, pbf_path: str, output_dir: str):
             if pois is not None and not pois.empty:
                 all_pois.append(pois)
         except Exception as e:
-            print(f"⚠️ Error processing grid {lat}, {lon}: {e}")
+            print(f"Error processing grid {lat}, {lon}: {e}")
 
     if not all_edges:
-        sys.exit("❌ No driving-network edges extracted — cache would be empty. Aborting.")
+        sys.exit("No driving-network edges extracted — cache would be empty. Aborting.")
 
     final_edges = pd.concat(all_edges).drop_duplicates(subset=["id"])
     final_edges = final_edges.drop(columns=["tags"], errors="ignore")
     edges_path = os.path.join(output_dir, "cached_driving_network.parquet")
     final_edges.to_parquet(edges_path)
     maxspeed_coverage = final_edges["maxspeed"].notna().mean() * 100 if "maxspeed" in final_edges else 0.0
-    print(f"✅ Saved {len(final_edges)} edges to {edges_path}")
+    print(f"Saved {len(final_edges)} edges to {edges_path}")
     print(f"   maxspeed tag coverage: {maxspeed_coverage:.1f}% "
           f"(rows without it fall back to speed_limit=50.0 at query time)")
 
@@ -96,9 +96,9 @@ def build_cache(source_csv: str, pbf_path: str, output_dir: str):
         final_pois = final_pois.drop(columns=["tags"], errors="ignore")
         pois_path = os.path.join(output_dir, "cached_pois.parquet")
         final_pois.to_parquet(pois_path)
-        print(f"✅ Saved {len(final_pois)} POIs to {pois_path}")
+        print(f"Saved {len(final_pois)} POIs to {pois_path}")
     else:
-        print("⚠️ No POIs extracted — cached_pois.parquet was not written.")
+        print("No POIs extracted — cached_pois.parquet was not written.")
 
     print("Cache build complete.")
 

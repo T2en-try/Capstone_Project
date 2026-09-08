@@ -68,11 +68,11 @@ def encode_material(raw_value):
 
 def backfill(source_csv: str, output_csv: str):
     if not os.path.exists(source_csv):
-        sys.exit(f"❌ Source CSV not found: {source_csv}")
+        sys.exit(f"Source CSV not found: {source_csv}")
 
     df = pd.read_csv(source_csv)
     if MATERIAL_COLUMN not in df.columns:
-        sys.exit(f"❌ Source CSV has no '{MATERIAL_COLUMN}' column to encode.")
+        sys.exit(f"Source CSV has no '{MATERIAL_COLUMN}' column to encode.")
     id_col = ID_COLUMN if ID_COLUMN in df.columns else df.columns[0]
 
     print(f"Encoding surface_material for {len(df)} rows from {source_csv}...\n")
@@ -93,7 +93,7 @@ def backfill(source_csv: str, output_csv: str):
         result_df[f"surface_material_{cat}"] = [1 if c == cat else 0 for c in categories]
 
     result_df.to_csv(output_csv, index=False)
-    print(f"✅ Per-row results written to {output_csv}\n")
+    print(f"Per-row results written to {output_csv}\n")
 
     total = len(result_df)
     print("=== surface_material_category distribution ===")
@@ -106,7 +106,7 @@ def backfill(source_csv: str, output_csv: str):
     missing_pct = 100 * result_df["surface_material_is_missing"].sum() / total if total else 0.0
     print(f"\nsurface_material_is_missing: {missing_pct:.1f}% of rows.")
     if missing_pct > 50:
-        print("⚠️  Majority missing — surface_material one-hot columns will be all-zero for most")
+        print("Majority missing — surface_material one-hot columns will be all-zero for most")
         print("   rows; rely on surface_material_is_missing as an explicit signal rather than")
         print("   assuming a zero vector means 'confirmed not this material'.")
 

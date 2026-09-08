@@ -64,7 +64,7 @@ async def process_report_background(
             if ai_engine.classifier_model:
                 is_road = await asyncio.to_thread(ai_engine.validate_is_road, file_info["path"])
                 if not is_road:
-                    print(f"🚫 Report {report_id}: ภาพไม่ผ่าน Gatekeeper (ไม่ใช่ภาพถนน)")
+                    print(f"Report {report_id}: ภาพไม่ผ่าน Gatekeeper (ไม่ใช่ภาพถนน)")
                     report = await db.get(RoadReport, report_id)
                     if report:
                         report.status = ReportStatus.REJECTED
@@ -85,7 +85,7 @@ async def process_report_background(
                         if entry.source_api == "gee": cached_gee = entry.cached_response_json
                         elif entry.source_api == "osm": cached_osm = entry.cached_response_json
                 except Exception as cache_err:
-                    print(f"⚠️ ไม่สามารถดึงข้อมูล Cache ได้: {cache_err}")
+                    print(f"ไม่สามารถดึงข้อมูล Cache ได้: {cache_err}")
 
             # 3. ดึงสถิติ Crowdsourcing
             real_crowd_data = {
@@ -120,12 +120,12 @@ async def process_report_background(
                         if valid_sev > 0:
                             real_crowd_data["user_severity_score_avg"] = round(total_sev / valid_sev, 1)
                 except Exception as e:
-                    print(f"⚠️ Crowdsource Error: {e}")
+                    print(f"Crowdsource Error: {e}")
 
             # 4. ประมวลผลวิเคราะห์ด้วย AI Engine
             ai_analysis = None
             if ai_engine.model is not None:
-                print(f"🔍 AI Engine กำลังวิเคราะห์ภาพ: {file_info['filename']}")
+                print(f"AI Engine กำลังวิเคราะห์ภาพ: {file_info['filename']}")
                 try:
                     if final_lat is not None and final_lon is not None:
                         import app.ai.engine as ai_engine_mod
@@ -153,7 +153,7 @@ async def process_report_background(
                             "context_data": None
                         }
                 except Exception as ai_err:
-                    print(f"⚠️ AI Engine Error: {ai_err}")
+                    print(f"AI Engine Error: {ai_err}")
 
             # 5. บันทึกแคช
             if grid_key and ai_analysis and ai_analysis.get("status") != "partial_success":
@@ -245,16 +245,16 @@ async def process_report_background(
 
             elif report and report.status == ReportStatus.PROCESSING:
                 # ai_analysis is None — set rejected to avoid getting stuck
-                print(f"⚠️ Report {report_id}: ai_analysis=None, ตั้งสถานะเป็น rejected")
+                print(f"Report {report_id}: ai_analysis=None, ตั้งสถานะเป็น rejected")
                 report.status = ReportStatus.REJECTED
                 report.rejection_reason = "analysis_failed"
 
             await db.commit()
-            print(f"✅ ประมวลผลรายงาน {report_id} ในเบื้องหลังสำเร็จ")
+            print(f"ประมวลผลรายงาน {report_id} ในเบื้องหลังสำเร็จ")
 
         except Exception as e:
             import traceback; traceback.print_exc()
-            print(f"❌ Background task error for report {report_id}: {e}")
+            print(f"Background task error for report {report_id}: {e}")
             try:
                 async with async_session() as err_db:
                     err_report = await err_db.get(RoadReport, report_id)
@@ -263,7 +263,7 @@ async def process_report_background(
                         err_report.rejection_reason = "analysis_failed"
                         await err_db.commit()
             except Exception as update_err:
-                print(f"❌ ไม่สามารถอัปเดตสถานะ report {report_id}: {update_err}")
+                print(f"ไม่สามารถอัปเดตสถานะ report {report_id}: {update_err}")
 
 
 async def reprocess_report_location(report_id: int, new_lat: float, new_lon: float):
@@ -278,12 +278,12 @@ async def reprocess_report_location(report_id: int, new_lat: float, new_lon: flo
             )
             report = result.scalar_one_or_none()
             if not report:
-                print(f"⚠️ Reprocess: ไม่พบรายงาน {report_id}")
+                print(f"Reprocess: ไม่พบรายงาน {report_id}")
                 return
 
             image_path = os.path.join(settings.UPLOAD_DIR, report.image_filename)
             if not os.path.exists(image_path):
-                print(f"⚠️ Reprocess: ไม่พบไฟล์ภาพของรายงาน {report_id}: {image_path}")
+                print(f"Reprocess: ไม่พบไฟล์ภาพของรายงาน {report_id}: {image_path}")
                 report.status = ReportStatus.REJECTED
                 await db.commit()
                 return
@@ -315,7 +315,7 @@ async def reprocess_report_location(report_id: int, new_lat: float, new_lon: flo
                     if valid_sev > 0:
                         real_crowd_data["user_severity_score_avg"] = round(total_sev / valid_sev, 1)
             except Exception as e:
-                print(f"⚠️ Reprocess Crowdsource Error: {e}")
+                print(f"Reprocess Crowdsource Error: {e}")
 
             ai_analysis = None
             if ai_engine.model is not None:
@@ -325,10 +325,10 @@ async def reprocess_report_location(report_id: int, new_lat: float, new_lon: flo
                         new_lat, new_lon, image_path, real_crowd_data
                     )
                 except Exception as ai_err:
-                    print(f"⚠️ Reprocess AI Engine Error: {ai_err}")
+                    print(f"Reprocess AI Engine Error: {ai_err}")
 
             if not ai_analysis:
-                print(f"⚠️ Reprocess {report_id}: ai_analysis เป็น None, คงผลเดิมไว้")
+                print(f"Reprocess {report_id}: ai_analysis เป็น None, คงผลเดิมไว้")
                 if report.status == ReportStatus.PROCESSING:
                     report.status = ReportStatus.COMPLETED  # คงผลวิเคราะห์เดิมไว้ ไม่ค้างที่ processing
                     await db.commit()
@@ -390,11 +390,11 @@ async def reprocess_report_location(report_id: int, new_lat: float, new_lon: flo
             report.status = ReportStatus.COMPLETED
 
             await db.commit()
-            print(f"✅ Reprocessed report {report_id} ด้วยพิกัดใหม่ ({new_lat}, {new_lon})")
+            print(f"Reprocessed report {report_id} ด้วยพิกัดใหม่ ({new_lat}, {new_lon})")
 
         except Exception as e:
             import traceback; traceback.print_exc()
-            print(f"❌ Reprocess background task error for report {report_id}: {e}")
+            print(f"Reprocess background task error for report {report_id}: {e}")
             try:
                 async with async_session() as err_db:
                     err_report = await err_db.get(RoadReport, report_id)
@@ -402,7 +402,7 @@ async def reprocess_report_location(report_id: int, new_lat: float, new_lon: flo
                         err_report.status = ReportStatus.COMPLETED  # คงผลวิเคราะห์เดิมไว้ ไม่ค้างที่ processing
                         await err_db.commit()
             except Exception as update_err:
-                print(f"❌ ไม่สามารถอัปเดตสถานะ report {report_id}: {update_err}")
+                print(f"ไม่สามารถอัปเดตสถานะ report {report_id}: {update_err}")
 
 
 @router.post(

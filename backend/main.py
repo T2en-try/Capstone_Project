@@ -27,7 +27,7 @@ from app.ai.gee_integration import init_gee
 async def lifespan(app: FastAPI):
     """Startup & Shutdown events"""
     # Startup: สร้างตารางฐานข้อมูล + โฟลเดอร์อัปโหลด
-    print("🚀 กำลังเริ่มต้นระบบ Road Report Backend...")
+    print("กำลังเริ่มต้นระบบ Road Report Backend...")
     await init_db()
     ensure_upload_dir()
 
@@ -39,11 +39,11 @@ async def lifespan(app: FastAPI):
     # นำไปผูกกับ app.state ไว้ด้วยเผื่อระบบเก่าเรียกใช้งาน
     app.state.model = ai_engine.model 
 
-    print("✅ ฐานข้อมูลพร้อมใช้งาน")
-    print(f"📁 โฟลเดอร์อัปโหลด: {settings.UPLOAD_DIR}")
+    print("ฐานข้อมูลพร้อมใช้งาน")
+    print(f"โฟลเดอร์อัปโหลด: {settings.UPLOAD_DIR}")
     yield
     # Shutdown
-    print("👋 ปิดระบบ Road Report Backend")
+    print("ปิดระบบ Road Report Backend")
 
 
 # ─── สร้าง FastAPI Application ─────────────────────────────────
