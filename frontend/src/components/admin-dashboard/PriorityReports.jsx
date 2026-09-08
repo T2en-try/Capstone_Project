@@ -13,30 +13,27 @@ const { Text } = Typography;
 const PriorityReports = ({ reports = [] }) => {
     const navigate = useNavigate();
 
-    const severityConfig = {
-        Critical: {
-            color: "red",
-            label: "Critical",
-        },
-
-        High: {
-            color: "orange",
-            label: "High",
-        },
-
-        Medium: {
-            color: "gold",
-            label: "Medium",
-        },
-
-        Low: {
+    const priorityConfig = {
+        1: {
             color: "green",
-            label: "Low",
+            textColor: "#52c41a",
+            label: "Good (สภาพปกติ)",
+        },
+        2: {
+            color: "orange",
+            textColor: "#fa8c16",
+            label: "Warning (ควรเฝ้าระวัง)",
+        },
+        3: {
+            color: "red",
+            textColor: "#ff4d4f",
+            label: "Critical (ต้องซ่อมแซมด่วน)",
         },
     };
 
     const ranked = [...reports]
-        .sort((a, b) => b.confidence - a.confidence)
+        .sort((a, b) => (Number(b.priorityScore) || 0) - (Number(a.priorityScore) || 0) ||
+            (b.priorityClass || 0) - (a.priorityClass || 0))
         .slice(0, 5);
 
     return (
@@ -162,12 +159,14 @@ const PriorityReports = ({ reports = [] }) => {
                                     <Text
                                         strong
                                         style={{
-                                            color: "#1677ff",
+                                            color: priorityConfig[item.priorityClass]?.textColor || "#8c8c8c",
 
                                             fontSize: 16,
                                         }}
                                     >
-                                        {item.confidence}%
+                                        {item.priorityScore == null
+                                            ? "-"
+                                            : Number(item.priorityScore).toFixed(2)}
                                     </Text>
                                 </div>
 
@@ -190,18 +189,15 @@ const PriorityReports = ({ reports = [] }) => {
                                         width: "100%",
                                     }}
                                 >
-                                    <Tag
-                                        color={
-                                            severityConfig[item.severity]?.color
-                                        }
-                                    >
-                                        {severityConfig[item.severity]?.label}
+                                    <Tag color={priorityConfig[item.priorityClass]?.color || "default"}>
+                                        {priorityConfig[item.priorityClass]?.label || "ยังไม่มีผลวิเคราะห์"}
                                     </Tag>
 
                                     <Progress
-                                        percent={item.confidence}
+                                        percent={Number(item.priorityScore) || 0}
                                         showInfo={false}
                                         size="small"
+                                        strokeColor={priorityConfig[item.priorityClass]?.textColor || "#8c8c8c"}
                                         style={{
                                             flex: 1,
                                         }}

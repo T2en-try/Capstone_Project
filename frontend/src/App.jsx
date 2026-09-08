@@ -10,6 +10,7 @@ import AdminPriority from "./pages/AdminPriority";
 import AdminReportDetail from "./pages/AdminReportDetail";
 import AdminGISMap from "./pages/AdminGISMap";
 import AdminDataValidation from "./pages/AdminDataValidation";
+import AdminEmployees from "./pages/AdminEmployees";
 
 import AdminLoginPage from "./pages/AdminLoginPage";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -50,6 +51,7 @@ function App() {
         <Route path="reports/:id" element={<AdminReportDetail />} />
         <Route path="map" element={<AdminGISMap />} />
         <Route path="ai" element={<AdminDataValidation />} />
+        <Route path="employees" element={<AdminEmployees />} />
 
       </Route>
     </Routes>

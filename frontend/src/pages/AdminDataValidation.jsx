@@ -1,10 +1,45 @@
-import { useState } from "react";
-import { Row, Col } from "antd";
+import { useEffect, useMemo, useState } from "react";
+import { Alert, Col, Row, Spin } from "antd";
 
 import SummaryCards from "../components/admin-datavalidation/SummaryCards";
 import VerificationFilter from "../components/admin-datavalidation/VerificationFilter";
 import VerificationTable from "../components/admin-datavalidation/VerificationTable";
-import AccuracyChart from "../components/admin-datavalidation/AccuracyChart";
+import { fetchReports } from "../services/dashboardService";
+import { getConfidencePercent, getPriorityLabel, normalizePriorityClass } from "../utils/priorityMapping";
+
+const toVerificationReport = (report) => {
+  const analysis = report.ai_analysis;
+  const statusMap = {
+    pending: "WAITING",
+    processing: "WAITING",
+    completed: "VERIFIED",
+    rejected: "REJECTED",
+  };
+
+  return {
+    id: report.id,
+    reportId: report.id,
+    roadName: analysis?.road_name || "ไม่ระบุชื่อถนน",
+    district: analysis?.admin_district || "ไม่ระบุพื้นที่",
+    createdAt: report.created_at
+      ? new Date(report.created_at).toLocaleString("th-TH")
+      : "-",
+    priorityClass: normalizePriorityClass(analysis?.priority_class),
+    aiDecision: getPriorityLabel(analysis?.priority_class),
+    confidence: getConfidencePercent(analysis?.confidence_score),
+    probaNormal: analysis?.proba_normal,
+    probaWarning: analysis?.proba_warning,
+    probaCritical: analysis?.proba_critical,
+    verificationStatus: statusMap[report.status] || "WAITING",
+    image: report.image_url || `/uploads/${report.image_filename}`,
+    annotatedImage: analysis?.annotated_image_filename
+      ? `/uploads/${analysis.annotated_image_filename}`
+      : null,
+    rainfall: analysis?.rainfall_last_12m_mm,
+    ndvi: analysis?.ndvi_index,
+    slope: analysis?.slope,
+  };
+};
 
 export default function AIVerificationPage() {
 
@@ -15,10 +50,48 @@ export default function AIVerificationPage() {
     confidence: [0, 100],
     dateRange: null,
   });
+  const [reports, setReports] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    let active = true;
+    fetchReports(1, 100)
+      .then((result) => {
+        if (!active) return;
+        if (!result.success) throw new Error(result.error || "ไม่สามารถโหลดข้อมูลได้");
+        setReports(result.data.reports.map(toVerificationReport));
+      })
+      .catch((loadError) => {
+        if (active) setError(loadError.message);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const filteredReports = useMemo(() => reports.filter((report) => {
+    const keyword = filters.keyword.trim().toLowerCase();
+    const matchesKeyword = !keyword || [report.reportId, report.roadName]
+      .some((value) => String(value || "").toLowerCase().includes(keyword));
+    const matchesDecision = !filters.decision || report.aiDecision === filters.decision;
+    const matchesStatus = !filters.status || report.verificationStatus === filters.status;
+    const matchesConfidence = report.confidence >= filters.confidence[0] &&
+      report.confidence <= filters.confidence[1];
+    return matchesKeyword && matchesDecision && matchesStatus && matchesConfidence;
+  }), [filters, reports]);
 
   return (
     <>
-      <SummaryCards />
+      {error && <Alert type="error" showIcon message="ไม่สามารถโหลดข้อมูล AI Validation ได้" description={error} />}
+
+      {loading ? <Spin tip="กำลังโหลดข้อมูลจากฐานข้อมูล..." size="large" /> : (
+        <>
+      <SummaryCards reports={reports} />
 
       <br />
 
@@ -29,17 +102,13 @@ export default function AIVerificationPage() {
 
       <br />
 
-      <Row gutter={16}>
-        <Col span={17}>
-          <VerificationTable
-            filters={filters}
-          />
-        </Col>
-
-        <Col span={7}>
-          <AccuracyChart />
+      <Row>
+        <Col span={24}>
+          <VerificationTable reports={filteredReports} />
         </Col>
       </Row>
+        </>
+      )}
     </>
   );
 }

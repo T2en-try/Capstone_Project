@@ -4,70 +4,72 @@ import L from "leaflet";
 
 import "leaflet.heat";
 
-import reportMock from "../../mock/reportMock";
-
-
-export default function HeatmapLayer(){
-
+export default function HeatmapLayer({ reports = [] }) {
     const map = useMap();
 
+    useEffect(() => {
+        // ========================================
+        // Convert reports → heatmap points
+        // ========================================
+        const points = reports
+            .filter(
+                (report) =>
+                    report.lat != null &&
+                    report.lng != null
+            )
+            .map((report) => {
+                let intensity = 0.3;
 
-    useEffect(()=>{
+                // ใช้ damage_level ที่ Backend classify มาแล้ว
+                switch (report.damage_level) {
+                    case "critical":
+                        intensity = 1;
+                        break;
 
+                    case "warning":
+                        intensity = 0.8;
+                        break;
 
-        const points = reportMock.map(
-            report=>[
+                    case "moderate":
+                        intensity = 0.8;
+                        break;
 
-                report.lat,
+                    case "good":
+                        intensity = 0.3;
+                        break;
 
-                report.lng,
-
-
-                report.severity === "High"
-                ?
-                1
-
-                :
-
-                report.severity === "Medium"
-                ?
-                0.6
-
-                :
-
-                0.3
-
-            ]
-        );
-
-
-
-        const heat =
-            L.heatLayer(
-                points,
-                {
-                    radius:40,
-                    blur:25,
-                    maxZoom:17
+                    default:
+                        intensity = 0.2;
                 }
-            );
 
+                return [
+                    Number(report.lat),
+                    Number(report.lng),
+                    intensity,
+                ];
+            });
+
+        // ========================================
+        // Create Heatmap
+        // ========================================
+        const heat = L.heatLayer(points, {
+            radius: 40,
+            blur: 25,
+            maxZoom: 17,
+            minOpacity: 0.35,
+        });
 
         heat.addTo(map);
 
-
-
-        return ()=>{
-
-            map.removeLayer(heat);
-
+        // ========================================
+        // Cleanup
+        // ========================================
+        return () => {
+            if (map.hasLayer(heat)) {
+                map.removeLayer(heat);
+            }
         };
-
-
-    },[map]);
-
-
+    }, [map, reports]);
 
     return null;
-
 }

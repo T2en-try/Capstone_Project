@@ -67,7 +67,7 @@ const AIAnalysisCard = ({ report }) => {
 
                         title="AI Confidence"
 
-                        value={report.priorityScore}
+                        value={report.aiConfidence ?? "-"}
 
                         suffix="%"
 
@@ -81,9 +81,9 @@ const AIAnalysisCard = ({ report }) => {
 
                     <Statistic
 
-                        title="Priority Score"
+                        title="Priority Class"
 
-                        value={report.priorityScore}
+                        value={report.priorityClass ?? "-"}
 
                     />
 
@@ -141,7 +141,7 @@ const AIAnalysisCard = ({ report }) => {
 
                 <Progress
 
-                    percent={report.priorityScore}
+                    percent={report.aiConfidence || 0}
 
                     status="active"
 

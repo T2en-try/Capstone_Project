@@ -265,8 +265,14 @@ class MapPointItem(BaseModel):
     status: str
     reporter_name: Optional[str] = None
     created_at: Optional[datetime] = None
+    osm_way_id: Optional[int] = None
     # ความหนาแน่น: weight = 1 ต่อจุด; severity ใช้ค่าด้านล่าง
     severity_score: float = 0.0
+    priority_class: Optional[int] = None
+    confidence_score: Optional[float] = None
+    proba_normal: Optional[float] = None
+    proba_warning: Optional[float] = None
+    proba_critical: Optional[float] = None
     fusion_score: float = 0.0
     decision: Optional[str] = None
     road_name: Optional[str] = None

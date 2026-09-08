@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import { useEffect, useState } from "react";
 import { Card, Tag, Spin, Typography, Table, Tooltip, Badge, Button, Select, Space, Progress } from "antd";
 import {
@@ -36,6 +37,7 @@ export default function TopPriorityAreas({ topN = 5 }) {
       .catch(console.error)
       .finally(() => setLoading(false));
   };
+
 
   useEffect(() => { load(); }, [days]);
 

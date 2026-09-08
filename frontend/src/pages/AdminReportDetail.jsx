@@ -19,7 +19,9 @@ import {
     SafetyCertificateOutlined,
 } from "@ant-design/icons";
 
-import priorityReportMock from "../mock/priorityReportMock";
+import { useEffect, useState } from "react";
+import { fetchReportById, getReportImageUrl } from "../services/dashboardService";
+import { getConfidencePercent, getPriorityLabel, normalizePriorityClass } from "../utils/priorityMapping";
 
 import ReportHeader from "../components/admin-priority/admin-prioritydetail/ReportHeader";
 import ReportInfoCard from "../components/admin-priority/admin-prioritydetail/ReportInfoCard";
@@ -33,8 +35,81 @@ const AdminReportDetail = () => {
     const { id } = useParams();
 
     const navigate = useNavigate();
+    const [report, setReport] = useState(null);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
 
-    const report = priorityReportMock.find((item) => String(item.id) === id);
+    useEffect(() => {
+        let active = true;
+
+        fetchReportById(id)
+            .then((result) => {
+                if (!active) return;
+                if (!result.success) {
+                    setError(result.error || "ไม่สามารถโหลดรายงานได้");
+                    return;
+                }
+
+                const data = result.data;
+                const analysis = data.ai_analysis;
+                const priorityClass = normalizePriorityClass(analysis?.priority_class);
+                const confidence = getConfidencePercent(analysis?.confidence_score);
+
+                setReport({
+                    ...data,
+                    reportId: `RPT-${data.id}`,
+                    title: analysis?.road_name || `รายงานปัญหาถนน #${data.id}`,
+                    priorityClass,
+                    priorityLabel: getPriorityLabel(priorityClass),
+                    gee: Math.round(Number(analysis?.community_impact_score_pi ?? 0)),
+                    aiConfidence: confidence,
+                    aiResult: getPriorityLabel(priorityClass),
+                    probaNormal: analysis?.proba_normal,
+                    probaWarning: analysis?.proba_warning,
+                    probaCritical: analysis?.proba_critical,
+                    engineer: "ยังไม่มีข้อมูล",
+                    verificationStatus: "รอการตรวจสอบ",
+                    confirmedDamage: "ยังไม่มีข้อมูลการยืนยัน",
+                    engineerRemark: "ยังไม่มีหมายเหตุจากวิศวกร",
+                    reporter: data.reporter_name || "ไม่ระบุชื่อ",
+                    location: analysis?.road_name || `${data.latitude ?? "-"}, ${data.longitude ?? "-"}`,
+                    category: analysis?.road_type || "Road Damage",
+                    createdDate: data.created_at
+                        ? new Date(data.created_at).toLocaleString("th-TH")
+                        : "-",
+                    updatedDate: data.updated_at
+                        ? new Date(data.updated_at).toLocaleString("th-TH")
+                        : "-",
+                    image: getReportImageUrl(data),
+                    history: [
+                        {
+                            title: "Report Submitted",
+                            date: data.created_at
+                                ? new Date(data.created_at).toLocaleString("th-TH")
+                                : "-",
+                        },
+                    ],
+                });
+            })
+            .catch((loadError) => {
+                if (active) setError(loadError.message);
+            })
+            .finally(() => {
+                if (active) setLoading(false);
+            });
+
+        return () => {
+            active = false;
+        };
+    }, [id]);
+
+    if (loading) {
+        return <Card>กำลังโหลดข้อมูลรายงาน...</Card>;
+    }
+
+    if (error) {
+        return <Card><Title level={3}>ไม่สามารถโหลดรายงานได้</Title><Text type="danger">{error}</Text></Card>;
+    }
 
     if (!report) {
         return (
@@ -159,10 +234,16 @@ const AdminReportDetail = () => {
                                     <Progress percent={report.aiConfidence} />
                                 </Descriptions.Item>
 
-                                <Descriptions.Item label="Priority Score">
+                                <Descriptions.Item label="Priority Class">
                                     <Tag color="red">
-                                        {report.priorityScore}
+                                        {report.priorityLabel || "ยังไม่มีผลวิเคราะห์"}
                                     </Tag>
+                                </Descriptions.Item>
+
+                                <Descriptions.Item label="Probability">
+                                    Normal {report.probaNormal == null ? "-" : `${Math.round(report.probaNormal * 100)}%`}, {" "}
+                                    Warning {report.probaWarning == null ? "-" : `${Math.round(report.probaWarning * 100)}%`}, {" "}
+                                    Critical {report.probaCritical == null ? "-" : `${Math.round(report.probaCritical * 100)}%`}
                                 </Descriptions.Item>
 
                                 <Descriptions.Item label="GEE Score">

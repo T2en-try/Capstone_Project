@@ -5,7 +5,7 @@ import {
     ClockCircleOutlined,
     SyncOutlined,
     CheckCircleOutlined,
-    ArrowUpOutlined,
+    CloseCircleOutlined,
 } from "@ant-design/icons";
 
 const SummaryCards = ({ data }) => {
@@ -44,6 +44,14 @@ const SummaryCards = ({ data }) => {
             color: "#52c41a",
             bg: "#f6ffed",
             status: "Completed",
+        },
+        {
+            title: "ปฏิเสธ",
+            value: data.rejectedReports,
+            icon: <CloseCircleOutlined />,
+            color: "#ff4d4f",
+            bg: "#fff1f0",
+            status: "Rejected",
         },
     ];
 
@@ -121,17 +129,6 @@ const SummaryCards = ({ data }) => {
                             }}
                         />
 
-                        <div
-                            style={{
-                                marginTop: 4,
-
-                                fontSize: 12,
-
-                                color: "#52c41a",
-                            }}
-                        >
-                            <ArrowUpOutlined /> 12% เดือนนี้
-                        </div>
                     </Card>
                 </Col>
             ))}

@@ -7,9 +7,7 @@ import {
   CheckCircleOutlined,
 } from "@ant-design/icons";
 
-import aiVerificationMock from "../../mock/aiVerificationMock";
-
-export default function VerificationTable() {
+export default function VerificationTable({ reports = [] }) {
 const [selectedReport, setSelectedReport] = useState(null);
 
 const [drawerOpen, setDrawerOpen] = useState(false);
@@ -24,10 +22,7 @@ const [drawerOpen, setDrawerOpen] = useState(false);
       case "Warning":
         return "orange";
 
-      case "Moderate":
-        return "gold";
-
-      case "Low":
+      case "Good (สภาพปกติ)":
         return "green";
 
       default:
@@ -49,7 +44,7 @@ const [drawerOpen, setDrawerOpen] = useState(false);
       case "VERIFIED":
         return "success";
 
-      case "CORRECTED":
+      case "REJECTED":
         return "warning";
 
       default:
@@ -124,13 +119,11 @@ const [drawerOpen, setDrawerOpen] = useState(false);
 
 
     {
-      title: "Fusion",
-
-      dataIndex: "fusionScore",
-
+      title: "Priority Class",
+      dataIndex: "priorityClass",
       align: "center",
-
-      width: 100,
+      width: 120,
+      render: (value) => value || "-",
     },
 
 
@@ -217,7 +210,7 @@ const [drawerOpen, setDrawerOpen] = useState(false);
     <Table
       rowKey="id"
       columns={columns}
-      dataSource={aiVerificationMock}
+      dataSource={reports}
       pagination={{
         pageSize: 8,
       }}

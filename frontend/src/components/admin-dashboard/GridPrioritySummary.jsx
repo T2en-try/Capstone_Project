@@ -21,6 +21,7 @@ export default function GridPrioritySummary({ days = 7 }) {
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     fetchGridPriority(days)
       .then(setData)
@@ -46,7 +47,7 @@ export default function GridPrioritySummary({ days = 7 }) {
       style={{ borderRadius: 14 }}
       title={
         <span>
-          🗺️ สรุปประเภทความเร่งด่วน
+          สรุปประเภทความเร่งด่วน
           <Tooltip title="คำนวณจาก Overall Priority = 0.8×PPI + 0.2×CUS">
             <InfoCircleOutlined style={{ marginLeft: 6, color: "#8c8c8c", fontSize: 13 }} />
           </Tooltip>

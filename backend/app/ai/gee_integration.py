@@ -8,7 +8,7 @@ import os
 # from pyrosm import OSM  # No module named 'pyrosm'
 import geopandas as gpd
 import pandas as pd
-from shapely.geometry import Point
+from shapely.geometry import Point, mapping
 import numpy as np
 
 from app.core.config import settings
@@ -173,6 +173,7 @@ def get_environment_data(lat, lon):
 # --- Caching Mechanism ---
 _cached_driving_network = None
 _cached_pois = None
+_cached_road_geometry = {}
 
 def get_cached_driving_network():
     global _cached_driving_network
@@ -186,6 +187,93 @@ def get_cached_driving_network():
         else:
             print("WARNING: cached_driving_network.parquet not found!")
     return _cached_driving_network
+
+def get_cached_road_geometry(osm_way_id):
+    """Return a cached OSM Way geometry as GeoJSON geometry, or None.
+
+    The cache is already loaded by ``get_cached_driving_network`` and is kept
+    in memory. No external OSM request or synthetic line is created here.
+    """
+    if osm_way_id is None:
+        return None
+
+    try:
+        key = int(osm_way_id)
+    except (TypeError, ValueError):
+        print(f"OSM geometry lookup failed for way_id={osm_way_id}: invalid way ID")
+        return None
+
+    if key in _cached_road_geometry:
+        return _cached_road_geometry[key]
+
+    try:
+        edges = get_cached_driving_network()
+        if edges is None or edges.empty:
+            print(f"OSM geometry not found for way_id={key}: road cache is empty")
+            _cached_road_geometry[key] = None
+            return None
+
+        if "id" not in edges.columns:
+            print(f"OSM geometry lookup failed for way_id={key}: cache has no id column")
+            _cached_road_geometry[key] = None
+            return None
+
+        if "geometry" not in edges.columns:
+            print(f"OSM geometry lookup failed for way_id={key}: cache has no geometry column")
+            _cached_road_geometry[key] = None
+            return None
+
+        matches = edges[edges["id"].apply(
+            lambda value: value is not None and not pd.isna(value) and int(value) == key
+        )]
+        if matches.empty:
+            print(f"OSM geometry not found for way_id={key}")
+            _cached_road_geometry[key] = None
+            return None
+
+        matches = matches[matches.geometry.notna()]
+        if matches.empty:
+            print(f"OSM geometry not found for way_id={key}: geometry is null")
+            _cached_road_geometry[key] = None
+            return None
+
+        if edges.crs is None:
+            print(f"OSM geometry lookup failed for way_id={key}: cache CRS is missing")
+            _cached_road_geometry[key] = None
+            return None
+
+        geometry = matches.geometry.unary_union
+        if geometry.is_empty or not geometry.is_valid:
+            print(f"OSM geometry lookup failed for way_id={key}: geometry is empty or invalid")
+            _cached_road_geometry[key] = None
+            return None
+
+        if geometry.geom_type not in {"LineString", "MultiLineString"}:
+            print(f"OSM geometry lookup failed for way_id={key}: unsupported type {geometry.geom_type}")
+            _cached_road_geometry[key] = None
+            return None
+
+        geometry_4326 = gpd.GeoSeries(
+            [geometry],
+            crs=edges.crs,
+        ).to_crs(epsg=4326).iloc[0]
+        if geometry_4326.is_empty or not geometry_4326.is_valid:
+            print(f"OSM geometry lookup failed for way_id={key}: invalid EPSG:4326 geometry")
+            _cached_road_geometry[key] = None
+            return None
+
+        result = mapping(geometry_4326)
+        if not isinstance(result, dict) or "type" not in result or "coordinates" not in result:
+            print(f"OSM geometry lookup failed for way_id={key}: invalid GeoJSON result")
+            _cached_road_geometry[key] = None
+            return None
+
+        _cached_road_geometry[key] = result
+        return result
+    except Exception as error:
+        print(f"OSM geometry lookup failed for way_id={key}: {error}")
+        _cached_road_geometry[key] = None
+        return None
 
 def get_cached_pois():
     global _cached_pois

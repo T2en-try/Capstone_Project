@@ -16,9 +16,11 @@ import {
   Space,
   Progress,
   message,
+  Typography,
 } from "antd";
 
 const { TextArea } = Input;
+const { Text } = Typography;
 
 export default function VerificationDetailDrawer({
   open,
@@ -73,25 +75,21 @@ export default function VerificationDetailDrawer({
       <Row gutter={16}>
         <Col span={12}>
           <Card title="Original Image">
-            <Image
-              width="100%"
-              src={
-                report.image ||
-                "https://placehold.co/600x400?text=Original+Image"
-              }
-            />
+            {report.image ? (
+              <Image width="100%" src={report.image} />
+            ) : (
+              <Text type="secondary">ไม่มีภาพต้นฉบับ</Text>
+            )}
           </Card>
         </Col>
 
         <Col span={12}>
           <Card title="AI Annotated Image">
-            <Image
-              width="100%"
-              src={
-                report.annotatedImage ||
-                "https://placehold.co/600x400?text=AI+Annotated"
-              }
-            />
+            {report.annotatedImage ? (
+              <Image width="100%" src={report.annotatedImage} />
+            ) : (
+              <Text type="secondary">ไม่มีภาพที่วิเคราะห์แล้ว</Text>
+            )}
           </Card>
         </Col>
       </Row>
@@ -141,9 +139,15 @@ export default function VerificationDetailDrawer({
             <br />
 
             <Statistic
-              title="Fusion Score"
-              value={report.fusionScore}
+              title="Priority Class"
+              value={report.priorityClass ?? "-"}
             />
+
+            <div style={{ marginTop: 12 }}>
+              <div>Normal: {report.probaNormal == null ? "-" : `${Math.round(report.probaNormal * 100)}%`}</div>
+              <div>Warning: {report.probaWarning == null ? "-" : `${Math.round(report.probaWarning * 100)}%`}</div>
+              <div>Critical: {report.probaCritical == null ? "-" : `${Math.round(report.probaCritical * 100)}%`}</div>
+            </div>
 
             <br />
 
@@ -161,7 +165,7 @@ export default function VerificationDetailDrawer({
           <Col span={8}>
             <Statistic
               title="Rainfall"
-              value={1230}
+              value={report.rainfall ?? "-"}
               suffix="mm"
             />
           </Col>
@@ -169,14 +173,14 @@ export default function VerificationDetailDrawer({
           <Col span={8}>
             <Statistic
               title="NDVI"
-              value={0.42}
+              value={report.ndvi ?? "-"}
             />
           </Col>
 
           <Col span={8}>
             <Statistic
               title="Slope"
-              value={3}
+              value={report.slope ?? "-"}
               suffix="°"
             />
           </Col>
@@ -216,10 +220,6 @@ export default function VerificationDetailDrawer({
                     {
                       label: "Low",
                       value: "Low",
-                    },
-                    {
-                      label: "Moderate",
-                      value: "Moderate",
                     },
                     {
                       label: "Warning",

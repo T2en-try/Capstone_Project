@@ -47,6 +47,7 @@ export default function GridPriorityTable() {
       .finally(() => setLoading(false));
   }, [days]);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { load(); }, [load]);
 
   const grids = (data?.grids ?? []).filter(
@@ -128,7 +129,7 @@ export default function GridPriorityTable() {
       dataIndex: "cus",
       width: 160,
       sorter: (a, b) => b.cus - a.cus,
-      render: (v, row) => (
+      render: (v) => (
         <Space direction="vertical" size={0}>
           <Text style={{ fontSize: 15, color: "#722ed1", fontWeight: 700 }}>{v.toFixed(1)}</Text>
           <Progress percent={v} size="small" showInfo={false} strokeColor="#722ed1" />

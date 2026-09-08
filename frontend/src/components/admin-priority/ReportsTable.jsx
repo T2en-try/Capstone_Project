@@ -7,30 +7,37 @@ import {
 } from "@ant-design/icons";
 
 import { useNavigate } from "react-router-dom";
+import { getConfidencePercent, getPriorityLabel, normalizePriorityClass } from "../../utils/priorityMapping";
 
-import priorityReportMock from "../../mock/priorityReportMock";
 
-const ReportsTable = () => {
+const ReportsTable = ({ reports = [], loading = false }) => {
+    const tableData = reports.map((report) => ({
+        ...report,
+        reportId: `RPT-${report.id}`,
+        roadName: report.ai_analysis?.road_name || "ไม่ระบุชื่อถนน",
+        damageType: getPriorityLabel(report.ai_analysis?.priority_class),
+        priorityClass: normalizePriorityClass(report.ai_analysis?.priority_class),
+        confidenceScore: getConfidencePercent(report.ai_analysis?.confidence_score),
+        status: report.status,
+        reportDate: report.created_at
+            ? new Date(report.created_at).toLocaleDateString("th-TH")
+            : "-",
+    }));
     const navigate = useNavigate();
-
-    const getPriorityColor = (score) => {
-        if (score >= 90) return "#ff4d4f";
-        if (score >= 70) return "#fa8c16";
-        if (score >= 50) return "#faad14";
-
-        return "#52c41a";
-    };
 
     const getStatusColor = (status) => {
         switch (status) {
-            case "Pending":
+            case "pending":
                 return "gold";
 
-            case "Processing":
+            case "processing":
                 return "blue";
 
-            case "Completed":
+            case "completed":
                 return "green";
+
+            case "rejected":
+                return "red";
 
             default:
                 return "default";
@@ -85,21 +92,37 @@ const ReportsTable = () => {
         },
 
         {
-            title: "Damage",
+            title: "Priority Class",
 
             dataIndex: "damageType",
 
             key: "damageType",
 
-            width: 170,
+            width: 230,
+
+            render: (label, record) => (
+                <Tag
+                    color={
+                        record.priorityClass === 1
+                            ? "green"
+                            : record.priorityClass === 2
+                            ? "orange"
+                            : record.priorityClass === 3
+                            ? "red"
+                            : "default"
+                    }
+                >
+                    {label}
+                </Tag>
+            ),
         },
 
         {
-            title: "Priority Score",
+            title: "AI Confidence",
 
-            dataIndex: "priorityScore",
+            dataIndex: "confidenceScore",
 
-            key: "priorityScore",
+            key: "confidenceScore",
 
             width: 180,
 
@@ -111,27 +134,15 @@ const ReportsTable = () => {
                     }}
                     size={2}
                 >
-                    <b>{score}</b>
+                    <b>{score === null ? "-" : `${score}%`}</b>
 
                     <Progress
-                        percent={score}
+                        percent={score || 0}
                         showInfo={false}
-                        strokeColor={getPriorityColor(score)}
+                        strokeColor="#1677ff"
                     />
                 </Space>
             ),
-        },
-
-        {
-            title: "GEE",
-
-            dataIndex: "gee",
-
-            key: "gee",
-
-            width: 120,
-
-            render: (gee) => <Progress percent={gee} size="small" />,
         },
 
         {
@@ -200,7 +211,8 @@ const ReportsTable = () => {
         <Table
             rowKey="id"
             columns={columns}
-            dataSource={priorityReportMock}
+            dataSource={tableData}
+            loading={loading}
             scroll={{
                 x: 1200,
             }}
