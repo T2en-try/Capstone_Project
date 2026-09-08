@@ -67,3 +67,12 @@ backend/scratch/
 # Local Docker overrides and generated diagnostics
 docker-compose.override.yml
 *.log
+
+# Internal-only docs excluded per public-repo audit (kept locally, not public)
+CLAUDE.md
+Web.md
+frontend/LOGIN.md
+docs/DEVOPS_GUIDE.md
+docs/FRONTEND_GUIDE.md
+docs/feature_list_for_professor.md
+docs/production_migration_log.md

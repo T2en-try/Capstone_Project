@@ -4,19 +4,43 @@ Seed Admin Script
 
 Usage:
     python seed_admin.py
+
+Password source (no hardcoded default -- see production_migration_log.md's
+README/CLAUDE.md audit entry for why):
+    1. ADMIN_DEFAULT_PASSWORD environment variable, if set.
+    2. Otherwise, prompted for interactively (hidden input, confirmed twice).
 """
 
 import asyncio
+import os
+from getpass import getpass
 from sqlalchemy import select
 from app.core.database import async_session, init_db
 from app.auth.models import AdminUser
 from app.auth.utils import hash_password
 
 
-# ─── Default Admin Credentials ─────────────────────────────────
+# ─── Default Admin Identity (not secret -- just the seeded login email) ────
 DEFAULT_EMAIL = "admin@roadmonitor.com"
-DEFAULT_PASSWORD = "admin1234"
 DEFAULT_NAME = "System Admin"
+
+
+def _resolve_password() -> str:
+    """ดึงรหัสผ่านจาก ADMIN_DEFAULT_PASSWORD หรือถามจากผู้ใช้ (ไม่ echo หน้าจอ)"""
+    env_password = os.environ.get("ADMIN_DEFAULT_PASSWORD")
+    if env_password:
+        return env_password
+
+    while True:
+        password = getpass("Set initial admin password: ")
+        if not password:
+            print("[ERROR] Password cannot be empty.")
+            continue
+        confirm = getpass("Confirm password: ")
+        if password != confirm:
+            print("[ERROR] Passwords did not match, try again.")
+            continue
+        return password
 
 
 async def seed():
@@ -35,10 +59,12 @@ async def seed():
             print(f"[WARN] Admin '{DEFAULT_EMAIL}' already exists (ID: {existing.id})")
             return
 
+        password = _resolve_password()
+
         # สร้าง admin ใหม่
         admin = AdminUser(
             email=DEFAULT_EMAIL,
-            hashed_password=hash_password(DEFAULT_PASSWORD),
+            hashed_password=hash_password(password),
             full_name=DEFAULT_NAME,
             role="admin",
             is_active=True,
@@ -48,9 +74,8 @@ async def seed():
         await db.refresh(admin)
 
         print(f"[OK] Admin created successfully!")
-        print(f"   Email:    {DEFAULT_EMAIL}")
-        print(f"   Password: {DEFAULT_PASSWORD}")
-        print(f"   ID:       {admin.id}")
+        print(f"   Email: {DEFAULT_EMAIL}")
+        print(f"   ID:    {admin.id}")
 
 
 if __name__ == "__main__":
