@@ -21,6 +21,7 @@ class ReportCreateManual(BaseModel):
 class ReportUpdateStatus(BaseModel):
     """Schema สำหรับอัปเดตสถานะรายงาน"""
     status: str = Field(..., description="สถานะใหม่: pending, processing, completed, rejected")
+    note: Optional[str] = Field(None, max_length=2000, description="บันทึกการปฏิบัติงาน/หมายเหตุเพิ่มเติม")
 
 
 class ReportLocationConfirm(BaseModel):
@@ -104,6 +105,19 @@ class AIAnalysisResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True, protected_namespaces=())
 
 
+class ReportActionResponse(BaseModel):
+    id: int
+    report_id: int
+    officer_id: Optional[int] = None
+    previous_status: Optional[str] = None
+    new_status: str
+    action_note: Optional[str] = None
+    repaired_image_filename: Optional[str] = None
+    action_timestamp: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class ReportResponse(BaseModel):
     """Schema สำหรับ Response ข้อมูลรายงานหลัก"""
     id: int
@@ -118,15 +132,24 @@ class ReportResponse(BaseModel):
     description: Optional[str] = None
     reporter_name: Optional[str] = None
     status: str
+    priority_status: Optional[str] = "pending"
     rejection_reason: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     
-    # ดึงข้อมูลจากตารางสัมพันธ์แบบ 1-to-1
+    # ดึงข้อมูลจากตารางสัมพันธ์
     ai_analysis: Optional[AIAnalysisResponse] = None
+    actions: list[ReportActionResponse] = Field(default_factory=list)
 
     class Config:
         from_attributes = True
+
+    @computed_field
+    @property
+    def latest_action(self) -> Optional[ReportActionResponse]:
+        if self.actions:
+            return sorted(self.actions, key=lambda a: a.action_timestamp, reverse=True)[0]
+        return None
 
     @computed_field
     @property
@@ -233,19 +256,6 @@ class UserResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class ReportActionResponse(BaseModel):
-    id: int
-    report_id: int
-    officer_id: Optional[int] = None
-    previous_status: Optional[str] = None
-    new_status: str
-    action_note: Optional[str] = None
-    repaired_image_filename: Optional[str] = None
-    action_timestamp: datetime
-
-    model_config = ConfigDict(from_attributes=True)
-
-
 class SystemSettingResponse(BaseModel):
     id: int
     config_key: str
@@ -263,6 +273,7 @@ class MapPointItem(BaseModel):
     latitude: float
     longitude: float
     status: str
+    priority_status: Optional[str] = "pending"
     reporter_name: Optional[str] = None
     created_at: Optional[datetime] = None
     osm_way_id: Optional[int] = None

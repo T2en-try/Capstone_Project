@@ -1,16 +1,31 @@
-import { Table, Tag, Progress, Button, Dropdown, Space } from "antd";
+import { useState } from "react";
+import { Table, Tag, Progress, Button, Dropdown, Space, message, Modal, Input, Typography } from "antd";
 import {
     MoreOutlined,
     EyeOutlined,
-    UserAddOutlined,
+    SyncOutlined,
     CheckCircleOutlined,
+    ClockCircleOutlined,
 } from "@ant-design/icons";
 
 import { useNavigate } from "react-router-dom";
 import { getConfidencePercent, getPriorityLabel, normalizePriorityClass } from "../../utils/priorityMapping";
+import { updatePriorityStatus } from "../../services/dashboardService";
+import { getReportStatus, getStatusColor, formatActionDate } from "../../utils/statusHelper";
+
+const { Text } = Typography;
 
 
-const ReportsTable = ({ reports = [], loading = false }) => {
+const ReportsTable = ({ reports = [], loading = false, onReportUpdated }) => {
+    const navigate = useNavigate();
+
+    // Modal State สำหรับการบันทึกสถานะพร้อม Note
+    const [modalVisible, setModalVisible] = useState(false);
+    const [activeRecord, setActiveRecord] = useState(null);
+    const [targetStatus, setTargetStatus] = useState("");
+    const [actionNote, setActionNote] = useState("");
+    const [submitting, setSubmitting] = useState(false);
+
     const tableData = reports.map((report) => ({
         ...report,
         reportId: `RPT-${report.id}`,
@@ -18,57 +33,63 @@ const ReportsTable = ({ reports = [], loading = false }) => {
         damageType: getPriorityLabel(report.ai_analysis?.priority_class),
         priorityClass: normalizePriorityClass(report.ai_analysis?.priority_class),
         confidenceScore: getConfidencePercent(report.ai_analysis?.confidence_score),
-        status: report.status,
+        priorityStatus: getReportStatus(report),
         reportDate: report.created_at
-            ? new Date(report.created_at).toLocaleDateString("th-TH")
+            ? formatActionDate(report.created_at)
             : "-",
     }));
-    const navigate = useNavigate();
 
-    const getStatusColor = (status) => {
-        switch (status) {
-            case "pending":
-                return "gold";
+    const handleOpenStatusModal = (record, newStatus) => {
+        setActiveRecord(record);
+        setTargetStatus(newStatus);
+        setActionNote("");
+        setModalVisible(true);
+    };
 
-            case "processing":
-                return "blue";
+    const handleConfirmStatusChange = async () => {
+        if (!activeRecord?.id || !targetStatus) return;
 
-            case "completed":
-                return "green";
-
-            case "rejected":
-                return "red";
-
-            default:
-                return "default";
+        setSubmitting(true);
+        try {
+            const result = await updatePriorityStatus(activeRecord.id, targetStatus, actionNote);
+            if (result.success) {
+                message.success(`อัปเดตสถานะ RPT-${activeRecord.id} เป็น ${targetStatus} เรียบร้อยแล้ว`);
+                setModalVisible(false);
+                setActionNote("");
+                if (onReportUpdated) {
+                    onReportUpdated();
+                }
+            } else {
+                message.error(result.error || "ไม่สามารถอัปเดตสถานะได้");
+            }
+        } catch (err) {
+            message.error("เกิดข้อผิดพลาด: " + err.message);
+        } finally {
+            setSubmitting(false);
         }
     };
 
     const menuItems = (record) => [
         {
-            key: "assign",
-
-            icon: <UserAddOutlined />,
-
-            label: "Assign Engineer",
-
-            onClick: () => {
-                console.log("Assign", record);
-            },
+            key: "pending",
+            icon: <ClockCircleOutlined />,
+            label: "Mark as Pending",
+            disabled: record.priorityStatus === "pending",
+            onClick: () => handleOpenStatusModal(record, "pending"),
         },
-
         {
-            key: "complete",
-
+            key: "processing",
+            icon: <SyncOutlined />,
+            label: "Mark as Processing",
+            disabled: record.priorityStatus === "processing",
+            onClick: () => handleOpenStatusModal(record, "processing"),
+        },
+        {
+            key: "completed",
             icon: <CheckCircleOutlined />,
-
             label: "Mark as Completed",
-
-            disabled: record.status === "Completed",
-
-            onClick: () => {
-                console.log("Complete", record);
-            },
+            disabled: record.priorityStatus === "completed",
+            onClick: () => handleOpenStatusModal(record, "completed"),
         },
     ];
 
@@ -148,9 +169,9 @@ const ReportsTable = ({ reports = [], loading = false }) => {
         {
             title: "Status",
 
-            dataIndex: "status",
+            dataIndex: "priorityStatus",
 
-            key: "status",
+            key: "priorityStatus",
 
             width: 150,
 
@@ -200,7 +221,10 @@ const ReportsTable = ({ reports = [], loading = false }) => {
                         }}
                         trigger={["click"]}
                     >
-                        <Button icon={<MoreOutlined />} />
+                        <Button
+                            icon={<MoreOutlined />}
+                            loading={submitting && activeRecord?.id === record.id}
+                        />
                     </Dropdown>
                 </Space>
             ),
@@ -208,20 +232,67 @@ const ReportsTable = ({ reports = [], loading = false }) => {
     ];
 
     return (
-        <Table
-            rowKey="id"
-            columns={columns}
-            dataSource={tableData}
-            loading={loading}
-            scroll={{
-                x: 1200,
-            }}
-            pagination={{
-                pageSize: 8,
+        <>
+            <Table
+                rowKey="id"
+                columns={columns}
+                dataSource={tableData}
+                loading={loading}
+                scroll={{
+                    x: 1200,
+                }}
+                pagination={{
+                    pageSize: 8,
+                    showSizeChanger: false,
+                }}
+            />
 
-                showSizeChanger: false,
-            }}
-        />
+            {/* Modal สำหรับกรอก Note ในการอัปเดตสถานะ */}
+            <Modal
+                title={`อัปเดตสถานะรายงาน ${activeRecord?.reportId || ""}`}
+                open={modalVisible}
+                onCancel={() => {
+                    if (!submitting) {
+                        setModalVisible(false);
+                        setActionNote("");
+                    }
+                }}
+                onOk={handleConfirmStatusChange}
+                confirmLoading={submitting}
+                okText="บันทึกการอัปเดต"
+                cancelText="ยกเลิก"
+                destroyOnClose
+            >
+                <Space direction="vertical" style={{ width: "100%", marginTop: 12 }} size={16}>
+                    <div>
+                        <Text type="secondary">ถนน: </Text>
+                        <Text strong>{activeRecord?.roadName || "-"}</Text>
+                    </div>
+
+                    <div>
+                        <Text type="secondary">การเปลี่ยนสถานะ: </Text>
+                        <Tag color={getStatusColor(activeRecord?.priorityStatus)}>
+                            {activeRecord?.priorityStatus}
+                        </Tag>
+                        {" → "}
+                        <Tag color={getStatusColor(targetStatus)}>
+                            {targetStatus}
+                        </Tag>
+                    </div>
+
+                    <div>
+                        <Text strong>บันทึกการปฏิบัติงาน (Note / หมายเหตุ):</Text>
+                        <Input.TextArea
+                            rows={4}
+                            value={actionNote}
+                            onChange={(e) => setActionNote(e.target.value)}
+                            placeholder="ระบุว่าทำอะไรไปบ้างในการอัปเดต เช่น ส่งทีมช่างเข้าตรวจสอบ, กำลังจัดเตรียมเครื่องจักร, ซ่อมแซมเรียบร้อยแล้ว..."
+                            style={{ marginTop: 8 }}
+                        />
+                    </div>
+                </Space>
+            </Modal>
+        </>
     );
 };
 

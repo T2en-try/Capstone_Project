@@ -14,6 +14,7 @@ import ReportsTable from "../components/admin-priority/ReportsTable";
 import GridPriorityTable from "../components/admin-priority/GridPriorityTable";
 import { fetchDashboardStats, fetchReports } from "../services/dashboardService";
 import { getPriorityLabel, normalizePriorityClass } from "../utils/priorityMapping";
+import { getReportStatus } from "../utils/statusHelper";
 
 const { Title, Text } = Typography;
 
@@ -46,7 +47,12 @@ const PriorityReportsPage = () => {
             }
 
             setStats(statsResult.data);
-            setReports(reportsResult.data.reports);
+            // ดึงเฉพาะรายงานที่ผ่านการวิเคราะห์ AI แล้ว (status=completed)
+            // เพื่อแสดงใน Priority Reports
+            const completedReports = reportsResult.data.reports.filter(
+                (r) => r.status === "completed"
+            );
+            setReports(completedReports);
         } catch (loadError) {
             setError(loadError.message);
         } finally {
@@ -73,7 +79,7 @@ const PriorityReportsPage = () => {
             roadName,
         ].some((value) => String(value || "").toLowerCase().includes(keyword));
         const matchesStatus =
-            filters.status === "all" || report.status === filters.status;
+            filters.status === "all" || getReportStatus(report) === filters.status;
         const matchesPriority =
             filters.priority === "all" || getPriority(report) === filters.priority;
         return matchesKeyword && matchesStatus && matchesPriority;
@@ -98,7 +104,7 @@ const PriorityReportsPage = () => {
                             marginBottom: 20,
                         }}
                     >
-                        <SummaryCards stats={stats} loading={loading} />
+                        <SummaryCards stats={stats} reports={reports} loading={loading} />
                     </Card>
 
                     {/* ================= Report Table ================= */}
@@ -136,7 +142,7 @@ const PriorityReportsPage = () => {
 
                         {/* Table */}
                         <div style={{ marginTop: 24 }}>
-                            <ReportsTable reports={filteredReports} loading={loading} />
+                            <ReportsTable reports={filteredReports} loading={loading} onReportUpdated={loadReports} />
                         </div>
                     </Card>
                 </div>

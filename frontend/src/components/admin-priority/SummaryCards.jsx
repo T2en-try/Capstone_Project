@@ -6,13 +6,24 @@ import {
     SyncOutlined,
     CheckCircleOutlined,
 } from "@ant-design/icons";
+import { getReportStatus } from "../../utils/statusHelper";
 
-const SummaryCards = ({ stats = {}, loading = false }) => {
+const SummaryCards = ({ stats = {}, reports = [], loading = false }) => {
+    // คำนวณสถิติจาก actions ล่าสุด (road_actions) ของรายงานที่ผ่าน AI แล้ว
+    const priorityCounts = reports.reduce(
+        (acc, r) => {
+            const ps = getReportStatus(r);
+            acc[ps] = (acc[ps] || 0) + 1;
+            return acc;
+        },
+        { pending: 0, processing: 0, completed: 0 }
+    );
+
     const cards = [
         {
             title: "รายงานทั้งหมด",
 
-            value: stats.total_reports ?? 0,
+            value: reports.length || stats.total_reports || 0,
 
             icon: <FileTextOutlined />,
 
@@ -22,9 +33,9 @@ const SummaryCards = ({ stats = {}, loading = false }) => {
         },
 
         {
-            title: "รอตรวจสอบ",
+            title: "รอดำเนินการ",
 
-            value: stats.pending_count ?? 0,
+            value: priorityCounts.pending,
 
             icon: <ClockCircleOutlined />,
 
@@ -36,7 +47,7 @@ const SummaryCards = ({ stats = {}, loading = false }) => {
         {
             title: "กำลังดำเนินการ",
 
-            value: stats.processing_count ?? 0,
+            value: priorityCounts.processing,
 
             icon: <SyncOutlined spin />,
 
@@ -48,7 +59,7 @@ const SummaryCards = ({ stats = {}, loading = false }) => {
         {
             title: "ดำเนินการเสร็จสิ้น",
 
-            value: stats.completed_count ?? 0,
+            value: priorityCounts.completed,
 
             icon: <CheckCircleOutlined />,
 

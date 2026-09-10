@@ -22,6 +22,7 @@ import {
   getSeverityLabel,
   normalizePriorityClass,
 } from "../utils/priorityMapping";
+import { getReportStatus } from "../utils/statusHelper";
 
 const { Title, Text } = Typography;
 
@@ -91,19 +92,23 @@ export default function DashboardPage() {
           createdAt: new Date(report.created_at).toLocaleString("th-TH"),
         }));
 
-        const priorityReports = reports.map((report) => ({
-          id: report.id,
-          title: report.description || `รายงาน #${report.id}`,
-          location: getLocation(report),
-          severity: getSeverityLabel(report.ai_analysis?.priority_class),
-          priorityClass: normalizePriorityClass(report.ai_analysis?.priority_class),
-          priorityLabel: getPriorityLabel(report.ai_analysis?.priority_class),
-          priorityScore: report.ai_analysis?.final_fusion_score ?? null,
-          confidence: getConfidencePercent(report.ai_analysis?.confidence_score),
-          probaNormal: report.ai_analysis?.proba_normal,
-          probaWarning: report.ai_analysis?.proba_warning,
-          probaCritical: report.ai_analysis?.proba_critical,
-        }));
+        // Priority Reports: ดึงเฉพาะรายงานที่ผ่าน AI แล้ว (status=completed)
+        const priorityReports = reports
+          .filter((r) => r.status === "completed")
+          .map((report) => ({
+            id: report.id,
+            title: report.description || `รายงาน #${report.id}`,
+            location: getLocation(report),
+            severity: getSeverityLabel(report.ai_analysis?.priority_class),
+            priorityClass: normalizePriorityClass(report.ai_analysis?.priority_class),
+            priorityLabel: getPriorityLabel(report.ai_analysis?.priority_class),
+            priorityScore: report.ai_analysis?.final_fusion_score ?? null,
+            confidence: getConfidencePercent(report.ai_analysis?.confidence_score),
+            probaNormal: report.ai_analysis?.proba_normal,
+            probaWarning: report.ai_analysis?.proba_warning,
+            probaCritical: report.ai_analysis?.proba_critical,
+            priorityStatus: getReportStatus(report),
+          }));
 
         const mapReports = pointsResult.data.points.map((point) => ({
           id: point.id,

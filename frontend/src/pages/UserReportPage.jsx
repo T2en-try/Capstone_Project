@@ -12,7 +12,7 @@ import StatusBadge from '../components/ui/StatusBadge';
 import GpsPinModal from '../features/reports/GpsPinModal';
 import AiResultModal from '../features/reports/AiResultModal';
 import ReportDetailModal from '../features/reports/ReportDetailModal';
-import HeatmapPanel from '../features/reports/HeatmapPanel';
+
 import MainLayout from '../layouts/MainLayout';
 import Sidebar from '../layouts/Sidebar';
 import Navbar from '../layouts/Navbar';
@@ -34,8 +34,7 @@ export default function UserReportPage() {
   const pendingFormRef = useRef(null);
 
   const [formData, setFormData] = useState({ description: '', reporter_name: '' });
-  const [mapPoints, setMapPoints] = useState([]);
-  const [mapLoading, setMapLoading] = useState(false);
+
 
   useEffect(() => {
     fetchData();
@@ -47,20 +46,15 @@ export default function UserReportPage() {
   }, []);
 
   const fetchData = async () => {
-    setMapLoading(true);
     try {
-      const [resList, resStats, resMap] = await Promise.all([
+      const [resList, resStats] = await Promise.all([
         axios.get(`${API_REPORTS}/?per_page=100`),
         axios.get(`${API_REPORTS}/stats/summary`),
-        axios.get(`${API_REPORTS}/map/points`),
       ]);
       setReports(resList.data.reports || []);
       setStats(resStats.data);
-      setMapPoints(resMap.data.points || []);
     } catch (err) {
       console.error('Fetch Error:', err);
-    } finally {
-      setMapLoading(false);
     }
   };
 
@@ -387,7 +381,7 @@ export default function UserReportPage() {
         </main>
       </div>
 
-      <HeatmapPanel points={mapPoints} loading={mapLoading} />
+
 
       {showPinModal && (
         <GpsPinModal pendingFile={pendingFile} onConfirm={handlePinConfirm} onCancel={handlePinCancel} />

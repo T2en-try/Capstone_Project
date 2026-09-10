@@ -8,9 +8,11 @@ from app.reports.models import ReportStatus
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_stats_summary_counts_each_status(client, create_report):
-    await create_report(status=ReportStatus.PENDING)
-    await create_report(status=ReportStatus.PROCESSING)
-    await create_report(status=ReportStatus.COMPLETED)
+    # Priority reports (AI status=COMPLETED) with different priority_statuses
+    await create_report(status=ReportStatus.COMPLETED, priority_status="pending")
+    await create_report(status=ReportStatus.COMPLETED, priority_status="processing")
+    await create_report(status=ReportStatus.COMPLETED, priority_status="completed")
+    # Rejected report
     await create_report(status=ReportStatus.REJECTED)
 
     response = await client.get("/api/reports/stats/summary")

@@ -43,7 +43,6 @@ const FilterBar = ({ filters, onChange }) => {
             { label: "Pending", value: "pending" },
             { label: "Processing", value: "processing" },
             { label: "Completed", value: "completed" },
-            { label: "Rejected", value: "rejected" },
           ]}
         />
       </Col>

@@ -1,4 +1,5 @@
 import { API_REPORTS, BASE_URL } from "./api";
+import { getReportStatus } from "../utils/statusHelper";
 
 /**
  * =========================================================
@@ -203,7 +204,8 @@ export const fetchReports = async (
 export const fetchLatestReports = async (
   limit = 4
 ) => {
-  return fetchReports(1, limit);
+  // ดึงเฉพาะ Priority Reports (รายงานที่ผ่าน AI แล้ว: status=completed)
+  return fetchReports(1, limit, "completed");
 };
 
 
@@ -213,7 +215,7 @@ export const fetchLatestReports = async (
  * =========================================================
  *
  * กรองจุดบนแผนที่ตามคำค้นและสถานะ
- * - สถานะ: กรอง client-side จาก map points
+ * - สถานะ: กรอง client-side จาก priority_status ของ map points / reports
  * - คำค้น: ดึงรายการรายงานเพิ่มเพื่อค้นใน description / ชื่อถนน
  */
 const getReportRoadName = (report) =>
@@ -272,7 +274,8 @@ export const applyDashboardFilters = (
   }
 
   const matchedReports = allReports.filter((report) => {
-    if (hasStatus && normalizeStatus(report.status) !== normalizedStatus) {
+    const reportStatus = normalizeStatus(getReportStatus(report));
+    if (hasStatus && reportStatus !== normalizedStatus) {
       return false;
     }
     return matchesReportKeyword(report, normalizedKeyword);
@@ -283,7 +286,8 @@ export const applyDashboardFilters = (
   );
 
   const points = allMapPoints.filter((point) => {
-    if (hasStatus && normalizeStatus(point.status) !== normalizedStatus) {
+    const pointStatus = normalizeStatus(point.priority_status || point.status);
+    if (hasStatus && pointStatus !== normalizedStatus) {
       return false;
     }
 
@@ -535,6 +539,83 @@ export const uploadRoadReport = async ({
 
 /**
  * =========================================================
+ * 8. Update Priority Status (Admin Workflow)
+ * =========================================================
+ *
+ * PATCH /api/reports/{id}/priority-status
+ * ใช้สำหรับเปลี่ยนสถานะการดำเนินงานของแอดมิน
+ * (pending → processing → completed)
+ * แยกจาก status ของ AI ที่ใช้ใน /admin/ai
+ */
+export const updatePriorityStatus = async (
+  reportId,
+  newStatus,
+  note = ""
+) => {
+  try {
+    if (!reportId) {
+      throw new Error("ไม่พบ Report ID");
+    }
+
+    // ดึง token จาก localStorage
+    const token = localStorage.getItem("admin_token");
+    if (!token) {
+      throw new Error("กรุณาเข้าสู่ระบบก่อน");
+    }
+
+    const payload = {
+      status: newStatus.toLowerCase(),
+    };
+    if (note && note.trim()) {
+      payload.note = note.trim();
+    }
+
+    const response = await fetch(
+      `${API_REPORTS}/${reportId}/priority-status`,
+      {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+
+    if (!response.ok) {
+      const errData = await response
+        .json()
+        .catch(() => ({}));
+      throw new Error(
+        errData.detail ||
+          `ไม่สามารถอัปเดตสถานะได้ (${response.status})`
+      );
+    }
+
+    const data = await response.json();
+
+    return {
+      success: true,
+      data,
+    };
+  } catch (error) {
+    console.error(
+      `❌ updatePriorityStatus(${reportId}):`,
+      error
+    );
+
+    return {
+      success: false,
+      data: null,
+      error: error.message,
+    };
+  }
+};
+
+
+/**
+ * =========================================================
  * Export
  * =========================================================
  */
@@ -550,4 +631,5 @@ export default {
   applyDashboardFilters,
   matchesReportKeyword,
   matchesPointKeyword,
+  updatePriorityStatus,
 };

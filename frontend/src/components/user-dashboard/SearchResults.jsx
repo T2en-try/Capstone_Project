@@ -4,6 +4,7 @@ import {
     ChevronRight,
     SearchX,
 } from "lucide-react";
+import { getReportStatus } from "../../utils/statusHelper";
 
 const STATUS_LABELS = {
     pending: "รอดำเนินการ",
@@ -72,9 +73,10 @@ export default function SearchResults({
             ) : (
                 <div className="max-h-[320px] space-y-2 overflow-y-auto pr-1">
                     {reports.map((report) => {
+                        const currentStatus = getReportStatus(report);
                         const statusLabel =
-                            STATUS_LABELS[report.status] ||
-                            report.status ||
+                            STATUS_LABELS[currentStatus] ||
+                            currentStatus ||
                             "ไม่ระบุ";
 
                         return (

@@ -13,6 +13,7 @@ import {
     fetchLatestReports,
     getReportImageUrl,
 } from "../../services/dashboardService";
+import { getReportStatus } from "../../utils/statusHelper";
 
 const NewsSection = () => {
     const [reports, setReports] = useState([]);
@@ -324,7 +325,7 @@ const NewsSection = () => {
                     "
                 >
                     {reports.map((report) => {
-                        const status = getStatus(report.status);
+                        const status = getStatus(getReportStatus(report));
                         const imageUrl = getReportImageUrl(report);
 
                         return (

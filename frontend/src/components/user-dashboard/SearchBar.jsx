@@ -6,7 +6,6 @@ const STATUS_OPTIONS = [
     { value: "pending", label: "รอดำเนินการ" },
     { value: "processing", label: "กำลังดำเนินการ" },
     { value: "completed", label: "ซ่อมเสร็จแล้ว" },
-    { value: "rejected", label: "ปฏิเสธ" },
 ];
 
 export default function SearchBar({

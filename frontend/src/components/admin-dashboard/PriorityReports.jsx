@@ -193,6 +193,14 @@ const PriorityReports = ({ reports = [] }) => {
                                         {priorityConfig[item.priorityClass]?.label || "ยังไม่มีผลวิเคราะห์"}
                                     </Tag>
 
+                                    <Tag color={
+                                        item.priorityStatus === "completed" ? "green"
+                                            : item.priorityStatus === "processing" ? "blue"
+                                            : "gold"
+                                    }>
+                                        {item.priorityStatus || "pending"}
+                                    </Tag>
+
                                     <Progress
                                         percent={Number(item.priorityScore) || 0}
                                         showInfo={false}

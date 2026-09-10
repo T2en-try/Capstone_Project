@@ -9,7 +9,7 @@ from typing import Optional
 from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, Request, BackgroundTasks
 from sqlalchemy import func, select
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 # --- [IMPORT จากโครงสร้าง 3-Table Normalized Schema] ---
@@ -17,7 +17,7 @@ from app.ai.engine import ai_engine
 from app.core.config import settings
 from app.core.database import get_db, async_session
 from app.reports.models import (
-    RoadReport, AIAnalysis, ApiCacheGeeOsm, ReportStatus, PriorityClass,
+    RoadReport, ReportAction, AIAnalysis, ApiCacheGeeOsm, ReportStatus, PriorityClass,
     AiCvFeatures, AiGeeContext, AiGisContext, AiPoiContext, AiCrowdsourceContext,
     AiPriorityDecision, AiLegacyScores,
 )
@@ -69,6 +69,14 @@ async def process_report_background(
                     if report:
                         report.status = ReportStatus.REJECTED
                         report.rejection_reason = "not_a_road"
+                        db.add(ReportAction(
+                            report_id=report.id,
+                            officer_id=None,
+                            previous_status=ReportStatus.PROCESSING,
+                            new_status=ReportStatus.REJECTED,
+                            action_note="ภาพไม่ผ่าน Gatekeeper (ไม่ใช่ภาพถนน)",
+                            action_timestamp=datetime.now(timezone.utc)
+                        ))
                         await db.commit()
                     return
 
@@ -238,16 +246,43 @@ async def process_report_background(
                 db.add(ai_rec)
                 
                 # Update status
+                now_utc = datetime.now(timezone.utc)
                 if fusion_r.get("final_decision", "").startswith("Rejected"):
                     report.status = ReportStatus.REJECTED
+                    db.add(ReportAction(
+                        report_id=report.id,
+                        officer_id=None,
+                        previous_status=ReportStatus.PROCESSING,
+                        new_status=ReportStatus.REJECTED,
+                        action_note=f"ปฏิเสธโดยระบบ AI: {report.rejection_reason or 'ไม่ผ่านเกณฑ์การตรวจสอบ'}",
+                        action_timestamp=now_utc
+                    ))
                 else:
                     report.status = ReportStatus.COMPLETED
+                    report.priority_status = "pending"  # เริ่มต้นให้แอดมินเข้าจัดการ
+                    db.add(ReportAction(
+                        report_id=report.id,
+                        officer_id=None,
+                        previous_status=ReportStatus.PROCESSING,
+                        new_status=ReportStatus.PENDING,
+                        action_note="AI วิเคราะห์เสร็จสิ้น ส่งเข้าคิวจัดลำดับความสำคัญ (Pending)",
+                        action_timestamp=now_utc
+                    ))
 
             elif report and report.status == ReportStatus.PROCESSING:
                 # ai_analysis is None — set rejected to avoid getting stuck
                 print(f"Report {report_id}: ai_analysis=None, ตั้งสถานะเป็น rejected")
+                now_utc = datetime.now(timezone.utc)
                 report.status = ReportStatus.REJECTED
                 report.rejection_reason = "analysis_failed"
+                db.add(ReportAction(
+                    report_id=report.id,
+                    officer_id=None,
+                    previous_status=ReportStatus.PROCESSING,
+                    new_status=ReportStatus.REJECTED,
+                    action_note="การวิเคราะห์ AI ล้มเหลว (analysis_failed)",
+                    action_timestamp=now_utc
+                ))
 
             await db.commit()
             print(f"ประมวลผลรายงาน {report_id} ในเบื้องหลังสำเร็จ")
@@ -439,6 +474,7 @@ async def upload_report(
                 gps_source = "exif"
 
         # บันทึกข้อมูลรายงานสภาพถนนผู้ใช้ (RoadReport) แบบเร็ว
+        now_utc = datetime.now(timezone.utc)
         report = RoadReport(
             image_filename=file_info["filename"],
             image_original_name=file_info["original_name"],
@@ -453,6 +489,18 @@ async def upload_report(
             status=ReportStatus.PROCESSING,
         )
         db.add(report)
+        await db.flush()
+
+        # บันทึก initial action
+        initial_action = ReportAction(
+            report_id=report.id,
+            officer_id=None,
+            previous_status=None,
+            new_status=ReportStatus.PROCESSING,
+            action_note="ผู้ใช้ส่งรายงานเข้าสู่ระบบ (รอดำเนินการวิเคราะห์)",
+            action_timestamp=now_utc,
+        )
+        db.add(initial_action)
         await db.commit()
         await db.refresh(report)
 
@@ -467,7 +515,10 @@ async def upload_report(
         )
 
         # โหลด report พร้อม relationship เพื่อป้องกัน MissingGreenlet ใน Pydantic
-        stmt = select(RoadReport).options(joinedload(RoadReport.ai_analysis)).where(RoadReport.id == report.id)
+        stmt = select(RoadReport).options(
+            joinedload(RoadReport.ai_analysis),
+            selectinload(RoadReport.actions)
+        ).where(RoadReport.id == report.id)
         result = await db.execute(stmt)
         refreshed_report = result.scalar_one()
 
@@ -500,7 +551,10 @@ async def get_reports(
     db: AsyncSession = Depends(get_db),
 ):
     """ดึงข้อมูลรายการรายงานทั้งหมด พร้อม Joined table ผลลัพธ์ AI เพื่อประสิทธิภาพที่ดีที่สุด"""
-    query = select(RoadReport).options(joinedload(RoadReport.ai_analysis))
+    query = select(RoadReport).options(
+        joinedload(RoadReport.ai_analysis),
+        selectinload(RoadReport.actions)
+    )
     count_query = select(func.count(RoadReport.id))
 
     if status:
@@ -536,21 +590,33 @@ async def get_reports(
     summary="ดึงสถิติภาพรวมรายงาน",
 )
 async def get_stats(db: AsyncSession = Depends(get_db)):
-    """ดึงสถิติจำนวนรายงานแยกตามสถานะการพิจารณา"""
+    """ดึงสถิติจำนวนรายงาน:
+    - pending, processing, completed: นับจาก priority report (status=COMPLETED) แยกตาม priority_status
+    - rejected: นับจากตาราง road_reports ที่ status=REJECTED
+    - total: จำนวนรายงานทั้งหมดในระบบ
+    """
     total = (await db.execute(select(func.count(RoadReport.id)))).scalar() or 0
 
-    async def count_status(s: ReportStatus) -> int:
+    async def count_priority_status(ps: str) -> int:
         r = await db.execute(
-            select(func.count(RoadReport.id)).where(RoadReport.status == s)
+            select(func.count(RoadReport.id)).where(
+                RoadReport.status == ReportStatus.COMPLETED,
+                RoadReport.priority_status == ps,
+            )
         )
         return r.scalar() or 0
 
+    rejected_r = await db.execute(
+        select(func.count(RoadReport.id)).where(RoadReport.status == ReportStatus.REJECTED)
+    )
+    rejected_count = rejected_r.scalar() or 0
+
     return StatsResponse(
         total_reports=total,
-        pending_count=await count_status(ReportStatus.PENDING),
-        processing_count=await count_status(ReportStatus.PROCESSING),
-        completed_count=await count_status(ReportStatus.COMPLETED),
-        rejected_count=await count_status(ReportStatus.REJECTED),
+        pending_count=await count_priority_status("pending"),
+        processing_count=await count_priority_status("processing"),
+        completed_count=await count_priority_status("completed"),
+        rejected_count=rejected_count,
     )
 
 
@@ -601,6 +667,7 @@ async def get_map_points(
                 latitude=float(r.latitude),
                 longitude=float(r.longitude),
                 status=r.status.value if hasattr(r.status, "value") else str(r.status),
+                priority_status=r.priority_status or "pending",
                 reporter_name=r.reporter_name,
                 created_at=r.created_at,
                 osm_way_id=(int(ana.osm_way_id) if ana and ana.osm_way_id is not None else None),
@@ -634,7 +701,10 @@ async def get_map_points(
 async def get_report(report_id: int, db: AsyncSession = Depends(get_db)):
     """ดึงข้อมูลรายงานเดี่ยวที่มีความสัมพันธ์ครบถ้วน"""
     result = await db.execute(
-        select(RoadReport).options(joinedload(RoadReport.ai_analysis)).where(RoadReport.id == report_id)
+        select(RoadReport).options(
+            joinedload(RoadReport.ai_analysis),
+            selectinload(RoadReport.actions)
+        ).where(RoadReport.id == report_id)
     )
     report = result.scalar_one_or_none()
 
@@ -682,7 +752,10 @@ async def confirm_report_location(
         new_lon=body.longitude,
     )
 
-    stmt = select(RoadReport).options(joinedload(RoadReport.ai_analysis)).where(RoadReport.id == report_id)
+    stmt = select(RoadReport).options(
+        joinedload(RoadReport.ai_analysis),
+        selectinload(RoadReport.actions)
+    ).where(RoadReport.id == report_id)
     result = await db.execute(stmt)
     refreshed_report = result.scalar_one()
     return ReportResponse.model_validate(refreshed_report)
@@ -716,14 +789,84 @@ async def update_report_status(
         valid = ", ".join([s.value for s in ReportStatus])
         raise HTTPException(status_code=400, detail=f"สถานะไม่ถูกต้อง ค่าที่รองรับคือ: {valid}")
 
+    previous_status = report.status
+    now_utc = datetime.now(timezone.utc)
     report.status = new_status
-    # ReportUpdateStatus ไม่ได้เก็บเหตุผลมาด้วย -- เคลียร์ rejection_reason ทิ้งเมื่อ
-    # สถานะไม่ใช่ rejected อีกต่อไป (กัน reason เก่าค้างอยู่); คงเป็น NULL เมื่อ admin
-    # กด rejected เอง (แยกจาก Gatekeeper/AI-error ที่ตั้งเหตุผลไว้เฉพาะ)
+    report.updated_at = now_utc
     if new_status != ReportStatus.REJECTED:
         report.rejection_reason = None
+
+    note_text = body.note.strip() if body.note and body.note.strip() else f"อัปเดตสถานะรายงานเป็น {new_status.value}"
+    action = ReportAction(
+        report_id=report.id,
+        officer_id=None,
+        previous_status=previous_status,
+        new_status=new_status,
+        action_note=note_text,
+        action_timestamp=now_utc,
+    )
+    db.add(action)
+
     await db.commit()
-    await db.refresh(report)
+    await db.refresh(report, ["actions"])
+
+    return ReportResponse.model_validate(report)
+
+
+# ─── PATCH: อัปเดตสถานะการดำเนินงานของแอดมิน (priority_status) ──
+@router.patch(
+    "/{report_id}/priority-status",
+    response_model=ReportResponse,
+    summary="อัปเดตสถานะการดำเนินงานของแอดมิน (priority_status)",
+    responses={404: {"model": ErrorResponse}, 401: {"model": ErrorResponse}},
+)
+async def update_report_priority_status(
+    report_id: int,
+    body: ReportUpdateStatus,
+    db: AsyncSession = Depends(get_db),
+    _admin=Depends(get_current_admin),
+):
+    """อัปเดต priority_status สำหรับ Workflow แอดมิน (pending → processing → completed)
+    และบันทึกประวัติการเปลี่ยนแปลงลงใน report_actions พร้อม Note"""
+    result = await db.execute(
+        select(RoadReport).options(
+            joinedload(RoadReport.ai_analysis),
+            selectinload(RoadReport.actions)
+        ).where(RoadReport.id == report_id)
+    )
+    report = result.scalar_one_or_none()
+
+    if not report:
+        raise HTTPException(status_code=404, detail=f"ไม่พบรายงาน ID: {report_id}")
+
+    new_priority_status = body.status.lower()
+    valid_statuses = ["pending", "processing", "completed"]
+    if new_priority_status not in valid_statuses:
+        raise HTTPException(
+            status_code=400,
+            detail=f"สถานะไม่ถูกต้อง ค่าที่รองรับคือ: {', '.join(valid_statuses)}"
+        )
+
+    previous_status = None
+    if report.priority_status and report.priority_status.lower() in [s.value for s in ReportStatus]:
+        previous_status = ReportStatus(report.priority_status.lower())
+
+    now_utc = datetime.now(timezone.utc)
+    note_text = body.note.strip() if body.note and body.note.strip() else f"อัปเดตสถานะเป็น {new_priority_status}"
+    action = ReportAction(
+        report_id=report.id,
+        officer_id=None,
+        previous_status=previous_status,
+        new_status=ReportStatus(new_priority_status),
+        action_note=note_text,
+        action_timestamp=now_utc,
+    )
+    db.add(action)
+
+    report.priority_status = new_priority_status
+    report.updated_at = now_utc
+    await db.commit()
+    await db.refresh(report, ["actions"])
 
     return ReportResponse.model_validate(report)
 

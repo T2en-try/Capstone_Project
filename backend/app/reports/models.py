@@ -79,6 +79,18 @@ class RoadReport(Base):
                 "NULL = ปฏิเสธโดยผู้ดูแลระบบด้วยตนเอง หรือไม่ทราบสาเหตุ"
     )
 
+    # สถานะการดำเนินงานของแอดมิน (แยกจาก status ของ AI)
+    # ใช้ใน /admin/priority-reports และ /admin/dashboard เท่านั้น
+    # ค่าที่รองรับ: pending, processing, completed
+    priority_status = Column(
+        String(50),
+        default="pending",
+        nullable=False,
+        server_default="pending",
+        comment="สถานะการดำเนินงานของแอดมิน: pending (รอดำเนินการ), "
+                "processing (กำลังดำเนินการ), completed (ดำเนินการเสร็จสิ้น)"
+    )
+
     # Timestamps
     created_at = Column(
         DateTime(timezone=True),
@@ -106,7 +118,8 @@ class RoadReport(Base):
     actions = relationship(
         "ReportAction",
         back_populates="report",
-        cascade="all, delete-orphan"
+        cascade="all, delete-orphan",
+        order_by="ReportAction.action_timestamp.asc()"
     )
 
     def __repr__(self):

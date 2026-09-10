@@ -8,6 +8,7 @@ import {
   Activity,
   Brain,
 } from "lucide-react";
+import { getReportStatus } from "../../utils/statusHelper";
 
 const statusMap = {
   pending: {
@@ -44,8 +45,9 @@ export default function ReportDetailModal({
     return null;
   }
 
-  const status = statusMap[report?.status] || {
-    label: report?.status || "-",
+  const reportStatus = getReportStatus(report);
+  const status = statusMap[reportStatus] || {
+    label: reportStatus || "-",
     className: "bg-slate-100 text-slate-700",
   };
 

@@ -22,6 +22,7 @@ import {
 import { useEffect, useState } from "react";
 import { fetchReportById, getReportImageUrl } from "../services/dashboardService";
 import { getConfidencePercent, getPriorityLabel, normalizePriorityClass } from "../utils/priorityMapping";
+import { getReportStatus, formatActionDate } from "../utils/statusHelper";
 
 import ReportHeader from "../components/admin-priority/admin-prioritydetail/ReportHeader";
 import ReportInfoCard from "../components/admin-priority/admin-prioritydetail/ReportInfoCard";
@@ -61,6 +62,7 @@ const AdminReportDetail = () => {
                     title: analysis?.road_name || `รายงานปัญหาถนน #${data.id}`,
                     priorityClass,
                     priorityLabel: getPriorityLabel(priorityClass),
+                    priority_status: getReportStatus(data),
                     gee: Math.round(Number(analysis?.community_impact_score_pi ?? 0)),
                     aiConfidence: confidence,
                     aiResult: getPriorityLabel(priorityClass),
@@ -75,20 +77,14 @@ const AdminReportDetail = () => {
                     location: analysis?.road_name || `${data.latitude ?? "-"}, ${data.longitude ?? "-"}`,
                     category: analysis?.road_type || "Road Damage",
                     createdDate: data.created_at
-                        ? new Date(data.created_at).toLocaleString("th-TH")
+                        ? formatActionDate(data.created_at)
                         : "-",
                     updatedDate: data.updated_at
-                        ? new Date(data.updated_at).toLocaleString("th-TH")
+                        ? formatActionDate(data.updated_at)
                         : "-",
                     image: getReportImageUrl(data),
-                    history: [
-                        {
-                            title: "Report Submitted",
-                            date: data.created_at
-                                ? new Date(data.created_at).toLocaleString("th-TH")
-                                : "-",
-                        },
-                    ],
+                    actions: data.actions || [],
+                    history: data.actions || [],
                 });
             })
             .catch((loadError) => {
@@ -102,6 +98,16 @@ const AdminReportDetail = () => {
             active = false;
         };
     }, [id]);
+
+    // Callback เมื่อเปลี่ยนสถานะสำเร็จ — อัปเดต state ทันที
+    const handleStatusUpdated = (updatedData) => {
+        setReport((prev) => ({
+            ...prev,
+            ...updatedData,
+            priority_status: getReportStatus(updatedData) || prev.priority_status,
+            actions: updatedData.actions || prev.actions || [],
+        }));
+    };
 
     if (loading) {
         return <Card>กำลังโหลดข้อมูลรายงาน...</Card>;
@@ -319,7 +325,7 @@ const AdminReportDetail = () => {
                                 borderRadius: 16,
                             }}
                         >
-                            <StatusTimeline history={report.history} />
+                            <StatusTimeline actions={report.actions} history={report.history} />
                         </Card>
                     </Space>
                 </Col>
@@ -341,7 +347,7 @@ const AdminReportDetail = () => {
                                 borderRadius: 16,
                             }}
                         >
-                            <ActionPanel report={report} />
+                            <ActionPanel report={report} onStatusChange={handleStatusUpdated} />
                         </Card>
                     </Space>
                 </Col>
