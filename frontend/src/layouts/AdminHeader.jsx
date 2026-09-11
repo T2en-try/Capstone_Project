@@ -20,16 +20,21 @@ import {
 } from "antd";
 
 import { useLocation, useNavigate } from "react-router-dom";
-import { logout as authLogout, getAdminInfo } from "../services/authService";
+import {
+  logout as authLogout,
+  getAdminInfo,
+} from "../services/authService";
 
 export default function Header() {
   const location = useLocation();
   const navigate = useNavigate();
+
   const adminInfo = getAdminInfo();
 
   // ==========================
   // Page Title
   // ==========================
+
   const titles = {
     "/dashboard": "Dashboard",
     "/reports": "Priority Reports",
@@ -40,7 +45,8 @@ export default function Header() {
     "/settings": "Settings",
   };
 
-  const pageTitle = titles[location.pathname] || "Dashboard";
+  const pageTitle =
+    titles[location.pathname] || "Dashboard";
 
   // ==========================
   // Current Date
@@ -56,19 +62,43 @@ export default function Header() {
   });
 
   // ==========================
-  // Notification Dropdown
+  // User Information
   // ==========================
 
-  
+  const fullName =
+    `${adminInfo?.first_name || ""} ${
+      adminInfo?.last_name || ""
+    }`.trim();
+
+  const roleLabel =
+    adminInfo?.role === "admin"
+      ? "Administrator"
+      : adminInfo?.role === "officer"
+        ? "Officer"
+        : "User";
+
+  const roleBadge =
+    adminInfo?.role === "admin"
+      ? "Admin"
+      : adminInfo?.role === "officer"
+        ? "Officer"
+        : "User";
 
   // ==========================
-  // User Dropdown
+  // Logout
   // ==========================
 
   const handleLogout = () => {
     authLogout();
-    navigate("/login", { replace: true });
+
+    navigate("/login", {
+      replace: true,
+    });
   };
+
+  // ==========================
+  // User Dropdown
+  // ==========================
 
   const profileItems = [
     {
@@ -93,13 +123,21 @@ export default function Header() {
     },
   ];
 
+  // ==========================
+  // Render
+  // ==========================
+
   return (
     <header className="sticky top-0 z-50 h-20 bg-white border-b border-gray-200 shadow-sm px-6 flex items-center justify-between">
 
-      {/* Left */}
+      {/* ==========================
+          Left
+      ========================== */}
+
       <div className="flex items-center gap-5">
 
-        {/* Page */}
+        {/* Page Title */}
+
         <div>
 
           <div className="flex items-center gap-3">
@@ -108,11 +146,13 @@ export default function Header() {
               {pageTitle}
             </h1>
 
+            {/* Role Badge */}
+
             <span className="flex items-center gap-1 px-3 py-1 rounded-full bg-orange-100 text-orange-700 text-xs font-semibold uppercase">
 
               <CrownOutlined />
 
-              Admin
+              {roleBadge}
 
             </span>
 
@@ -126,17 +166,26 @@ export default function Header() {
 
       </div>
 
-      {/* Right */}
+      {/* ==========================
+          Right
+      ========================== */}
+
       <div className="flex items-center gap-4">
 
-        {/* User */}
+        {/* ==========================
+            User
+        ========================== */}
 
         <Dropdown
-          menu={{ items: profileItems }}
+          menu={{
+            items: profileItems,
+          }}
           trigger={["click"]}
         >
 
           <div className="flex items-center gap-3 cursor-pointer border rounded-xl px-3 py-2 hover:bg-gray-50 transition">
+
+            {/* Avatar */}
 
             <Avatar
               size={42}
@@ -147,14 +196,16 @@ export default function Header() {
               }}
             />
 
+            {/* User Name / Role */}
+
             <div className="hidden md:block leading-5">
 
               <h4 className="font-semibold text-slate-800">
-                {adminInfo?.full_name || "Admin"}
+                {fullName || "Admin"}
               </h4>
 
               <p className="text-xs text-gray-500">
-                {adminInfo?.role || "Administrator"}
+                {roleLabel}
               </p>
 
             </div>

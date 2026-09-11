@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
     MapContainer,
@@ -12,17 +12,7 @@ import {
 
 import MarkerClusterGroup from "react-leaflet-cluster";
 
-import {
-    Card,
-    Button,
-    Input,
-    Segmented,
-    Tag,
-    Space,
-    Progress,
-    Divider,
-    Typography,
-} from "antd";
+import { Button, Input, Segmented, Progress, Divider, Typography } from "antd";
 
 import {
     SearchOutlined,
@@ -44,6 +34,25 @@ import "leaflet/dist/leaflet.css";
 const { Text } = Typography;
 
 // ============================================================
+// Design System
+// ============================================================
+
+const COLORS = {
+    ink: "#14352F",
+    inkSoft: "#1F4A42",
+    mark: "#E6A817",
+    markDeep: "#C48A0A",
+    mist: "#E8EFEC",
+    paper: "#F7FAF8",
+    asphalt: "#2A3431",
+    line: "#C5D4CF",
+    danger: "#C45C4A",
+    ok: "#2D7A5F",
+    warn: "#C4891A",
+    info: "#2F6F7E",
+};
+
+// ============================================================
 // Leaflet Default Marker Fix
 // ============================================================
 
@@ -53,11 +62,9 @@ L.Icon.Default.mergeOptions({
     iconRetinaUrl:
         "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
 
-    iconUrl:
-        "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+    iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
 
-    shadowUrl:
-        "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+    shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
 });
 
 // ============================================================
@@ -69,8 +76,8 @@ const PRIORITY_CONFIG = {
         key: "good",
         label: "Good",
         thaiLabel: "สภาพปกติ",
-        color: "green",
-        hex: "#52c41a",
+        hex: COLORS.ok,
+        bg: "#E8F3EE",
         icon: <CheckCircleOutlined />,
     },
 
@@ -78,8 +85,8 @@ const PRIORITY_CONFIG = {
         key: "warning",
         label: "Warning",
         thaiLabel: "ควรเฝ้าระวัง",
-        color: "gold",
-        hex: "#faad14",
+        hex: COLORS.warn,
+        bg: "#FFF5D9",
         icon: <WarningOutlined />,
     },
 
@@ -87,10 +94,75 @@ const PRIORITY_CONFIG = {
         key: "critical",
         label: "Critical",
         thaiLabel: "ต้องซ่อมแซมด่วน",
-        color: "red",
-        hex: "#ff4d4f",
+        hex: COLORS.danger,
+        bg: "#F9EDEA",
         icon: <CloseCircleOutlined />,
     },
+};
+
+// ============================================================
+// Get Priority Class
+// รองรับข้อมูลทั้งจาก:
+// report.priority_class
+// report.ai_analysis.priority_class
+// report.analysis.priority_class
+// ============================================================
+
+const getPriorityClass = (report) => {
+    // รองรับหลายรูปแบบของข้อมูลที่อาจมาจาก Backend / Dashboard
+    const value =
+        report?.priority_class ??
+        report?.priorityClass ??
+        report?.priority ??
+        report?.ai_analysis?.priority_class ??
+        report?.ai_analysis?.priorityClass ??
+        report?.aiAnalysis?.priority_class ??
+        report?.aiAnalysis?.priorityClass ??
+        report?.analysis?.priority_class ??
+        report?.analysis?.priorityClass;
+
+    const priorityClass = Number(value);
+
+    if ([1, 2, 3].includes(priorityClass)) {
+        return priorityClass;
+    }
+
+    // --------------------------------------------------------
+    // Fallback จาก damage_level
+    // --------------------------------------------------------
+
+    const damageLevel = String(
+        report?.damage_level ??
+        report?.damageLevel ??
+        report?.severity ??
+        ""
+    ).toLowerCase();
+
+    if (
+        damageLevel === "critical" ||
+        damageLevel.includes("critical") ||
+        damageLevel.includes("วิกฤต")
+    ) {
+        return 3;
+    }
+
+    if (
+        damageLevel === "warning" ||
+        damageLevel.includes("warning") ||
+        damageLevel.includes("เตือน")
+    ) {
+        return 2;
+    }
+
+    if (
+        damageLevel === "good" ||
+        damageLevel.includes("good") ||
+        damageLevel.includes("ปกติ")
+    ) {
+        return 1;
+    }
+
+    return null;
 };
 
 // ============================================================
@@ -98,7 +170,7 @@ const PRIORITY_CONFIG = {
 // ============================================================
 
 const getPriorityConfig = (report) => {
-    const priorityClass = Number(report?.priority_class);
+    const priorityClass = getPriorityClass(report);
 
     if (PRIORITY_CONFIG[priorityClass]) {
         return PRIORITY_CONFIG[priorityClass];
@@ -108,6 +180,7 @@ const getPriorityConfig = (report) => {
         report?.priorityLabel ||
             report?.priority ||
             report?.severity ||
+            report?.damage_level ||
             ""
     ).toLowerCase();
 
@@ -169,32 +242,36 @@ const createClusterIcon = (cluster) => {
     const priorities = markers.map((item) => {
         const report = item.options.report;
 
-        return Number(report?.priority_class);
+        return getPriorityClass(report);
     });
 
-    let color = "#52c41a";
+    let color = COLORS.ok;
 
     if (priorities.includes(3)) {
-        color = "#ff4d4f";
+        color = COLORS.danger;
     } else if (priorities.includes(2)) {
-        color = "#faad14";
+        color = COLORS.warn;
+    } else if (priorities.every((priority) => ![1, 2, 3].includes(priority))) {
+        color = COLORS.info;
     }
 
     return L.divIcon({
         html: `
             <div
                 style="
-                    background:${color};
-                    width:45px;
-                    height:45px;
+                    width:42px;
+                    height:42px;
                     border-radius:50%;
                     display:flex;
-                    justify-content:center;
                     align-items:center;
-                    color:white;
-                    font-weight:bold;
-                    border:3px solid white;
-                    box-shadow:0 2px 8px rgba(0,0,0,.3);
+                    justify-content:center;
+                    background:${color};
+                    color:#fff;
+                    font-family:Sarabun, sans-serif;
+                    font-size:14px;
+                    font-weight:700;
+                    border:3px solid rgba(255,255,255,.95);
+                    box-shadow:0 2px 7px rgba(20,53,47,.25);
                 "
             >
                 ${cluster.getChildCount()}
@@ -203,7 +280,7 @@ const createClusterIcon = (cluster) => {
 
         className: "",
 
-        iconSize: [45, 45],
+        iconSize: [42, 42],
     });
 };
 
@@ -214,7 +291,7 @@ const createClusterIcon = (cluster) => {
 function MapViewport({ reports }) {
     const map = useMap();
 
-    useMemo(() => {
+    useEffect(() => {
         const validReports = reports.filter(
             (report) =>
                 Number.isFinite(Number(report.latitude)) &&
@@ -245,7 +322,7 @@ function MapViewport({ reports }) {
                 ])
             ),
             {
-                padding: [40, 40],
+                padding: [50, 50],
                 maxZoom: 15,
             }
         );
@@ -265,7 +342,6 @@ const formatPercent = (value) => {
 
     const number = Number(value);
 
-    // Backend probability = 0.0 - 1.0
     if (number <= 1) {
         return `${(number * 100).toFixed(1)}%`;
     }
@@ -305,30 +381,44 @@ const formatDate = (value) => {
 };
 
 // ============================================================
-// Probability Bar
+// Probability Row
 // ============================================================
 
-function ProbabilityRow({
-    label,
-    value,
-    color,
-}) {
+function ProbabilityRow({ label, value, color }) {
     const percent = getPercentNumber(value);
 
     return (
-        <div style={{ marginBottom: 8 }}>
+        <div
+            style={{
+                marginBottom: 8,
+            }}
+        >
             <div
                 style={{
                     display: "flex",
+                    alignItems: "center",
                     justifyContent: "space-between",
                     marginBottom: 3,
                 }}
             >
-                <Text style={{ fontSize: 12 }}>
+                <Text
+                    style={{
+                        fontFamily: "Sarabun, sans-serif",
+                        fontSize: 12,
+                        color: "#52655F",
+                    }}
+                >
                     {label}
                 </Text>
 
-                <Text strong style={{ fontSize: 12 }}>
+                <Text
+                    strong
+                    style={{
+                        fontFamily: "monospace",
+                        fontSize: 11,
+                        color: COLORS.ink,
+                    }}
+                >
                     {formatPercent(value) || "-"}
                 </Text>
             </div>
@@ -350,111 +440,160 @@ function ProbabilityRow({
 function ReportPopup({ report }) {
     const priority = getPriorityConfig(report);
 
-    const confidence =
-        report?.confidence ??
-        report?.confidence_score != null
-            ? getPercentNumber(
-                  report.confidence_score ??
-                      report.confidence
-              )
-            : null;
+    // --------------------------------------------------------
+    // Confidence
+    // --------------------------------------------------------
 
-    const status = String(
-        report?.status || "Unknown"
-    );
+    let confidence = null;
 
-    const statusColor = {
-        completed: "green",
-        processing: "blue",
-        pending: "orange",
-        rejected: "red",
-    }[status.toLowerCase()] || "default";
+    if (report?.confidence_score != null) {
+        confidence = getPercentNumber(report.confidence_score);
+    } else if (report?.confidence != null) {
+        confidence = getPercentNumber(report.confidence);
+    }
+
+    // --------------------------------------------------------
+    // Status
+    // --------------------------------------------------------
+
+    const status = String(report?.status || "Unknown");
+
+    const statusConfig = {
+        completed: {
+            label: "Completed",
+            color: COLORS.ok,
+            bg: "#E8F3EE",
+        },
+
+        processing: {
+            label: "Processing",
+            color: COLORS.info,
+            bg: "#E8F1F3",
+        },
+
+        pending: {
+            label: "Pending",
+            color: COLORS.warn,
+            bg: "#FFF5D9",
+        },
+
+        rejected: {
+            label: "Rejected",
+            color: COLORS.danger,
+            bg: "#F9EDEA",
+        },
+    };
+
+    const currentStatus = statusConfig[status.toLowerCase()] || {
+        label: status,
+        color: "#687A74",
+        bg: "#EEF2F0",
+    };
 
     return (
         <div
             style={{
                 width: 320,
                 maxWidth: "100%",
+                fontFamily: "Sarabun, sans-serif",
+                color: COLORS.ink,
             }}
         >
-            {/* ==================================================
-                HEADER
-            ================================================== */}
+            {/* HEADER */}
 
-            <div
+            <header
                 style={{
                     display: "flex",
                     justifyContent: "space-between",
                     alignItems: "flex-start",
-                    gap: 10,
+                    gap: 12,
                     marginBottom: 10,
                 }}
             >
-                <div>
-                    <div
-                        style={{
-                            fontSize: 16,
-                            fontWeight: 700,
-                            color: "#1f1f1f",
-                            marginBottom: 3,
-                        }}
-                    >
-                        Report #{report.id}
-                    </div>
-
-                    <Text
-                        type="secondary"
-                        style={{
-                            fontSize: 12,
-                        }}
-                    >
-                        {report.title ||
-                            report.road_name ||
-                            "ไม่ระบุถนน"}
-                    </Text>
-                </div>
-
-                <Tag
-                    color={statusColor}
+                <div
                     style={{
-                        marginRight: 0,
+                        minWidth: 0,
                     }}
                 >
-                    {status}
-                </Tag>
-            </div>
+                    <div
+                        style={{
+                            fontFamily: "Kanit, Sarabun, sans-serif",
+                            fontSize: 17,
+                            fontWeight: 600,
+                            color: COLORS.ink,
+                            lineHeight: 1.25,
+                        }}
+                    >
+                        รายงาน #{report.id}
+                    </div>
+
+                    <div
+                        style={{
+                            marginTop: 3,
+                            color: "#687A74",
+                            fontSize: 12,
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                        }}
+                    >
+                        {report.title || report.road_name || "ไม่ระบุถนน"}
+                    </div>
+                </div>
+
+                <span
+                    style={{
+                        flexShrink: 0,
+                        padding: "4px 8px",
+                        borderRadius: 6,
+                        background: currentStatus.bg,
+                        color: currentStatus.color,
+                        fontSize: 11,
+                        fontWeight: 600,
+                    }}
+                >
+                    {currentStatus.label}
+                </span>
+            </header>
 
             <Divider
                 style={{
-                    margin: "8px 0 12px",
+                    margin: "10px 0 12px",
+                    borderColor: "#E3EAE7",
                 }}
             />
 
-            {/* ==================================================
-                PRIORITY
-            ================================================== */}
+            {/* PRIORITY */}
 
             {priority ? (
-                <div
+                <section
                     style={{
-                        border: `1px solid ${priority.hex}`,
-                        borderRadius: 10,
-                        padding: 12,
+                        border: `1px solid ${priority.hex}55`,
+                        borderLeft: `4px solid ${priority.hex}`,
+                        borderRadius: 8,
+                        padding: "10px 12px",
                         marginBottom: 12,
-                        background: `${priority.hex}12`,
+                        background: priority.bg,
                     }}
                 >
                     <div
                         style={{
                             display: "flex",
                             alignItems: "center",
-                            gap: 8,
+                            gap: 9,
                         }}
                     >
                         <span
                             style={{
+                                width: 32,
+                                height: 32,
+                                borderRadius: 8,
+                                display: "inline-flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                background: "#FFFFFF",
                                 color: priority.hex,
-                                fontSize: 18,
+                                fontSize: 16,
                             }}
                         >
                             {priority.icon}
@@ -463,46 +602,45 @@ function ReportPopup({ report }) {
                         <div>
                             <div
                                 style={{
-                                    fontSize: 15,
-                                    fontWeight: 700,
                                     color: priority.hex,
+                                    fontFamily: "Kanit, Sarabun, sans-serif",
+                                    fontSize: 14,
+                                    fontWeight: 600,
                                 }}
                             >
                                 {priority.label}
                             </div>
 
-                            <Text
-                                type="secondary"
+                            <div
                                 style={{
-                                    fontSize: 12,
+                                    color: "#65756F",
+                                    fontSize: 11,
                                 }}
                             >
                                 {priority.thaiLabel}
-                            </Text>
+                            </div>
                         </div>
                     </div>
-                </div>
+                </section>
             ) : (
-                <div
+                <section
                     style={{
-                        padding: 12,
-                        borderRadius: 10,
-                        background: "#f5f5f5",
+                        padding: "10px 12px",
+                        borderRadius: 8,
+                        background: COLORS.mist,
+                        color: "#687A74",
+                        fontSize: 12,
                         marginBottom: 12,
                     }}
                 >
-                    <Text type="secondary">
-                        ยังไม่มีผลการประเมินจาก AI
-                    </Text>
-                </div>
+                    ยังไม่มีผลการวิเคราะห์จาก AI
+                </section>
             )}
 
-            {/* ==================================================
-                CONFIDENCE
-            ================================================== */}
+            {/* CONFIDENCE */}
 
             {confidence != null && (
-                <div
+                <section
                     style={{
                         marginBottom: 12,
                     }}
@@ -511,78 +649,89 @@ function ReportPopup({ report }) {
                         style={{
                             display: "flex",
                             justifyContent: "space-between",
-                            marginBottom: 4,
+                            alignItems: "center",
+                            marginBottom: 5,
                         }}
                     >
-                        <Text strong>
+                        <Text
+                            strong
+                            style={{
+                                fontSize: 12,
+                                color: COLORS.ink,
+                            }}
+                        >
                             AI Confidence
                         </Text>
 
-                        <Text strong>
+                        <Text
+                            strong
+                            style={{
+                                fontFamily: "monospace",
+                                fontSize: 11,
+                                color: COLORS.ink,
+                            }}
+                        >
                             {confidence.toFixed(1)}%
                         </Text>
                     </div>
 
                     <Progress
-                        percent={Math.min(
-                            100,
-                            Math.max(0, confidence)
-                        )}
+                        percent={Math.min(100, Math.max(0, confidence))}
                         showInfo={false}
-                        strokeColor={
-                            priority?.hex || "#1677ff"
-                        }
+                        strokeColor={priority?.hex || COLORS.info}
+                        size="small"
                     />
-                </div>
+                </section>
             )}
 
-            {/* ==================================================
-                PROBABILITY BREAKDOWN
-            ================================================== */}
+            {/* AI PROBABILITY */}
 
             {(report?.proba_normal != null ||
                 report?.proba_warning != null ||
                 report?.proba_critical != null) && (
-                <>
-                    <Text strong>
-                        AI Probability
-                    </Text>
-
+                <section
+                    style={{
+                        marginBottom: 12,
+                    }}
+                >
                     <div
                         style={{
-                            marginTop: 8,
-                            marginBottom: 12,
+                            fontSize: 12,
+                            fontWeight: 600,
+                            color: COLORS.ink,
+                            marginBottom: 8,
                         }}
                     >
-                        <ProbabilityRow
-                            label="Good"
-                            value={report.proba_normal}
-                            color="#52c41a"
-                        />
-
-                        <ProbabilityRow
-                            label="Warning"
-                            value={report.proba_warning}
-                            color="#faad14"
-                        />
-
-                        <ProbabilityRow
-                            label="Critical"
-                            value={report.proba_critical}
-                            color="#ff4d4f"
-                        />
+                        AI Probability
                     </div>
-                </>
+
+                    <ProbabilityRow
+                        label="Good"
+                        value={report.proba_normal}
+                        color={COLORS.ok}
+                    />
+
+                    <ProbabilityRow
+                        label="Warning"
+                        value={report.proba_warning}
+                        color={COLORS.warn}
+                    />
+
+                    <ProbabilityRow
+                        label="Critical"
+                        value={report.proba_critical}
+                        color={COLORS.danger}
+                    />
+                </section>
             )}
 
-            {/* ==================================================
-                REPORT INFORMATION
-            ================================================== */}
+            {/* REPORT INFORMATION */}
 
-            <div
+            <section
                 style={{
-                    background: "#fafafa",
-                    borderRadius: 10,
+                    background: COLORS.paper,
+                    border: "1px solid #E1E9E5",
+                    borderRadius: 8,
                     padding: 10,
                     marginBottom: 12,
                 }}
@@ -593,75 +742,71 @@ function ReportPopup({ report }) {
                     style={{
                         display: "flex",
                         gap: 8,
-                        marginBottom: 8,
+                        marginBottom: 9,
                     }}
                 >
                     <EnvironmentOutlined
                         style={{
-                            color: "#1677ff",
+                            color: COLORS.ink,
                             marginTop: 3,
                         }}
                     />
 
                     <div>
-                        <Text
-                            type="secondary"
+                        <div
                             style={{
-                                display: "block",
-                                fontSize: 11,
+                                color: "#7A8984",
+                                fontSize: 10,
+                                marginBottom: 1,
                             }}
                         >
-                            Location
-                        </Text>
+                            LOCATION
+                        </div>
 
-                        <Text
+                        <div
                             style={{
                                 fontSize: 12,
+                                color: COLORS.ink,
                             }}
                         >
                             {report.location ||
                                 report.road_name ||
                                 "ไม่ระบุพิกัด"}
-                        </Text>
+                        </div>
                     </div>
                 </div>
 
-                {/* Coordinates */}
+                {/* GPS */}
 
-                {report.latitude != null &&
-                    report.longitude != null && (
+                {report.latitude != null && report.longitude != null && (
+                    <div
+                        style={{
+                            marginLeft: 25,
+                            marginBottom: 9,
+                        }}
+                    >
                         <div
                             style={{
-                                marginLeft: 24,
-                                marginBottom: 8,
+                                color: "#7A8984",
+                                fontSize: 10,
+                                marginBottom: 2,
                             }}
                         >
-                            <Text
-                                type="secondary"
-                                style={{
-                                    fontSize: 11,
-                                }}
-                            >
-                                GPS
-                            </Text>
-
-                            <div
-                                style={{
-                                    fontFamily:
-                                        "monospace",
-                                    fontSize: 11,
-                                }}
-                            >
-                                {Number(
-                                    report.latitude
-                                ).toFixed(6)}
-                                ,{" "}
-                                {Number(
-                                    report.longitude
-                                ).toFixed(6)}
-                            </div>
+                            GPS COORDINATES
                         </div>
-                    )}
+
+                        <div
+                            style={{
+                                fontFamily: "monospace",
+                                fontSize: 11,
+                                color: COLORS.ink,
+                            }}
+                        >
+                            {Number(report.latitude).toFixed(6)},{" "}
+                            {Number(report.longitude).toFixed(6)}
+                        </div>
+                    </div>
+                )}
 
                 {/* Reporter */}
 
@@ -670,39 +815,40 @@ function ReportPopup({ report }) {
                         style={{
                             display: "flex",
                             gap: 8,
-                            marginBottom: 8,
+                            marginBottom: 9,
                         }}
                     >
                         <UserOutlined
                             style={{
-                                color: "#8c8c8c",
+                                color: "#7A8984",
                                 marginTop: 3,
                             }}
                         />
 
                         <div>
-                            <Text
-                                type="secondary"
+                            <div
                                 style={{
-                                    display: "block",
-                                    fontSize: 11,
+                                    color: "#7A8984",
+                                    fontSize: 10,
+                                    marginBottom: 1,
                                 }}
                             >
-                                Reporter
-                            </Text>
+                                REPORTER
+                            </div>
 
-                            <Text
+                            <div
                                 style={{
                                     fontSize: 12,
+                                    color: COLORS.ink,
                                 }}
                             >
                                 {report.reporter}
-                            </Text>
+                            </div>
                         </div>
                     </div>
                 )}
 
-                {/* Created At */}
+                {/* Created */}
 
                 {report.created_at && (
                     <div
@@ -713,81 +859,86 @@ function ReportPopup({ report }) {
                     >
                         <ClockCircleOutlined
                             style={{
-                                color: "#8c8c8c",
+                                color: "#7A8984",
                                 marginTop: 3,
                             }}
                         />
 
                         <div>
-                            <Text
-                                type="secondary"
+                            <div
                                 style={{
-                                    display: "block",
-                                    fontSize: 11,
+                                    color: "#7A8984",
+                                    fontSize: 10,
+                                    marginBottom: 1,
                                 }}
                             >
-                                Reported At
-                            </Text>
+                                REPORTED AT
+                            </div>
 
-                            <Text
+                            <div
                                 style={{
                                     fontSize: 12,
+                                    color: COLORS.ink,
                                 }}
                             >
-                                {formatDate(
-                                    report.created_at
-                                )}
-                            </Text>
+                                {formatDate(report.created_at)}
+                            </div>
                         </div>
                     </div>
                 )}
-            </div>
+            </section>
 
-            {/* ==================================================
-                DESCRIPTION
-            ================================================== */}
+            {/* DESCRIPTION */}
 
             {report.description && (
-                <div
+                <section
                     style={{
                         marginBottom: 12,
                     }}
                 >
-                    <Text strong>
-                        Description
-                    </Text>
+                    <div
+                        style={{
+                            fontSize: 12,
+                            fontWeight: 600,
+                            color: COLORS.ink,
+                            marginBottom: 4,
+                        }}
+                    >
+                        รายละเอียด
+                    </div>
 
                     <div
                         style={{
-                            marginTop: 5,
                             fontSize: 12,
-                            color: "#595959",
-                            lineHeight: 1.5,
+                            color: "#5E6F69",
+                            lineHeight: 1.55,
                         }}
                     >
                         {report.description}
                     </div>
-                </div>
+                </section>
             )}
 
-            {/* ==================================================
-                ACTION
-            ================================================== */}
+            {/* ACTION */}
 
             <Button
-                type="primary"
                 block
-                size="middle"
                 onClick={() => {
-                    if (
-                        typeof report.onViewDetail ===
-                        "function"
-                    ) {
+                    if (typeof report.onViewDetail === "function") {
                         report.onViewDetail(report);
                     }
                 }}
+                style={{
+                    height: 36,
+                    borderRadius: 7,
+                    borderColor: COLORS.ink,
+                    background: COLORS.ink,
+                    color: "#FFFFFF",
+                    fontFamily: "Sarabun, sans-serif",
+                    fontWeight: 600,
+                }}
             >
-                View Detail
+                ดูรายละเอียดรายงาน
             </Button>
         </div>
     );
@@ -797,19 +948,14 @@ function ReportPopup({ report }) {
 // Main MapView
 // ============================================================
 
-export default function MapView({
-    reports = [],
-    onViewDetail,
-}) {
+export default function MapView({ reports = [], onViewDetail }) {
     const mapRef = useRef(null);
 
     const [keyword, setKeyword] = useState("");
 
-    const [mapType, setMapType] =
-        useState("map");
+    const [mapType, setMapType] = useState("map");
 
-    const [showLive, setShowLive] =
-        useState(true);
+    const [showLive, setShowLive] = useState(true);
 
     // ========================================================
     // Normalize Reports
@@ -825,25 +971,17 @@ export default function MapView({
                 ...report,
 
                 latitude:
-                    report.latitude != null
-                        ? Number(report.latitude)
-                        : null,
+                    report.latitude != null ? Number(report.latitude) : null,
 
                 longitude:
-                    report.longitude != null
-                        ? Number(report.longitude)
-                        : null,
+                    report.longitude != null ? Number(report.longitude) : null,
 
                 onViewDetail,
             }))
             .filter(
                 (report) =>
-                    Number.isFinite(
-                        report.latitude
-                    ) &&
-                    Number.isFinite(
-                        report.longitude
-                    )
+                    Number.isFinite(report.latitude) &&
+                    Number.isFinite(report.longitude)
             );
     }, [reports, onViewDetail]);
 
@@ -856,34 +994,23 @@ export default function MapView({
             return normalizedReports;
         }
 
-        const searchText =
-            keyword.toLowerCase();
+        const searchText = keyword.toLowerCase().trim();
 
         return normalizedReports.filter(
             (report) =>
-                String(
-                    report.id ?? ""
-                )
+                String(report.id ?? "")
                     .toLowerCase()
                     .includes(searchText) ||
-                String(
-                    report.title ?? ""
-                )
+                String(report.title ?? "")
                     .toLowerCase()
                     .includes(searchText) ||
-                String(
-                    report.location ?? ""
-                )
+                String(report.location ?? "")
                     .toLowerCase()
                     .includes(searchText) ||
-                String(
-                    report.road_name ?? ""
-                )
+                String(report.road_name ?? "")
                     .toLowerCase()
                     .includes(searchText) ||
-                String(
-                    report.description ?? ""
-                )
+                String(report.description ?? "")
                     .toLowerCase()
                     .includes(searchText)
         );
@@ -891,43 +1018,40 @@ export default function MapView({
 
     // ========================================================
     // Statistics
+    //
+    // สำคัญ:
+    // ใช้ normalizedReports ไม่ใช่ filteredReports
+    // ดังนั้น Search จะไม่ทำให้จำนวนสถิติเปลี่ยน
     // ========================================================
 
     const statistics = useMemo(() => {
+        let critical = 0;
+        let warning = 0;
+        let good = 0;
+        let noAnalysis = 0;
+
+        normalizedReports.forEach((report) => {
+            const priorityClass = getPriorityClass(report);
+
+            if (priorityClass === 3) {
+                critical++;
+            } else if (priorityClass === 2) {
+                warning++;
+            } else if (priorityClass === 1) {
+                good++;
+            } else {
+                noAnalysis++;
+            }
+        });
+
         return {
-            total: filteredReports.length,
-
-            critical: filteredReports.filter(
-                (report) =>
-                    Number(
-                        report.priority_class
-                    ) === 3
-            ).length,
-
-            warning: filteredReports.filter(
-                (report) =>
-                    Number(
-                        report.priority_class
-                    ) === 2
-            ).length,
-
-            good: filteredReports.filter(
-                (report) =>
-                    Number(
-                        report.priority_class
-                    ) === 1
-            ).length,
-
-            noAnalysis: filteredReports.filter(
-                (report) =>
-                    ![1, 2, 3].includes(
-                        Number(
-                            report.priority_class
-                        )
-                    )
-            ).length,
+            total: normalizedReports.length,
+            critical,
+            warning,
+            good,
+            noAnalysis,
         };
-    }, [filteredReports]);
+    }, [normalizedReports]);
 
     // ========================================================
     // Tile
@@ -943,16 +1067,11 @@ export default function MapView({
     // ========================================================
 
     const resetMap = () => {
-        const validReports =
-            normalizedReports.filter(
-                (report) =>
-                    Number.isFinite(
-                        report.latitude
-                    ) &&
-                    Number.isFinite(
-                        report.longitude
-                    )
-            );
+        const validReports = normalizedReports.filter(
+            (report) =>
+                Number.isFinite(report.latitude) &&
+                Number.isFinite(report.longitude)
+        );
 
         if (validReports.length === 0) {
             return;
@@ -960,25 +1079,22 @@ export default function MapView({
 
         if (validReports.length === 1) {
             mapRef.current?.flyTo(
-                [
-                    validReports[0].latitude,
-                    validReports[0].longitude,
-                ],
-                15
+                [validReports[0].latitude, validReports[0].longitude],
+                15,
+                {
+                    duration: 0.7,
+                }
             );
 
             return;
         }
 
         const bounds = L.latLngBounds(
-            validReports.map((report) => [
-                report.latitude,
-                report.longitude,
-            ])
+            validReports.map((report) => [report.latitude, report.longitude])
         );
 
         mapRef.current?.fitBounds(bounds, {
-            padding: [40, 40],
+            padding: [50, 50],
             maxZoom: 15,
         });
     };
@@ -988,11 +1104,9 @@ export default function MapView({
     // ========================================================
 
     const fullscreen = () => {
-        document
-            .querySelector(
-                ".leaflet-container"
-            )
-            ?.requestFullscreen?.();
+        const mapElement = document.querySelector(".leaflet-container");
+
+        mapElement?.requestFullscreen?.();
     };
 
     // ========================================================
@@ -1000,254 +1114,415 @@ export default function MapView({
     // ========================================================
 
     return (
-        <Card
+        <section
             style={{
-                borderRadius: 12,
+                position: "relative",
+                width: "100%",
+                height: 620,
                 overflow: "hidden",
-            }}
-            styles={{
-                body: {
-                    padding: 0,
-                },
+                borderRadius: 12,
+                border: `1px solid ${COLORS.line}`,
+                background: COLORS.paper,
             }}
         >
-            <div
+            {/* ==================================================
+                TOOLBAR
+            ================================================== */}
+
+            <header
                 style={{
-                    position: "relative",
-                    height: 650,
+                    position: "absolute",
+                    top: 14,
+                    left: 14,
+                    right: 14,
+                    zIndex: 999,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: 8,
+                    background: "rgba(255,255,255,.96)",
+                    border: "1px solid rgba(197,212,207,.9)",
+                    borderRadius: 9,
+                    boxShadow: "0 3px 12px rgba(20,53,47,.12)",
+                    backdropFilter: "blur(8px)",
                 }}
             >
-                {/* ==================================================
-                    TOOLBAR
-                ================================================== */}
+                {/* Search */}
 
-                <div
-                    style={{
-                        position: "absolute",
-                        top: 15,
-                        left: 15,
-                        zIndex: 999,
-                        background: "#fff",
-                        padding: 10,
-                        borderRadius: 10,
-                        boxShadow:
-                            "0 2px 12px rgba(0,0,0,.15)",
-                    }}
-                >
-                    <Space wrap>
-                        <Input
-                            allowClear
-                            prefix={
-                                <SearchOutlined />
-                            }
-                            placeholder="Search report"
-                            value={keyword}
-                            onChange={(event) =>
-                                setKeyword(
-                                    event.target.value
-                                )
-                            }
+                <Input
+                    allowClear
+                    prefix={
+                        <SearchOutlined
                             style={{
-                                width: 220,
+                                color: "#7A8984",
                             }}
                         />
+                    }
+                    placeholder="ค้นหารายงาน / ถนน"
+                    value={keyword}
+                    onChange={(event) => setKeyword(event.target.value)}
+                    style={{
+                        width: 230,
+                        height: 34,
+                        borderRadius: 7,
+                    }}
+                />
 
-                        <Segmented
-                            value={mapType}
-                            onChange={setMapType}
-                            options={[
-                                {
-                                    label: "Map",
-                                    value: "map",
-                                },
-                                {
-                                    label: "Satellite",
-                                    value: "satellite",
-                                },
-                            ]}
-                        />
+                {/* Map Type */}
 
-                        <Button
-                            icon={
-                                <ReloadOutlined />
-                            }
-                            onClick={resetMap}
-                        >
-                            Reset
-                        </Button>
+                <Segmented
+                    value={mapType}
+                    onChange={setMapType}
+                    options={[
+                        {
+                            label: "แผนที่",
+                            value: "map",
+                        },
+                        {
+                            label: "ดาวเทียม",
+                            value: "satellite",
+                        },
+                    ]}
+                    style={{
+                        height: 34,
+                        borderRadius: 7,
+                    }}
+                />
 
-                        <Button
-                            icon={
-                                <FullscreenOutlined />
-                            }
-                            onClick={fullscreen}
-                        >
-                            Full
-                        </Button>
+                {/* Reset */}
 
-                        <Button
-                            type={
-                                showLive
-                                    ? "primary"
-                                    : "default"
-                            }
-                            icon={
-                                <DashboardOutlined />
-                            }
-                            onClick={() =>
-                                setShowLive(
-                                    !showLive
-                                )
-                            }
-                        >
-                            {showLive
-                                ? "Hide Reports"
-                                : "Show Reports"}
-                        </Button>
-                    </Space>
-                </div>
+                <Button
+                    icon={<ReloadOutlined />}
+                    onClick={resetMap}
+                    style={{
+                        height: 34,
+                        borderRadius: 7,
+                        color: COLORS.ink,
+                    }}
+                >
+                    รีเซ็ต
+                </Button>
 
-                {/* ==================================================
-                    LIVE STATISTICS
-                ================================================== */}
+                {/* Fullscreen */}
 
-                {showLive && (
+                <Button
+                    icon={<FullscreenOutlined />}
+                    onClick={fullscreen}
+                    style={{
+                        height: 34,
+                        borderRadius: 7,
+                        color: COLORS.ink,
+                    }}
+                >
+                    เต็มจอ
+                </Button>
+
+                {/* Reports */}
+
+                <Button
+                    icon={<DashboardOutlined />}
+                    onClick={() => setShowLive(!showLive)}
+                    style={{
+                        height: 34,
+                        marginLeft: "auto",
+                        borderColor: showLive ? COLORS.ink : COLORS.line,
+                        background: showLive ? COLORS.ink : "#FFFFFF",
+                        color: showLive ? "#FFFFFF" : COLORS.ink,
+                    }}
+                >
+                    {showLive ? "ซ่อนข้อมูล" : "แสดงข้อมูล"}
+                </Button>
+            </header>
+
+            {/* ==================================================
+                LIVE STATISTICS
+            ================================================== */}
+
+            {showLive && (
+                <aside
+                    style={{
+                        position: "absolute",
+                        top: 72,
+                        left: 14,
+                        zIndex: 998,
+                        width: 235,
+                        background: "rgba(255,255,255,.96)",
+                        border: `1px solid ${COLORS.line}`,
+                        borderRadius: 10,
+                        padding: 13,
+                        boxShadow: "0 3px 12px rgba(20,53,47,.12)",
+                        backdropFilter: "blur(8px)",
+                    }}
+                >
+                    {/* Header */}
+
                     <div
                         style={{
-                            position: "absolute",
-                            top: 90,
-                            left: 15,
-                            zIndex: 999,
-                            background: "#fff",
-                            padding: 15,
-                            width: 230,
-                            borderRadius: 12,
-                            boxShadow:
-                                "0 2px 12px rgba(0,0,0,.2)",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            marginBottom: 5,
                         }}
                     >
                         <div
                             style={{
-                                fontWeight: 700,
-                                marginBottom: 5,
+                                fontFamily: "Kanit, Sarabun, sans-serif",
+                                fontSize: 14,
+                                fontWeight: 600,
+                                color: COLORS.ink,
                             }}
                         >
-                            Reports
+                            รายงานบนแผนที่
                         </div>
 
-                        <div
+                        <span
                             style={{
-                                fontSize: 32,
-                                fontWeight: 700,
-                                color: "#1677ff",
-                                marginBottom: 8,
+                                width: 7,
+                                height: 7,
+                                borderRadius: "50%",
+                                background: COLORS.ok,
+                                boxShadow: `0 0 0 3px ${COLORS.ok}22`,
+                            }}
+                        />
+                    </div>
+
+                    {/* Total */}
+
+                    <div
+                        style={{
+                            display: "flex",
+                            alignItems: "baseline",
+                            gap: 7,
+                            marginBottom: 9,
+                        }}
+                    >
+                        <span
+                            style={{
+                                fontFamily: "Kanit, Sarabun, sans-serif",
+                                fontSize: 30,
+                                lineHeight: 1,
+                                fontWeight: 600,
+                                color: COLORS.ink,
                             }}
                         >
                             {statistics.total}
+                        </span>
+
+                        <span
+                            style={{
+                                fontSize: 11,
+                                color: "#74837E",
+                            }}
+                        >
+                            รายการ
+                        </span>
+                    </div>
+
+                    {/* Priority Summary */}
+
+                    <div
+                        style={{
+                            display: "grid",
+                            gridTemplateColumns: "repeat(3, 1fr)",
+                            gap: 5,
+                        }}
+                    >
+                        {/* Critical */}
+
+                        <div
+                            style={{
+                                padding: "6px 5px",
+                                borderRadius: 6,
+                                background: "#F9EDEA",
+                                textAlign: "center",
+                            }}
+                        >
+                            <div
+                                style={{
+                                    fontSize: 15,
+                                    fontWeight: 700,
+                                    color: COLORS.danger,
+                                }}
+                            >
+                                {statistics.critical}
+                            </div>
+
+                            <div
+                                style={{
+                                    fontSize: 9,
+                                    color: COLORS.danger,
+                                }}
+                            >
+                                Critical
+                            </div>
                         </div>
 
-                        <Space
-                            wrap
-                            size={[4, 4]}
+                        {/* Warning */}
+
+                        <div
+                            style={{
+                                padding: "6px 5px",
+                                borderRadius: 6,
+                                background: "#FFF5D9",
+                                textAlign: "center",
+                            }}
                         >
-                            <Tag color="red">
-                                Critical{" "}
-                                {statistics.critical}
-                            </Tag>
-
-                            <Tag color="gold">
-                                Warning{" "}
+                            <div
+                                style={{
+                                    fontSize: 15,
+                                    fontWeight: 700,
+                                    color: COLORS.warn,
+                                }}
+                            >
                                 {statistics.warning}
-                            </Tag>
+                            </div>
 
-                            <Tag color="green">
-                                Good{" "}
+                            <div
+                                style={{
+                                    fontSize: 9,
+                                    color: COLORS.warn,
+                                }}
+                            >
+                                Warning
+                            </div>
+                        </div>
+
+                        {/* Good */}
+
+                        <div
+                            style={{
+                                padding: "6px 5px",
+                                borderRadius: 6,
+                                background: "#E8F3EE",
+                                textAlign: "center",
+                            }}
+                        >
+                            <div
+                                style={{
+                                    fontSize: 15,
+                                    fontWeight: 700,
+                                    color: COLORS.ok,
+                                }}
+                            >
                                 {statistics.good}
-                            </Tag>
+                            </div>
 
-                            {statistics.noAnalysis >
-                                0 && (
-                                <Tag>
-                                    No AI{" "}
-                                    {
-                                        statistics.noAnalysis
-                                    }
-                                </Tag>
-                            )}
-                        </Space>
+                            <div
+                                style={{
+                                    fontSize: 9,
+                                    color: COLORS.ok,
+                                }}
+                            >
+                                Good
+                            </div>
+                        </div>
                     </div>
-                )}
 
-                {/* ==================================================
-                    MAP
-                ================================================== */}
+                    {/* No AI */}
 
-                <MapContainer
-                    ref={mapRef}
-                    center={[
-                        14.8781,
-                        102.0156,
-                    ]}
-                    zoom={13}
-                    zoomControl={false}
+                    {statistics.noAnalysis > 0 && (
+                        <div
+                            style={{
+                                marginTop: 7,
+                                padding: "5px 7px",
+                                borderRadius: 6,
+                                background: "#EEF2F0",
+                                color: "#687A74",
+                                fontSize: 10,
+                            }}
+                        >
+                            ยังไม่มีผล AI {statistics.noAnalysis} รายการ
+                        </div>
+                    )}
+                </aside>
+            )}
+
+            {/* ==================================================
+                MAP
+            ================================================== */}
+
+            <MapContainer
+                ref={mapRef}
+                center={[14.8781, 102.0156]}
+                zoom={13}
+                zoomControl={false}
+                style={{
+                    height: "100%",
+                    width: "100%",
+                }}
+            >
+                <MapViewport reports={filteredReports} />
+
+                <ZoomControl position="topright" />
+
+                <ScaleControl position="bottomleft" />
+
+                <TileLayer
+                    attribution="© OpenStreetMap contributors"
+                    url={tileUrl}
+                />
+
+                <MarkerClusterGroup
+                    chunkedLoading
+                    disableClusteringAtZoom={16}
+                    iconCreateFunction={createClusterIcon}
+                >
+                    {filteredReports.map((report) => (
+                        <Marker
+                            key={report.id}
+                            position={[report.latitude, report.longitude]}
+                            icon={createSeverityMarker(report)}
+                            report={report}
+                        >
+                            <Popup maxWidth={360} minWidth={320}>
+                                <ReportPopup report={report} />
+                            </Popup>
+                        </Marker>
+                    ))}
+                </MarkerClusterGroup>
+            </MapContainer>
+
+            {/* ==================================================
+                EMPTY SEARCH STATE
+            ================================================== */}
+
+            {keyword.trim() && filteredReports.length === 0 && (
+                <div
                     style={{
-                        height: "100%",
-                        width: "100%",
+                        position: "absolute",
+                        top: "50%",
+                        left: "50%",
+                        zIndex: 997,
+                        transform: "translate(-50%, -50%)",
+                        background: "rgba(255,255,255,.96)",
+                        border: `1px solid ${COLORS.line}`,
+                        borderRadius: 10,
+                        padding: "16px 22px",
+                        textAlign: "center",
+                        boxShadow: "0 3px 12px rgba(20,53,47,.12)",
                     }}
                 >
-                    <MapViewport
-                        reports={
-                            filteredReports
-                        }
-                    />
-
-                    <ZoomControl position="topright" />
-
-                    <ScaleControl position="bottomleft" />
-
-                    <TileLayer
-                        attribution="© OpenStreetMap contributors"
-                        url={tileUrl}
-                    />
-
-                    <MarkerClusterGroup
-                        chunkedLoading
-                        disableClusteringAtZoom={
-                            16
-                        }
-                        iconCreateFunction={
-                            createClusterIcon
-                        }
+                    <div
+                        style={{
+                            fontSize: 14,
+                            fontWeight: 600,
+                            color: COLORS.ink,
+                            marginBottom: 3,
+                        }}
                     >
-                        {filteredReports.map(
-                            (report) => (
-                                <Marker
-                                    key={report.id}
-                                    position={[
-                                        report.latitude,
-                                        report.longitude,
-                                    ]}
-                                    icon={createSeverityMarker(
-                                        report
-                                    )}
-                                    report={report}
-                                >
-                                    <Popup
-                                        maxWidth={360}
-                                        minWidth={320}
-                                    >
-                                        <ReportPopup
-                                            report={
-                                                report
-                                            }
-                                        />
-                                    </Popup>
-                                </Marker>
-                            )
-                        )}
-                    </MarkerClusterGroup>
-                </MapContainer>
-            </div>
-        </Card>
+                        ไม่พบรายงาน
+                    </div>
+
+                    <div
+                        style={{
+                            fontSize: 11,
+                            color: "#74837E",
+                        }}
+                    >
+                        ลองค้นหาด้วยเลขรายงานหรือชื่อถนน
+                    </div>
+                </div>
+            )}
+        </section>
     );
 }

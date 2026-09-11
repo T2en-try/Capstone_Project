@@ -1,92 +1,187 @@
-/**
- * Auth Service — จัดการการยืนยันตัวตน Admin
- * เรียก API /api/auth/login, /api/auth/me
- * เก็บ token ใน localStorage
- */
-
 import { BASE_URL } from "./api";
 
 const TOKEN_KEY = "admin_token";
 const ADMIN_KEY = "admin_info";
 
-/**
- * Login — เรียก API เพื่อเข้าสู่ระบบ
- */
 export async function login(email, password) {
-  const res = await fetch(`${BASE_URL}/api/auth/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password }),
-  });
+  try {
+    const res = await fetch(`${BASE_URL}/api/auth/login`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        email,
+        password,
+      }),
+    });
 
-  const data = await res.json();
+    const data = await res.json();
 
-  if (!res.ok) {
-    throw new Error(data.detail || "เข้าสู่ระบบไม่สำเร็จ");
+    // ==========================
+    // API Error
+    // ==========================
+
+    if (!res.ok) {
+      let errorMessage = "เข้าสู่ระบบไม่สำเร็จ";
+
+      if (typeof data.detail === "string") {
+        errorMessage = data.detail;
+      } else if (Array.isArray(data.detail)) {
+        errorMessage = data.detail
+          .map((item) => {
+            if (typeof item === "string") {
+              return item;
+            }
+
+            return (
+              item.msg ||
+              item.message ||
+              JSON.stringify(item)
+            );
+          })
+          .join(", ");
+      } else if (data.detail && typeof data.detail === "object") {
+        errorMessage =
+          data.detail.message ||
+          data.detail.msg ||
+          JSON.stringify(data.detail);
+      } else if (data.message) {
+        errorMessage =
+          typeof data.message === "string"
+            ? data.message
+            : JSON.stringify(data.message);
+      }
+
+      throw new Error(errorMessage);
+    }
+
+    // ==========================
+    // Save Login Data
+    // ==========================
+
+    if (!data.access_token) {
+      throw new Error(
+        "ไม่พบ Access Token จาก Server"
+      );
+    }
+
+    localStorage.setItem(
+      TOKEN_KEY,
+      data.access_token
+    );
+
+    if (data.admin) {
+      localStorage.setItem(
+        ADMIN_KEY,
+        JSON.stringify(data.admin)
+      );
+    }
+
+    return data;
+
+  } catch (error) {
+
+    console.error(
+      "Login Error:",
+      error
+    );
+
+    // Error จากเรา
+    if (error instanceof Error) {
+      throw error;
+    }
+
+    // ป้องกัน [object Object]
+    if (
+      error &&
+      typeof error === "object"
+    ) {
+      throw new Error(
+        error.message ||
+        error.detail ||
+        JSON.stringify(error)
+      );
+    }
+
+    throw new Error(
+      String(error) ||
+      "เข้าสู่ระบบไม่สำเร็จ"
+    );
   }
-
-  // เก็บ token และข้อมูล admin ลง localStorage
-  localStorage.setItem(TOKEN_KEY, data.access_token);
-  localStorage.setItem(ADMIN_KEY, JSON.stringify(data.admin));
-
-  return data;
 }
 
-/**
- * Get Me — ดึงข้อมูล Admin จาก Token
- */
 export async function getMe() {
   const token = getToken();
-  if (!token) return null;
+
+  if (!token) {
+    return null;
+  }
 
   try {
-    const res = await fetch(`${BASE_URL}/api/auth/me`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const res = await fetch(
+      `${BASE_URL}/api/auth/me`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    const data = await res.json();
 
     if (!res.ok) {
       logout();
       return null;
     }
 
-    const data = await res.json();
-    localStorage.setItem(ADMIN_KEY, JSON.stringify(data.admin));
+    if (data.admin) {
+      localStorage.setItem(
+        ADMIN_KEY,
+        JSON.stringify(data.admin)
+      );
+    }
+
     return data.admin;
-  } catch {
+
+  } catch (error) {
+    console.error(
+      "getMe Error:",
+      error
+    );
+
     return null;
   }
 }
 
-/**
- * Logout — ลบ token ออกจาก localStorage
- */
 export function logout() {
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(ADMIN_KEY);
 }
 
-/**
- * Get Token — ดึง JWT token จาก localStorage
- */
 export function getToken() {
   return localStorage.getItem(TOKEN_KEY);
 }
 
-/**
- * Get Admin Info — ดึงข้อมูล admin จาก localStorage
- */
 export function getAdminInfo() {
   try {
-    const raw = localStorage.getItem(ADMIN_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
+    const raw =
+      localStorage.getItem(ADMIN_KEY);
+
+    return raw
+      ? JSON.parse(raw)
+      : null;
+
+  } catch (error) {
+    console.error(
+      "getAdminInfo Error:",
+      error
+    );
+
     return null;
   }
 }
 
-/**
- * Is Authenticated — ตรวจสอบว่า Login อยู่หรือไม่
- */
 export function isAuthenticated() {
   return !!getToken();
 }

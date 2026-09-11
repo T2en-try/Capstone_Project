@@ -1,5 +1,3 @@
-import { Card, Col, Row, Statistic, Tag } from "antd";
-
 import {
     FileSearchOutlined,
     ClockCircleOutlined,
@@ -12,127 +10,148 @@ const SummaryCards = ({ data }) => {
     const cards = [
         {
             title: "รายงานทั้งหมด",
-            value: data.totalReports,
+            value: data.totalReports ?? 0,
             icon: <FileSearchOutlined />,
-            color: "#1677ff",
-            bg: "#e6f4ff",
-            status: "Total",
+            color: "#14352F",
+            bg: "#E8EFEC",
+            status: "ทั้งหมด",
         },
-
         {
             title: "รอตรวจสอบ",
-            value: data.pendingReports,
+            value: data.pendingReports ?? 0,
             icon: <ClockCircleOutlined />,
-            color: "#faad14",
-            bg: "#fffbe6",
-            status: "Pending",
+            color: "#C4891A",
+            bg: "#FFF5D9",
+            status: "รอตรวจสอบ",
         },
-
         {
             title: "กำลังดำเนินการ",
-            value: data.processingReports,
+            value: data.processingReports ?? 0,
             icon: <SyncOutlined />,
-            color: "#722ed1",
-            bg: "#f9f0ff",
-            status: "Processing",
+            color: "#2F6F7E",
+            bg: "#E8F1F3",
+            status: "ดำเนินการ",
         },
-
         {
             title: "ซ่อมเสร็จแล้ว",
-            value: data.completedReports,
+            value: data.completedReports ?? 0,
             icon: <CheckCircleOutlined />,
-            color: "#52c41a",
-            bg: "#f6ffed",
-            status: "Completed",
+            color: "#2D7A5F",
+            bg: "#E8F3EE",
+            status: "เสร็จแล้ว",
         },
         {
             title: "ปฏิเสธ",
-            value: data.rejectedReports,
+            value: data.rejectedReports ?? 0,
             icon: <CloseCircleOutlined />,
-            color: "#ff4d4f",
-            bg: "#fff1f0",
-            status: "Rejected",
+            color: "#C45C4A",
+            bg: "#F9EDEA",
+            status: "ปฏิเสธ",
         },
     ];
 
     return (
-        <Row gutter={[16, 16]}>
+        <section
+            aria-label="สรุปสถานะรายงาน"
+            style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(5, minmax(0, 1fr))",
+                gap: 14,
+                width: "100%",
+            }}
+        >
             {cards.map((card) => (
-                <Col key={card.title} xs={24} sm={12} lg={6}>
-                    <Card
-                        hoverable
+                <article
+                    key={card.title}
+                    style={{
+                        minWidth: 0,
+                        background: "#FFFFFF",
+                        border: "1px solid #D9E3DF",
+                        borderRadius: 12,
+                        padding: "15px 16px",
+                        minHeight: 118,
+                        boxSizing: "border-box",
+                        transition: "border-color 0.2s ease",
+                    }}
+                >
+                    {/* Top */}
+                    <header
                         style={{
-                            borderRadius: 14,
-
-                            height: 150,
-                        }}
-                        bodyStyle={{
-                            padding: "16px 18px",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            gap: 8,
+                            marginBottom: 12,
                         }}
                     >
-                        <div
+                        {/* Icon */}
+                        <span
                             style={{
-                                display: "flex",
-
-                                justifyContent: "space-between",
-
+                                width: 38,
+                                height: 38,
+                                flexShrink: 0,
+                                display: "inline-flex",
                                 alignItems: "center",
+                                justifyContent: "center",
+                                borderRadius: 9,
+                                background: card.bg,
+                                color: card.color,
+                                fontSize: 18,
                             }}
                         >
-                            <div
-                                style={{
-                                    width: 42,
+                            {card.icon}
+                        </span>
 
-                                    height: 42,
-
-                                    borderRadius: 10,
-
-                                    background: card.bg,
-
-                                    color: card.color,
-
-                                    display: "flex",
-
-                                    alignItems: "center",
-
-                                    justifyContent: "center",
-
-                                    fontSize: 20,
-                                }}
-                            >
-                                {card.icon}
-                            </div>
-
-                            <Tag
-                                color={card.color}
-                                style={{
-                                    margin: 0,
-
-                                    fontSize: 11,
-                                }}
-                            >
-                                {card.status}
-                            </Tag>
-                        </div>
-
-                        <Statistic
-                            title={card.title}
-                            value={card.value}
-                            valueStyle={{
-                                fontSize: 26,
-
-                                fontWeight: 700,
-
+                        {/* Status */}
+                        <span
+                            style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                padding: "4px 8px",
+                                borderRadius: 6,
+                                background: card.bg,
+                                color: card.color,
+                                fontFamily: "Sarabun, sans-serif",
+                                fontSize: 11,
+                                fontWeight: 600,
                                 lineHeight: 1.2,
-
-                                marginTop: 8,
+                                whiteSpace: "nowrap",
                             }}
-                        />
+                        >
+                            {card.status}
+                        </span>
+                    </header>
 
-                    </Card>
-                </Col>
+                    {/* Content */}
+                    <p
+                        style={{
+                            margin: 0,
+                            color: "#64756F",
+                            fontFamily: "Sarabun, sans-serif",
+                            fontSize: 13,
+                            lineHeight: 1.4,
+                        }}
+                    >
+                        {card.title}
+                    </p>
+
+                    <p
+                        style={{
+                            margin: "3px 0 0",
+                            color: "#14352F",
+                            fontFamily:
+                                "Kanit, Sarabun, sans-serif",
+                            fontSize: 28,
+                            fontWeight: 600,
+                            lineHeight: 1.15,
+                            letterSpacing: "-0.5px",
+                        }}
+                    >
+                        {card.value.toLocaleString()}
+                    </p>
+                </article>
             ))}
-        </Row>
+        </section>
     );
 };
 

@@ -1,13 +1,24 @@
+import React from "react";
 import {
-    FileText,
-    Clock3,
-    Wrench,
-    CheckCircle2,
-    AlertCircle,
-    ChevronRight,
-} from "lucide-react";
+    Card,
+    Col,
+    Row,
+    Statistic,
+    ConfigProvider,
+} from "antd";
 
-export default function StatusCard({ stats = {}, loading = false }) {
+import {
+    FileTextOutlined,
+    ClockCircleOutlined,
+    ToolOutlined,
+    CheckCircleOutlined,
+    ExclamationCircleOutlined,
+} from "@ant-design/icons";
+
+export default function StatusCard({
+    stats = {},
+    loading = false,
+}) {
     const defaultStats = {
         total_reports: 0,
         pending_count: 0,
@@ -21,229 +32,223 @@ export default function StatusCard({ stats = {}, loading = false }) {
         ...stats,
     };
 
-    const dashboardStats = [
+    const statusItems = [
         {
+            key: "pending",
             title: "รอดำเนินการ",
-            value: data.pending_count,
-            description: "รายการที่รอการตรวจสอบ",
-            bgColor: "bg-red-50",
-            iconBg: "bg-red-100",
-            textColor: "text-red-600",
-            icon: Clock3,
+            description: "รอการตรวจสอบ",
+            value: Number(data.pending_count) || 0,
+            icon: <ClockCircleOutlined />,
+            color: "#C45C4A",
+            background: "#F8EDEA",
         },
         {
+            key: "processing",
             title: "กำลังดำเนินการ",
-            value: data.processing_count,
-            description: "อยู่ระหว่างการซ่อมแซม",
-            bgColor: "bg-amber-50",
-            iconBg: "bg-amber-100",
-            textColor: "text-amber-600",
-            icon: Wrench,
+            description: "อยู่ระหว่างการซ่อม",
+            value: Number(data.processing_count) || 0,
+            icon: <ToolOutlined />,
+            color: "#C4891A",
+            background: "#F8F2E3",
         },
         {
+            key: "completed",
             title: "ซ่อมเสร็จแล้ว",
-            value: data.completed_count,
             description: "ดำเนินการเสร็จสิ้น",
-            bgColor: "bg-emerald-50",
-            iconBg: "bg-emerald-100",
-            textColor: "text-emerald-600",
-            icon: CheckCircle2,
+            value: Number(data.completed_count) || 0,
+            icon: <CheckCircleOutlined />,
+            color: "#2D7A5F",
+            background: "#EAF3EF",
         },
         {
+            key: "rejected",
             title: "ปฏิเสธ",
-            value: data.rejected_count,
-            description: "รายการที่ไม่ผ่านการตรวจสอบ",
-            bgColor: "bg-slate-50",
-            iconBg: "bg-slate-200",
-            textColor: "text-slate-600",
-            icon: AlertCircle,
+            description: "ไม่ผ่านการตรวจสอบ",
+            value: Number(data.rejected_count) || 0,
+            icon: <ExclamationCircleOutlined />,
+            color: "#6D7773",
+            background: "#EEF1F0",
         },
     ];
 
-    const total = data.total_reports;
-
-    /* =========================
-     Loading
-  ========================= */
-
-    if (loading) {
-        return (
-            <div className="space-y-3">
-                {[1, 2, 3, 4].map((item) => (
-                    <div
-                        key={item}
-                        className="h-[88px] rounded-2xl bg-slate-100 animate-pulse"
-                    />
-                ))}
-
-                <div className="h-[72px] rounded-2xl bg-slate-100 animate-pulse" />
-            </div>
-        );
-    }
-
-    /* =========================
-     UI
-  ========================= */
-
     return (
-        <div className="space-y-3">
-            {/* Header */}
+        <ConfigProvider
+            theme={{
+                token: {
+                    colorPrimary: "#E6A817",
+                    colorText: "#14352F",
+                    colorTextSecondary: "#6B7773",
+                    colorBorder: "#C5D4CF",
+                    borderRadius: 12,
+                },
+            }}
+        >
+            <section className="w-full">
 
-            <div className="flex items-center justify-between mb-4">
-                <div>
-                    <h2 className="text-base font-bold text-ink">
-                        สถานะรายงาน
-                    </h2>
+                {/* Header */}
+                <header className="mb-4">
+                    <div className="flex items-end justify-between gap-3">
+                        <div>
+                            <h2 className="font-display text-lg font-semibold text-ink">
+                                สถานะรายงาน
+                            </h2>
 
-                    <p className="text-xs text-asphalt/50 mt-1">
-                        สรุปสถานะการดำเนินงานทั้งหมด
-                    </p>
-                </div>
-            </div>
+                            <p className="mt-0.5 text-xs text-asphalt/55">
+                                ภาพรวมการดำเนินงานของรายงานทั้งหมด
+                            </p>
+                        </div>
 
-            {/* Status Items */}
+                        <div className="hidden sm:flex items-center gap-1.5 text-[11px] text-asphalt/45">
+                            <span className="h-1.5 w-1.5 rounded-full bg-ok" />
+                            อัปเดตจากระบบ
+                        </div>
+                    </div>
+                </header>
 
-            <div className="space-y-3">
-                {dashboardStats.map((item) => {
-                    const Icon = item.icon;
-
-                    return (
-                        <div
-                            key={item.title}
-                            className={`
-                group
-                ${item.bgColor}
-                rounded-2xl
-                border
-                border-line
-                p-4
-                transition-all
-                duration-200
-                hover:-translate-y-[1px]
-                hover:shadow-md
-              `}
+                {/* Status Cards */}
+                <Row gutter={[12, 12]}>
+                    {statusItems.map((item) => (
+                        <Col
+                            key={item.key}
+                            xs={24}
+                            sm={12}
                         >
-                            <div className="flex items-center justify-between">
-                                {/* Left */}
+                            <Card
+                                size="small"
+                                loading={loading}
+                                bordered
+                                styles={{
+                                    body: {
+                                        padding: "14px 16px",
+                                    },
+                                }}
+                                style={{
+                                    height: "100%",
+                                    borderColor: "#C5D4CF",
+                                    borderRadius: 12,
+                                    background: "#F7FAF8",
+                                    transition: "all 0.2s ease",
+                                }}
+                                hoverable
+                            >
+                                <div className="flex items-center justify-between gap-3">
 
-                                <div className="flex items-center gap-3">
-                                    {/* Icon */}
+                                    {/* Left */}
+                                    <div className="flex min-w-0 items-center gap-3">
 
-                                    <div
-                                        className={`
-                      ${item.iconBg}
-                      ${item.textColor}
-                      flex
-                      h-11
-                      w-11
-                      shrink-0
-                      items-center
-                      justify-center
-                      rounded-xl
-                    `}
-                                    >
-                                        <Icon size={21} />
-                                    </div>
-
-                                    {/* Text */}
-
-                                    <div>
-                                        <h3
-                                            className={`
-                        text-sm
-                        font-semibold
-                        ${item.textColor}
-                      `}
+                                        {/* Icon */}
+                                        <div
+                                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
+                                            style={{
+                                                backgroundColor: item.background,
+                                                color: item.color,
+                                                fontSize: 19,
+                                            }}
                                         >
-                                            {item.title}
-                                        </h3>
+                                            {item.icon}
+                                        </div>
 
-                                        <p className="mt-0.5 text-xs text-asphalt/55">
-                                            {item.description}
-                                        </p>
+                                        {/* Text */}
+                                        <div className="min-w-0">
+                                            <div
+                                                className="truncate text-sm font-semibold"
+                                                style={{
+                                                    color: "#14352F",
+                                                }}
+                                            >
+                                                {item.title}
+                                            </div>
+
+                                            <div
+                                                className="mt-0.5 truncate text-[11px]"
+                                                style={{
+                                                    color: "#6B7773",
+                                                }}
+                                            >
+                                                {item.description}
+                                            </div>
+                                        </div>
                                     </div>
+
+                                    {/* Number */}
+                                    <Statistic
+                                        value={item.value}
+                                        valueStyle={{
+                                            color: item.color,
+                                            fontSize: 24,
+                                            fontWeight: 700,
+                                            lineHeight: 1,
+                                            fontFamily:
+                                                "ui-monospace, SFMono-Regular, Menlo, monospace",
+                                        }}
+                                    />
+                                </div>
+                            </Card>
+                        </Col>
+                    ))}
+                </Row>
+
+                {/* Total Reports */}
+                <Card
+                    size="small"
+                    bordered
+                    style={{
+                        marginTop: 12,
+                        borderColor: "rgba(230, 168, 23, 0.35)",
+                        borderRadius: 12,
+                        background: "rgba(230, 168, 23, 0.05)",
+                    }}
+                    styles={{
+                        body: {
+                            padding: "13px 16px",
+                        },
+                    }}
+                >
+                    <div className="flex items-center justify-between gap-4">
+
+                        {/* Left */}
+                        <div className="flex min-w-0 items-center gap-3">
+
+                            <div
+                                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
+                                style={{
+                                    background: "rgba(230, 168, 23, 0.10)",
+                                    color: "#C48A0A",
+                                    fontSize: 18,
+                                }}
+                            >
+                                <FileTextOutlined />
+                            </div>
+
+                            <div className="min-w-0">
+                                <div className="text-sm font-semibold text-ink">
+                                    รายงานทั้งหมด
                                 </div>
 
-                                {/* Right */}
-
-                                <div className="flex items-center gap-3">
-                                    <span
-                                        className={`
-                      text-2xl
-                      font-bold
-                      ${item.textColor}
-                    `}
-                                    >
-                                        {item.value}
-                                    </span>
-
-                                    <ChevronRight
-                                        size={18}
-                                        className="
-                      text-asphalt/25
-                      transition-transform
-                      group-hover:translate-x-1
-                    "
-                                    />
+                                <div className="mt-0.5 text-[11px] text-asphalt/50">
+                                    จำนวนรายงานที่อยู่ในระบบ
                                 </div>
                             </div>
                         </div>
-                    );
-                })}
-            </div>
 
-            {/* Total */}
+                        {/* Total */}
+                        <div className="flex items-baseline gap-2 shrink-0">
+                            <span
+                                className="font-mono text-2xl font-bold"
+                                style={{
+                                    color: "#C48A0A",
+                                }}
+                            >
+                                {Number(data.total_reports) || 0}
+                            </span>
 
-            <div
-                className="
-          mt-5
-          flex
-          items-center
-          justify-between
-          rounded-2xl
-          border
-          border-mark/20
-          bg-mark/5
-          px-5
-          py-4
-        "
-            >
-                <div className="flex items-center gap-3">
-                    <div
-                        className="
-              flex
-              h-10
-              w-10
-              items-center
-              justify-center
-              rounded-xl
-              bg-mark/10
-            "
-                    >
-                        <FileText size={20} className="text-mark" />
+                            <span className="text-[11px] text-asphalt/45">
+                                รายการ
+                            </span>
+                        </div>
                     </div>
-
-                    <div>
-                        <p className="text-sm font-semibold text-ink">
-                            รายงานทั้งหมด
-                        </p>
-
-                        <p className="text-xs text-asphalt/50">
-                            จำนวนรายการในระบบ
-                        </p>
-                    </div>
-                </div>
-
-                <span
-                    className="
-            text-2xl
-            font-bold
-            text-mark-deep
-          "
-                >
-                    {total}
-                </span>
-            </div>
-        </div>
+                </Card>
+            </section>
+        </ConfigProvider>
     );
 }
