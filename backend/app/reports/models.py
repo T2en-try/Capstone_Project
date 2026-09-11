@@ -413,26 +413,37 @@ class UserRole(str, enum.Enum):
 
 
 class User(Base):
-    """
-    ตาราง users - สำหรับเจ้าหน้าที่ (Officers) และผู้ดูแลระบบ (Admins) 
-    (General Users ไม่มีบัญชีผู้ใช้)
-    """
     __tablename__ = "users"
 
     id = Column(Integer, primary_key=True, autoincrement=True, index=True)
-    email = Column(String(255), unique=True, index=True, nullable=False, comment="อีเมลสำหรับเข้าสู่ระบบ")
-    hashed_password = Column(String(255), nullable=False, comment="รหัสผ่านที่เข้ารหัสแล้ว")
-    role = Column(SAEnum(UserRole), default=UserRole.OFFICER, nullable=False, comment="บทบาทของผู้ใช้")
-    is_active = Column(Integer, default=1, comment="สถานะบัญชี (1=Active, 0=Inactive) ใช้ Integer แทน Boolean ให้เข้ากับบาง DB")
-    
+
+    email = Column(String(255), unique=True, index=True, nullable=False)
+    hashed_password = Column(String(255), nullable=False)
+
+    role = Column(
+        SAEnum(UserRole),
+        default=UserRole.OFFICER,
+        nullable=False
+    )
+
+    is_active = Column(Integer, default=1, nullable=False)
+
+    # ข้อมูลพนักงาน (สำหรับเจ้าหน้าที่)
+    employee_code = Column(String(50), unique=True, nullable=True)
+    first_name = Column(String(100), nullable=True)
+    last_name = Column(String(100), nullable=True)
+    phone = Column(String(30), nullable=True)
+    department = Column(String(150), nullable=True)
+    position = Column(String(150), nullable=True)
+
     created_at = Column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),
         nullable=False
     )
+
     last_login = Column(DateTime(timezone=True), nullable=True)
 
-    # ความสัมพันธ์
     actions = relationship("ReportAction", back_populates="officer")
     settings_updated = relationship("SystemSetting", back_populates="admin")
 
@@ -482,4 +493,4 @@ class SystemSetting(Base):
         nullable=False
     )
 
-    admin = relationship("User", back_populates="settings_updated")
+    admin = relationship("User", back_populates="settings_updated")

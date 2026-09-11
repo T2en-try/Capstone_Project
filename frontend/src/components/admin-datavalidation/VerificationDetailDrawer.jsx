@@ -1,325 +1,766 @@
-import { useEffect, useState } from "react";
 import {
   Drawer,
   Row,
   Col,
-  Card,
   Image,
   Descriptions,
   Tag,
-  Statistic,
-  Radio,
-  Select,
-  Input,
   Divider,
   Button,
   Space,
   Progress,
-  message,
   Typography,
 } from "antd";
 
-const { TextArea } = Input;
+import {
+  CloseOutlined,
+  RobotOutlined,
+  EnvironmentOutlined,
+  FileSearchOutlined,
+} from "@ant-design/icons";
+
 const { Text } = Typography;
+
+/* =========================================================
+   Design System
+========================================================= */
+
+const COLORS = {
+  ink: "#14352F",
+  inkSoft: "#1F4A42",
+
+  mark: "#E6A817",
+  markDeep: "#C48A0A",
+
+  paper: "#F7FAF8",
+  asphalt: "#2A3431",
+  line: "#C5D4CF",
+
+  danger: "#C45C4A",
+  ok: "#2D7A5F",
+  warn: "#C4891A",
+  info: "#2F6F7E",
+
+  neutral: "#66736F",
+  white: "#FFFFFF",
+};
+
+/* =========================================================
+   Helpers
+========================================================= */
+
+const getPriorityConfig = (priorityClass) => {
+  const value = Number(priorityClass);
+
+  switch (value) {
+    case 3:
+      return {
+        label: "Critical",
+        thaiLabel: "วิกฤต",
+        color: COLORS.danger,
+        background: "#FFF3F0",
+      };
+
+    case 2:
+      return {
+        label: "Warning",
+        thaiLabel: "ควรระวัง",
+        color: COLORS.warn,
+        background: "#FFF9E8",
+      };
+
+    case 1:
+      return {
+        label: "Good",
+        thaiLabel: "ปกติ",
+        color: COLORS.ok,
+        background: "#F1F8F5",
+      };
+
+    default:
+      return {
+        label: "ยังไม่มีผลวิเคราะห์",
+        thaiLabel: "ยังไม่มีผลวิเคราะห์",
+        color: COLORS.neutral,
+        background: "#F5F7F6",
+      };
+  }
+};
+
+const getVerificationConfig = (status) => {
+  switch (status) {
+    case "VERIFIED":
+      return {
+        label: "ยืนยันแล้ว",
+        color: COLORS.ok,
+      };
+
+    case "REJECTED":
+      return {
+        label: "ปฏิเสธ",
+        color: COLORS.danger,
+      };
+
+    default:
+      return {
+        label: "รอตรวจสอบ",
+        color: COLORS.warn,
+      };
+  }
+};
+
+const formatNumber = (value, digits = 2) => {
+  if (value == null || Number.isNaN(Number(value))) {
+    return "-";
+  }
+
+  return Number(value).toFixed(digits);
+};
+
+/* =========================================================
+   Section
+========================================================= */
+
+function Section({
+  icon,
+  title,
+  subtitle,
+  children,
+}) {
+  return (
+    <section
+      style={{
+        marginBottom: 20,
+        paddingBottom: 18,
+        borderBottom: `1px solid ${COLORS.line}`,
+      }}
+    >
+      <header
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          gap: 9,
+          marginBottom: 13,
+        }}
+      >
+        {icon && (
+          <span
+            style={{
+              color: COLORS.markDeep,
+              fontSize: 16,
+              marginTop: 2,
+            }}
+          >
+            {icon}
+          </span>
+        )}
+
+        <div>
+          <h3
+            style={{
+              margin: 0,
+              color: COLORS.ink,
+              fontFamily: "Kanit, sans-serif",
+              fontSize: 17,
+              fontWeight: 500,
+              lineHeight: 1.3,
+            }}
+          >
+            {title}
+          </h3>
+
+          {subtitle && (
+            <Text
+              style={{
+                color: COLORS.neutral,
+                fontFamily: "Sarabun, sans-serif",
+                fontSize: 12,
+              }}
+            >
+              {subtitle}
+            </Text>
+          )}
+        </div>
+      </header>
+
+      {children}
+    </section>
+  );
+}
+
+/* =========================================================
+   Probability
+========================================================= */
+
+function ProbabilityRow({
+  label,
+  value,
+  color,
+}) {
+  const percent =
+    value == null
+      ? 0
+      : Math.max(
+          0,
+          Math.min(100, Number(value) * 100)
+        );
+
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          marginBottom: 4,
+          fontFamily: "Sarabun, sans-serif",
+          fontSize: 13,
+        }}
+      >
+        <Text>{label}</Text>
+
+        <Text
+          strong
+          style={{
+            color: COLORS.ink,
+            fontFamily: "monospace",
+          }}
+        >
+          {value == null
+            ? "-"
+            : `${Math.round(percent)}%`}
+        </Text>
+      </div>
+
+      <Progress
+        percent={percent}
+        showInfo={false}
+        strokeColor={color}
+        trailColor="#E8EFEC"
+        size="small"
+      />
+    </div>
+  );
+}
+
+/* =========================================================
+   Main Component
+========================================================= */
 
 export default function VerificationDetailDrawer({
   open,
   report,
   onClose,
-  onConfirm,
 }) {
-  const [decision, setDecision] = useState("correct");
-  const [severity, setSeverity] = useState();
-  const [damageType, setDamageType] = useState();
-  const [priority, setPriority] = useState();
-  const [remark, setRemark] = useState("");
-
-  useEffect(() => {
-    if (open) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setDecision("correct");
-      setSeverity(undefined);
-      setDamageType(undefined);
-      setPriority(undefined);
-      setRemark("");
-    }
-  }, [open]);
-
   if (!report) return null;
 
-  const handleConfirm = () => {
-    if (decision === "incorrect") {
-      if (!severity || !damageType) {
-        message.warning("Please complete the verification form.");
-        return;
-      }
-    }
+  const priorityConfig = getPriorityConfig(
+    report.priorityClass
+  );
 
-    onConfirm({
-      reportId: report.id,
-      decision,
-      severity,
-      damageType,
-      priority,
-      remark,
-    });
-  };
+  const verificationConfig =
+    getVerificationConfig(
+      report.verificationStatus
+    );
 
   return (
     <Drawer
-      title={`AI Verification : ${report.reportId}`}
-      width={900}
       open={open}
       onClose={onClose}
-    >
-      <Row gutter={16}>
-        <Col span={12}>
-          <Card title="Original Image">
-            {report.image ? (
-              <Image width="100%" src={report.image} />
-            ) : (
-              <Text type="secondary">ไม่มีภาพต้นฉบับ</Text>
-            )}
-          </Card>
-        </Col>
+      width={900}
+      destroyOnClose
+      styles={{
+        header: {
+          borderBottom: `1px solid ${COLORS.line}`,
+          padding: "14px 20px",
+        },
 
-        <Col span={12}>
-          <Card title="AI Annotated Image">
-            {report.annotatedImage ? (
-              <Image width="100%" src={report.annotatedImage} />
-            ) : (
-              <Text type="secondary">ไม่มีภาพที่วิเคราะห์แล้ว</Text>
-            )}
-          </Card>
-        </Col>
-      </Row>
+        body: {
+          padding: 20,
+          background: COLORS.white,
+        },
+      }}
+      title={
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+          }}
+        >
+          <span
+            style={{
+              width: 34,
+              height: 34,
+              borderRadius: 8,
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background: COLORS.ink,
+              color: COLORS.mark,
+            }}
+          >
+            <RobotOutlined />
+          </span>
 
-      <Divider />
-
-      <Row gutter={16}>
-        <Col span={12}>
-          <Card title="Report Information">
-            <Descriptions column={1} size="small">
-              <Descriptions.Item label="Report ID">
-                {report.reportId}
-              </Descriptions.Item>
-
-              <Descriptions.Item label="Road">
-                {report.roadName}
-              </Descriptions.Item>
-
-              <Descriptions.Item label="District">
-                {report.district}
-              </Descriptions.Item>
-
-              <Descriptions.Item label="Created">
-                {report.createdAt}
-              </Descriptions.Item>
-
-              <Descriptions.Item label="AI Decision">
-                <Tag color="red">{report.aiDecision}</Tag>
-              </Descriptions.Item>
-            </Descriptions>
-          </Card>
-        </Col>
-
-        <Col span={12}>
-          <Card title="AI Analysis">
-            <Statistic
-              title="Confidence"
-              value={report.confidence}
-              suffix="%"
-            />
-
-            <Progress
-              percent={report.confidence}
-              status="active"
-            />
-
-            <br />
-
-            <Statistic
-              title="Priority Class"
-              value={report.priorityClass ?? "-"}
-            />
-
-            <div style={{ marginTop: 12 }}>
-              <div>Normal: {report.probaNormal == null ? "-" : `${Math.round(report.probaNormal * 100)}%`}</div>
-              <div>Warning: {report.probaWarning == null ? "-" : `${Math.round(report.probaWarning * 100)}%`}</div>
-              <div>Critical: {report.probaCritical == null ? "-" : `${Math.round(report.probaCritical * 100)}%`}</div>
+          <div>
+            <div
+              style={{
+                color: COLORS.ink,
+                fontFamily: "Kanit, sans-serif",
+                fontSize: 18,
+                fontWeight: 500,
+                lineHeight: 1.2,
+              }}
+            >
+              AI Verification
             </div>
 
-            <br />
+            <Text
+              type="secondary"
+              style={{
+                fontSize: 12,
+                fontFamily: "monospace",
+              }}
+            >
+              Report #{report.reportId}
+            </Text>
+          </div>
+        </div>
+      }
+    >
+      {/* ===================================================
+          Report Summary
+      =================================================== */}
 
-            <Tag color="blue">
-              {report.verificationStatus}
+      <section
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: 16,
+          padding: "12px 14px",
+          marginBottom: 20,
+          background: COLORS.paper,
+          border: `1px solid ${COLORS.line}`,
+          borderRadius: 8,
+          flexWrap: "wrap",
+        }}
+      >
+        <div>
+          <Text
+            style={{
+              display: "block",
+              color: COLORS.ink,
+              fontFamily: "Kanit, sans-serif",
+              fontSize: 15,
+              fontWeight: 500,
+            }}
+          >
+            {report.roadName}
+          </Text>
+
+          <Text
+            type="secondary"
+            style={{
+              fontFamily: "Sarabun, sans-serif",
+              fontSize: 12,
+            }}
+          >
+            {report.district} · {report.createdAt}
+          </Text>
+        </div>
+
+        <Space size={8}>
+          <Tag
+            style={{
+              margin: 0,
+              color: verificationConfig.color,
+              background: COLORS.white,
+              borderColor: verificationConfig.color,
+              borderRadius: 5,
+              fontFamily: "Sarabun, sans-serif",
+            }}
+          >
+            {verificationConfig.label}
+          </Tag>
+
+          <Tag
+            style={{
+              margin: 0,
+              color: priorityConfig.color,
+              background: priorityConfig.background,
+              borderColor: priorityConfig.color,
+              borderRadius: 5,
+              fontFamily: "Sarabun, sans-serif",
+            }}
+          >
+            {priorityConfig.thaiLabel}
+          </Tag>
+        </Space>
+      </section>
+
+      {/* ===================================================
+          Images
+      =================================================== */}
+
+      <Section
+        icon={<FileSearchOutlined />}
+        title="ภาพสำหรับตรวจสอบ"
+        subtitle="ภาพต้นฉบับและภาพที่ผ่านการวิเคราะห์โดย AI"
+      >
+        <Row gutter={[14, 14]}>
+          <Col xs={24} md={12}>
+            <Text
+              strong
+              style={{
+                display: "block",
+                marginBottom: 7,
+                color: COLORS.ink,
+                fontFamily: "Sarabun, sans-serif",
+              }}
+            >
+              ภาพต้นฉบับ
+            </Text>
+
+            <div
+              style={{
+                border: `1px solid ${COLORS.line}`,
+                borderRadius: 7,
+                overflow: "hidden",
+                background: COLORS.paper,
+                minHeight: 180,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              {report.image ? (
+                <Image
+                  width="100%"
+                  src={report.image}
+                  preview
+                />
+              ) : (
+                <Text type="secondary">
+                  ไม่มีภาพต้นฉบับ
+                </Text>
+              )}
+            </div>
+          </Col>
+
+          <Col xs={24} md={12}>
+            <Text
+              strong
+              style={{
+                display: "block",
+                marginBottom: 7,
+                color: COLORS.ink,
+                fontFamily: "Sarabun, sans-serif",
+              }}
+            >
+              ภาพที่ AI วิเคราะห์
+            </Text>
+
+            <div
+              style={{
+                border: `1px solid ${COLORS.line}`,
+                borderRadius: 7,
+                overflow: "hidden",
+                background: COLORS.paper,
+                minHeight: 180,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              {report.annotatedImage ? (
+                <Image
+                  width="100%"
+                  src={report.annotatedImage}
+                  preview
+                />
+              ) : (
+                <Text type="secondary">
+                  ไม่มีภาพที่วิเคราะห์แล้ว
+                </Text>
+              )}
+            </div>
+          </Col>
+        </Row>
+      </Section>
+
+      {/* ===================================================
+          Report Information
+      =================================================== */}
+
+      <Section
+        icon={<FileSearchOutlined />}
+        title="ข้อมูลรายงาน"
+      >
+        <Descriptions
+          column={{ xs: 1, sm: 2 }}
+          size="small"
+          colon={false}
+          labelStyle={{
+            color: COLORS.neutral,
+            fontFamily: "Sarabun, sans-serif",
+          }}
+          contentStyle={{
+            color: COLORS.asphalt,
+            fontFamily: "Sarabun, sans-serif",
+            fontWeight: 500,
+          }}
+        >
+          <Descriptions.Item label="Report ID">
+            <span
+              style={{
+                fontFamily: "monospace",
+              }}
+            >
+              #{report.reportId}
+            </span>
+          </Descriptions.Item>
+
+          <Descriptions.Item label="วันที่รายงาน">
+            {report.createdAt}
+          </Descriptions.Item>
+
+          <Descriptions.Item label="ถนน">
+            {report.roadName}
+          </Descriptions.Item>
+
+          <Descriptions.Item label="พื้นที่">
+            {report.district}
+          </Descriptions.Item>
+
+          <Descriptions.Item label="AI Decision">
+            <Tag
+              style={{
+                color: priorityConfig.color,
+                background: priorityConfig.background,
+                borderColor: priorityConfig.color,
+                margin: 0,
+              }}
+            >
+              {priorityConfig.thaiLabel}
             </Tag>
-          </Card>
-        </Col>
-      </Row>
+          </Descriptions.Item>
 
-      <Divider />
+          <Descriptions.Item label="Priority Class">
+            <span
+              style={{
+                fontFamily: "monospace",
+                fontWeight: 600,
+              }}
+            >
+              {report.priorityClass ?? "-"}
+            </span>
+          </Descriptions.Item>
+        </Descriptions>
+      </Section>
 
-      <Card title="Environmental Context">
-        <Row gutter={16}>
-          <Col span={8}>
-            <Statistic
-              title="Rainfall"
-              value={report.rainfall ?? "-"}
-              suffix="mm"
-            />
+      {/* ===================================================
+          AI Analysis
+      =================================================== */}
+
+      <Section
+        icon={<RobotOutlined />}
+        title="ผลวิเคราะห์ AI"
+        subtitle="ความมั่นใจและความน่าจะเป็นของแต่ละระดับ"
+      >
+        <Row gutter={[20, 18]}>
+          <Col xs={24} md={10}>
+            <div
+              style={{
+                padding: 14,
+                border: `1px solid ${COLORS.line}`,
+                borderRadius: 8,
+                background: COLORS.paper,
+              }}
+            >
+              <Text
+                type="secondary"
+                style={{
+                  fontFamily: "Sarabun, sans-serif",
+                  fontSize: 12,
+                }}
+              >
+                Confidence
+              </Text>
+
+              <div
+                style={{
+                  marginTop: 4,
+                  color: COLORS.ink,
+                  fontFamily: "monospace",
+                  fontSize: 28,
+                  fontWeight: 700,
+                }}
+              >
+                {report.confidence ?? 0}%
+              </div>
+
+              <Progress
+                percent={report.confidence ?? 0}
+                showInfo={false}
+                strokeColor={COLORS.markDeep}
+                trailColor="#E8EFEC"
+                size="small"
+              />
+            </div>
           </Col>
 
-          <Col span={8}>
-            <Statistic
-              title="NDVI"
-              value={report.ndvi ?? "-"}
+          <Col xs={24} md={14}>
+            <ProbabilityRow
+              label="Normal"
+              value={report.probaNormal}
+              color={COLORS.ok}
             />
-          </Col>
 
-          <Col span={8}>
-            <Statistic
-              title="Slope"
-              value={report.slope ?? "-"}
-              suffix="°"
+            <ProbabilityRow
+              label="Warning"
+              value={report.probaWarning}
+              color={COLORS.warn}
+            />
+
+            <ProbabilityRow
+              label="Critical"
+              value={report.probaCritical}
+              color={COLORS.danger}
             />
           </Col>
         </Row>
-      </Card>
+      </Section>
 
-      <Divider />
+      {/* ===================================================
+          Environmental Context
+      =================================================== */}
 
-      <Card title="Engineer Verification">
-        <Radio.Group
-          value={decision}
-          onChange={(e) => setDecision(e.target.value)}
-        >
-          <Space direction="vertical">
-            <Radio value="correct">
-              AI Prediction Correct
-            </Radio>
+      <Section
+        icon={<EnvironmentOutlined />}
+        title="บริบทสภาพแวดล้อม"
+        subtitle="ข้อมูลประกอบจากการวิเคราะห์พื้นที่"
+      >
+        <Row gutter={[12, 12]}>
+          <Col xs={24} sm={8}>
+            <div
+              style={{
+                padding: "12px 14px",
+                border: `1px solid ${COLORS.line}`,
+                borderRadius: 7,
+              }}
+            >
+              <Text
+                type="secondary"
+                style={{
+                  display: "block",
+                  fontFamily: "Sarabun, sans-serif",
+                  fontSize: 12,
+                }}
+              >
+                Rainfall
+              </Text>
 
-            <Radio value="incorrect">
-              AI Prediction Incorrect
-            </Radio>
-          </Space>
-        </Radio.Group>
+              <strong
+                style={{
+                  color: COLORS.ink,
+                  fontFamily: "monospace",
+                  fontSize: 18,
+                }}
+              >
+                {formatNumber(report.rainfall)}{" "}
+                <small>mm</small>
+              </strong>
+            </div>
+          </Col>
 
-        {decision === "incorrect" && (
-          <>
-            <Divider />
+          <Col xs={24} sm={8}>
+            <div
+              style={{
+                padding: "12px 14px",
+                border: `1px solid ${COLORS.line}`,
+                borderRadius: 7,
+              }}
+            >
+              <Text
+                type="secondary"
+                style={{
+                  display: "block",
+                  fontFamily: "Sarabun, sans-serif",
+                  fontSize: 12,
+                }}
+              >
+                NDVI
+              </Text>
 
-            <Row gutter={16}>
-              <Col span={12}>
-                <Select
-                  placeholder="Correct Severity"
-                  style={{ width: "100%" }}
-                  value={severity}
-                  onChange={setSeverity}
-                  options={[
-                    {
-                      label: "Low",
-                      value: "Low",
-                    },
-                    {
-                      label: "Warning",
-                      value: "Warning",
-                    },
-                    {
-                      label: "Critical",
-                      value: "Critical",
-                    },
-                  ]}
-                />
-              </Col>
+              <strong
+                style={{
+                  color: COLORS.ink,
+                  fontFamily: "monospace",
+                  fontSize: 18,
+                }}
+              >
+                {formatNumber(report.ndvi)}
+              </strong>
+            </div>
+          </Col>
 
-              <Col span={12}>
-                <Select
-                  placeholder="Damage Type"
-                  style={{ width: "100%" }}
-                  value={damageType}
-                  onChange={setDamageType}
-                  options={[
-                    {
-                      label: "Pothole",
-                      value: "Pothole",
-                    },
-                    {
-                      label: "Crack",
-                      value: "Crack",
-                    },
-                    {
-                      label: "Rutting",
-                      value: "Rutting",
-                    },
-                    {
-                      label: "Depression",
-                      value: "Depression",
-                    },
-                  ]}
-                />
-              </Col>
-            </Row>
+          <Col xs={24} sm={8}>
+            <div
+              style={{
+                padding: "12px 14px",
+                border: `1px solid ${COLORS.line}`,
+                borderRadius: 7,
+              }}
+            >
+              <Text
+                type="secondary"
+                style={{
+                  display: "block",
+                  fontFamily: "Sarabun, sans-serif",
+                  fontSize: 12,
+                }}
+              >
+                Slope
+              </Text>
 
-            <br />
+              <strong
+                style={{
+                  color: COLORS.ink,
+                  fontFamily: "monospace",
+                  fontSize: 18,
+                }}
+              >
+                {formatNumber(report.slope)}{" "}
+                <small>°</small>
+              </strong>
+            </div>
+          </Col>
+        </Row>
+      </Section>
 
-            <Select
-              placeholder="Priority"
-              style={{ width: "100%" }}
-              value={priority}
-              onChange={setPriority}
-              options={[
-                {
-                  label: "Low",
-                  value: "LOW",
-                },
-                {
-                  label: "Medium",
-                  value: "MEDIUM",
-                },
-                {
-                  label: "High",
-                  value: "HIGH",
-                },
-                {
-                  label: "Critical",
-                  value: "CRITICAL",
-                },
-              ]}
-            />
+      {/* ===================================================
+          Close
+      =================================================== */}
 
-            <br />
-            <br />
-
-            <TextArea
-              rows={4}
-              placeholder="Engineer Remark"
-              value={remark}
-              onChange={(e) => setRemark(e.target.value)}
-            />
-          </>
-        )}
-
-        <Divider />
-
-        <Space
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "flex-end",
+        }}
+      >
+        <Button
+          icon={<CloseOutlined />}
+          onClick={onClose}
           style={{
-            width: "100%",
-            justifyContent: "flex-end",
+            borderColor: COLORS.line,
+            color: COLORS.ink,
+            borderRadius: 7,
           }}
         >
-          <Button onClick={onClose}>
-            Cancel
-          </Button>
-
-          <Button
-            type="primary"
-            onClick={handleConfirm}
-          >
-            Confirm Verification
-          </Button>
-        </Space>
-      </Card>
+          ปิด
+        </Button>
+      </div>
     </Drawer>
   );
 }

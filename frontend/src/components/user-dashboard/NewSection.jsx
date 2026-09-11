@@ -116,7 +116,7 @@ const NewsSection = () => {
     // =========================================================
 
     const getRoadName = (report) => {
-        return report.road_name || report.roadName || "ไม่ระบุชื่อถนน";
+        return report.road_type || report.roadName || "ไม่ระบุชื่อถนน";
     };
 
     // =========================================================
