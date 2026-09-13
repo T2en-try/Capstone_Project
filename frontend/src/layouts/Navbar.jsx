@@ -12,9 +12,9 @@ export default function Navbar() {
   // นิยามรายการเมนูทั้งหมดภายใน Component
   const menus = [
     { label: "สถิติ", href: "/", icon: BarChartOutlined },
-    { label: "แสดงความเห็น", href: "/comments", icon: MessageOutlined },
+    // { label: "แสดงความเห็น", href: "/comments", icon: MessageOutlined },
     { label: "แจ้งปัญหา", href: "/report", icon: WarningOutlined }, // 👈 นำทางไปหน้า Report
-    { label: "ศูนย์ข้อมูล SmartRoad", href: "/info", icon: InfoCircleOutlined },
+    // { label: "ศูนย์ข้อมูล SmartRoad", href: "/info", icon: InfoCircleOutlined },
   ];
 
   return (

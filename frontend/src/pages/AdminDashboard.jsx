@@ -198,12 +198,12 @@ export default function DashboardPage() {
       {/* ─── CASP Section ─── */}
       <Divider orientation="left">
         <span style={{ fontSize: 16, fontWeight: 600 }}>
-          🗺️ Community-Aware Spatial Priority (CASP)
+          Community-Aware Spatial Priority (CASP)
         </span>
       </Divider>
 
       <Text type="secondary" style={{ fontSize: 13 }}>
-        วิเคราะห์พื้นที่เร่งด่วนจากการแจ้งซ้ำของประชาชน รวมกับคะแนน AI (PPI)
+        วิเคราะห์พื้นที่เร่งด่วนจากการแจ้งซ้ำของประชาชน รวมกับคะแนน AI 
         — Overall Priority = 0.8 × PPI + 0.2 × CUS
       </Text>
 

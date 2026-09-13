@@ -642,60 +642,7 @@ export default function AIVerificationPage() {
                             marginBottom: 20,
                         }}
                     >
-                        <div
-                            style={{
-                                display:
-                                    "flex",
-                                alignItems:
-                                    "center",
-                                justifyContent:
-                                    "space-between",
-                                gap: 10,
-                                marginBottom: 10,
-                            }}
-                        >
-                            <div
-                                style={{
-                                    fontSize: 16,
-                                    fontWeight: 600,
-                                    color:
-                                        COLORS.text,
-                                    fontFamily:
-                                        "Kanit, sans-serif",
-                                }}
-                            >
-                                ตัวกรอง
-                            </div>
-
-                            <Button
-                                type="link"
-                                size="small"
-                                onClick={() =>
-                                    setFilters({
-                                        keyword:
-                                            "",
-                                        decision:
-                                            undefined,
-                                        status:
-                                            undefined,
-                                        confidence:
-                                            [
-                                                0,
-                                                100,
-                                            ],
-                                        dateRange:
-                                            null,
-                                    })
-                                }
-                                style={{
-                                    padding: 0,
-                                    color:
-                                        COLORS.primary,
-                                }}
-                            >
-                                ล้างตัวกรอง
-                            </Button>
-                        </div>
+                       
 
                         <VerificationFilter
                             filters={filters}

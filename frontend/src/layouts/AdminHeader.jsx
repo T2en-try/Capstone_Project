@@ -101,16 +101,16 @@ export default function Header() {
   // ==========================
 
   const profileItems = [
-    {
-      key: "1",
-      icon: <ProfileOutlined />,
-      label: "Profile",
-    },
-    {
-      key: "2",
-      icon: <SettingOutlined />,
-      label: "Settings",
-    },
+    // {
+    //   key: "1",
+    //   icon: <ProfileOutlined />,
+    //   label: "Profile",
+    // },
+    // {
+    //   key: "2",
+    //   icon: <SettingOutlined />,
+    //   label: "Settings",
+    // },
     {
       type: "divider",
     },

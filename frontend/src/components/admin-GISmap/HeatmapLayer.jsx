@@ -11,6 +11,7 @@ export default function HeatmapLayer({ reports = [] }) {
         // ========================================
         // Convert reports → heatmap points
         // ========================================
+
         const points = reports
             .filter(
                 (report) =>
@@ -18,28 +19,32 @@ export default function HeatmapLayer({ reports = [] }) {
                     report.lng != null
             )
             .map((report) => {
-                let intensity = 0.3;
+                let intensity = 0.15;
 
-                // ใช้ damage_level ที่ Backend classify มาแล้ว
+                // ใช้ damage_level จาก Backend
                 switch (report.damage_level) {
                     case "critical":
-                        intensity = 1;
+                        // ความเสียหายรุนแรง
+                        intensity = 1.0;
                         break;
 
                     case "warning":
-                        intensity = 0.8;
+                        // ควรเฝ้าระวัง
+                        intensity = 0.75;
                         break;
 
                     case "moderate":
-                        intensity = 0.8;
+                        // ระดับปานกลาง
+                        intensity = 0.50;
                         break;
 
                     case "good":
-                        intensity = 0.3;
+                        // สภาพปกติ
+                        intensity = 0.15;
                         break;
 
                     default:
-                        intensity = 0.2;
+                        intensity = 0.10;
                 }
 
                 return [
@@ -52,11 +57,31 @@ export default function HeatmapLayer({ reports = [] }) {
         // ========================================
         // Create Heatmap
         // ========================================
+
         const heat = L.heatLayer(points, {
-            radius: 40,
-            blur: 25,
+            radius: 42,
+            blur: 28,
+
             maxZoom: 17,
-            minOpacity: 0.35,
+
+            minOpacity: 0.25,
+
+            max: 1.0,
+
+            // ====================================
+            // Heatmap Color
+            //
+            // เขียว → เหลือง → ส้ม → แดง
+            // ====================================
+
+            gradient: {
+                0.00: "#22C55E",
+                0.30: "#A3E635",
+                0.50: "#FACC15",
+                0.70: "#F97316",
+                0.85: "#EF4444",
+                1.00: "#B91C1C",
+            },
         });
 
         heat.addTo(map);
@@ -64,6 +89,7 @@ export default function HeatmapLayer({ reports = [] }) {
         // ========================================
         // Cleanup
         // ========================================
+
         return () => {
             if (map.hasLayer(heat)) {
                 map.removeLayer(heat);

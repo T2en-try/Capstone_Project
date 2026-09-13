@@ -1,18 +1,6 @@
 import { useEffect, useState } from "react";
-
-import {
-  Row,
-  Col,
-  Card,
-  Typography,
-  Space,
-  Select,
-  Tooltip,
-  Spin,
-  Alert,
-} from "antd";
-
-import { EnvironmentOutlined, InfoCircleOutlined } from "@ant-design/icons";
+import { Row, Col, Card, Typography, Space, Spin, Alert } from "antd";
+import { EnvironmentOutlined } from "@ant-design/icons";
 
 import FilterBar from "../components/admin-GISmap/FilterPanel";
 import LayerPanel from "../components/admin-GISmap/LayerControl";
@@ -25,301 +13,466 @@ import { fetchRoadSegmentPriority } from "../services/analyticsService";
 
 const { Title, Text } = Typography;
 
-const GRID_DAYS_OPTIONS = [
-  { label: "7 วัน", value: 7 },
-  { label: "14 วัน", value: 14 },
-  { label: "30 วัน", value: 30 },
-];
+// =====================================================
+// Admin GIS Map
+// =====================================================
 
-const GRID_LEGEND = [
-  { color: "#ff4d4f", label: "เร่งด่วน (80–100)" },
-  { color: "#fa8c16", label: "สูง (50–79)" },
-  { color: "#fadb14", label: "ปานกลาง (25–49)" },
-  { color: "#52c41a", label: "ต่ำ (0–24)" },
-];
+export default function AdminGISMap() {
+    const [, setSelectedRoad] = useState(null);
 
-export default function AdminGISPage() {
-  const [selectedRoad, setSelectedRoad] = useState(null);
-  const [gridDays, setGridDays] = useState(7);
+    const [mapPoints, setMapPoints] = useState([]);
 
-  // ================================
-  // Map data
-  // ================================
-  const [mapPoints, setMapPoints] = useState([]);
-  const [mapLoading, setMapLoading] = useState(true);
-  const [mapError, setMapError] = useState(null);
-  const [segmentData, setSegmentData] = useState([]);
+    const [mapLoading, setMapLoading] = useState(true);
 
-  const [layers, setLayers] = useState({
-    road: true,
-    heatmap: true,
-    marker: true,
-    satellite: false,
-    grid: true,
-    segment: true,
-  });
+    const [mapError, setMapError] = useState(null);
 
-  const [filters, setFilters] = useState({
-    keyword: "",
-    severity: "All",
-    status: "All",
-  });
+    const [segmentData, setSegmentData] = useState([]);
 
-  // ================================
-  // Load Map Points
-  // ================================
-  useEffect(() => {
-    const loadMapPoints = async () => {
-      try {
-        setMapLoading(true);
-        setMapError(null);
+    const [layers, setLayers] = useState({
+        road: true,
+        heatmap: true,
+        marker: true,
+        satellite: false,
+        grid: true,
+        segment: true,
+    });
 
-        const [data, segmentResult] = await Promise.all([
-          fetchMapPoints(false),
-          fetchRoadSegmentPriority(30),
-        ]);
+    const [filters, setFilters] = useState({
+        keyword: "",
+        severity: "All",
+        status: "All",
+    });
 
-        console.log("GIS Map Points:", data);
+    // =====================================================
+    // Load GIS Data
+    // =====================================================
 
-        setMapPoints(data?.points || []);
-        setSegmentData(segmentResult?.segments || []);
-      } catch (error) {
-        console.error("Failed to load GIS map points:", error);
+    useEffect(() => {
+        const loadMapData = async () => {
+            try {
+                setMapLoading(true);
+                setMapError(null);
 
-        setMapError(error.message);
-      } finally {
-        setMapLoading(false);
-      }
+                const [mapResult, segmentResult] = await Promise.all([
+                    fetchMapPoints(false),
+                    fetchRoadSegmentPriority(30),
+                ]);
+
+                console.log("GIS Map Points:", mapResult);
+                console.log("Road Segment Priority:", segmentResult);
+
+                setMapPoints(mapResult?.points || []);
+
+                setSegmentData(segmentResult?.segments || []);
+            } catch (error) {
+                console.error("Failed to load GIS map data:", error);
+
+                setMapError(error?.message || "ไม่สามารถโหลดข้อมูลแผนที่ได้");
+            } finally {
+                setMapLoading(false);
+            }
+        };
+
+        loadMapData();
+    }, []);
+
+    // =====================================================
+    // Toggle Layer
+    // =====================================================
+
+    const toggleLayer = (key) => {
+        setLayers((prev) => ({
+            ...prev,
+            [key]: !prev[key],
+        }));
     };
 
-    loadMapPoints();
-  }, []);
+    // =====================================================
+    // Render
+    // =====================================================
 
-  const toggleLayer = (key) => {
-    setLayers((prev) => ({
-      ...prev,
-      [key]: !prev[key],
-    }));
-  };
-
-  return (
-    <Space
-      direction="vertical"
-      size={20}
-      style={{
-        width: "100%",
-      }}
-    >
-      {/* Header */}
-      <Card
-        bordered={false}
-        style={{
-          borderRadius: 16,
-        }}
-      >
-        <Row justify="space-between" align="middle">
-          <Col>
-            <Space>
-              <EnvironmentOutlined
-                style={{
-                  fontSize: 30,
-                  color: "#1677ff",
-                }}
-              />
-
-              <div>
-                <Title
-                  level={3}
-                  style={{
-                    margin: 0,
-                  }}
-                >
-                  GIS Road Monitoring
-                </Title>
-
-                <Text type="secondary">
-                  แสดงตำแหน่งความเสียหายของถนน พร้อม Heatmap, Marker และ
-                  CASP Grid Priority (Overall = 0.8×PPI + 0.2×CUS)
-                </Text>
-              </div>
-            </Space>
-          </Col>
-
-          {layers.grid && (
-            <Col>
-              <Space size={8}>
-                <Tooltip title="ช่วงเวลาย้อนหลังสำหรับ Grid Priority">
-                  <InfoCircleOutlined
-                    style={{
-                      color: "#8c8c8c",
-                    }}
-                  />
-                </Tooltip>
-
-                <Text style={{ fontSize: 13 }}>
-                  Grid ย้อนหลัง:
-                </Text>
-
-                <Select
-                  size="small"
-                  value={gridDays}
-                  options={GRID_DAYS_OPTIONS}
-                  onChange={setGridDays}
-                  style={{
-                    width: 90,
-                  }}
-                />
-              </Space>
-            </Col>
-          )}
-        </Row>
-      </Card>
-
-      {/* Filter */}
-      <FilterBar
-        filters={filters}
-        setFilters={setFilters}
-      />
-
-      {/* Error */}
-      {mapError && (
-        <Alert
-          type="error"
-          showIcon
-          message="ไม่สามารถโหลดข้อมูลแผนที่"
-          description={mapError}
-        />
-      )}
-
-      {/* Map */}
-      <Row gutter={20} align="top">
-        <Col xs={24} lg={6} xl={5}>
-          <div
+    return (
+        <div
             style={{
-              position: "sticky",
-              top: 20,
+                width: "100%",
+                minHeight: "100vh",
+                background: "#F5F6F8",
             }}
-          >
-            <LayerPanel
-              layers={layers}
-              toggleLayer={toggleLayer}
-            />
+        >
+            {/* =================================================
+          PAGE HEADER
+      ================================================= */}
 
-            {layers.grid && (
-              <Card
-                size="small"
+            <div
                 style={{
-                  borderRadius: 12,
-                  marginTop: 12,
+                    padding: "28px 36px 18px",
                 }}
-                title={
-                  <span style={{ fontSize: 13 }}>
-                    🗺️ Grid Priority Legend
-                  </span>
-                }
-              >
-                <Space
-                  direction="vertical"
-                  size={4}
-                  style={{
-                    width: "100%",
-                  }}
-                >
-                  {GRID_LEGEND.map(({ color, label }) => (
+            >
+                <Space size={14} align="center">
+                    {/* Icon */}
+
                     <div
-                      key={label}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 8,
-                      }}
-                    >
-                      <div
                         style={{
-                          width: 18,
-                          height: 14,
-                          background: color,
-                          borderRadius: 3,
-                          opacity: 0.8,
-                          border: `1.5px solid ${color}`,
+                            width: 42,
+                            height: 42,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            background: "#EFF6FF",
+                            borderRadius: 6,
+                            flexShrink: 0,
                         }}
-                      />
-
-                      <Text style={{ fontSize: 12 }}>
-                        {label}
-                      </Text>
+                    >
+                        <EnvironmentOutlined
+                            style={{
+                                fontSize: 23,
+                                color: "#2563EB",
+                            }}
+                        />
                     </div>
-                  ))}
 
-                  <Text
-                    type="secondary"
-                    style={{
-                      fontSize: 11,
-                      marginTop: 4,
-                    }}
-                  >
-                    คลิก Grid เพื่อดูรายละเอียด
-                  </Text>
+                    {/* Title */}
+
+                    <div>
+                        <Title
+                            level={2}
+                            style={{
+                                margin: 0,
+                                color: "#111827",
+                                fontSize: 27,
+                                fontWeight: 700,
+                                lineHeight: 1.2,
+                            }}
+                        >
+                            GIS Road Monitoring
+                        </Title>
+
+                        <Text
+                            style={{
+                                display: "block",
+                                marginTop: 5,
+                                color: "#64748B",
+                                fontSize: 13,
+                                lineHeight: 1.5,
+                            }}
+                        >
+                            ตรวจสอบตำแหน่งและระดับความสำคัญของรายงานความเสียหายบนแผนที่
+                        </Text>
+                    </div>
                 </Space>
-              </Card>
-            )}
-          </div>
-        </Col>
+            </div>
 
-        <Col xs={24} lg={18} xl={19}>
-          <Card
-            bordered={false}
-            style={{
-              borderRadius: 16,
-              overflow: "hidden",
-            }}
-            bodyStyle={{
-              padding: 0,
-            }}
-          >
-            {mapLoading ? (
-              <div
+            {/* =================================================
+          CONTENT
+      ================================================= */}
+
+            <div
                 style={{
-                  height: 600,
-                  display: "flex",
-                  justifyContent: "center",
-                  alignItems: "center",
+                    padding: "0 24px 28px",
                 }}
-              >
-                <Space direction="vertical" align="center">
-                  <Spin size="large" />
+            >
+                {/* =================================================
+            FILTER
+        ================================================= */}
 
-                  <Text type="secondary">
-                    กำลังโหลดข้อมูลแผนที่...
-                  </Text>
-                </Space>
-              </div>
-            ) : (
-              <GISMap
-                setSelectedRoad={setSelectedRoad}
-                layers={layers}
-                filters={filters}
-                gridDays={gridDays}
-                mapPoints={mapPoints}
-                segmentData={segmentData}
-              />
-            )}
-          </Card>
-        </Col>
-      </Row>
+                <div
+                    style={{
+                        marginBottom: 14,
+                    }}
+                >
+                    <FilterBar filters={filters} setFilters={setFilters} />
+                </div>
 
-      {/* Bottom */}
-      <Row gutter={20}>
-        <Col xs={24} lg={6}>
-          <Legend />
-        </Col>
+                {/* =================================================
+            ERROR
+        ================================================= */}
 
-        <Col xs={24} lg={18}>
-          <RoadInfoCard
-            road={selectedRoad}
-          />
-        </Col>
-      </Row>
-    </Space>
-  );
+                {mapError && (
+                    <Alert
+                        type="error"
+                        showIcon
+                        message="ไม่สามารถโหลดข้อมูลแผนที่"
+                        description={mapError}
+                        style={{
+                            marginBottom: 14,
+                            borderRadius: 8,
+                        }}
+                    />
+                )}
+
+                {/* =================================================
+            MAP SECTION
+        ================================================= */}
+
+                <Row gutter={16} align="top">
+                    {/* =================================================
+              SIDEBAR
+          ================================================= */}
+
+                    <Col xs={24} lg={6} xl={5}>
+                        <div
+                            style={{
+                                position: "sticky",
+                                top: 16,
+                            }}
+                        >
+                            {/* Layer Control */}
+
+                            <LayerPanel
+                                layers={layers}
+                                toggleLayer={toggleLayer}
+                            />
+
+                            {/* Grid Legend */}
+
+                            {layers.grid && (
+                                <Card
+                                    size="small"
+                                    style={{
+                                        marginTop: 10,
+                                        borderRadius: 8,
+                                        borderColor: "#E5E7EB",
+                                        boxShadow: "none",
+                                    }}
+                                    styles={{
+                                        header: {
+                                            minHeight: 42,
+                                            padding: "0 12px",
+                                        },
+                                        body: {
+                                            padding: "10px 12px",
+                                        },
+                                    }}
+                                    title={
+                                        <span
+                                            style={{
+                                                fontSize: 12,
+                                                fontWeight: 600,
+                                                color: "#1F2937",
+                                            }}
+                                        >
+                                            Grid Priority Legend
+                                        </span>
+                                    }
+                                >
+                                    <Space
+                                        direction="vertical"
+                                        size={5}
+                                        style={{
+                                            width: "100%",
+                                        }}
+                                    >
+                                        {/* Critical */}
+
+                                        <div
+                                            style={{
+                                                display: "flex",
+                                                alignItems: "center",
+                                                gap: 7,
+                                            }}
+                                        >
+                                            <div
+                                                style={{
+                                                    width: 16,
+                                                    height: 12,
+                                                    background: "#DC2626",
+                                                    borderRadius: 2,
+                                                    flexShrink: 0,
+                                                }}
+                                            />
+
+                                            <Text
+                                                style={{
+                                                    fontSize: 11,
+                                                    color: "#475569",
+                                                }}
+                                            >
+                                                เร่งด่วน (80–100)
+                                            </Text>
+                                        </div>
+
+                                        {/* High */}
+
+                                        <div
+                                            style={{
+                                                display: "flex",
+                                                alignItems: "center",
+                                                gap: 7,
+                                            }}
+                                        >
+                                            <div
+                                                style={{
+                                                    width: 16,
+                                                    height: 12,
+                                                    background: "#F97316",
+                                                    borderRadius: 2,
+                                                    flexShrink: 0,
+                                                }}
+                                            />
+
+                                            <Text
+                                                style={{
+                                                    fontSize: 11,
+                                                    color: "#475569",
+                                                }}
+                                            >
+                                                สูง (50–79)
+                                            </Text>
+                                        </div>
+
+                                        {/* Medium */}
+
+                                        <div
+                                            style={{
+                                                display: "flex",
+                                                alignItems: "center",
+                                                gap: 7,
+                                            }}
+                                        >
+                                            <div
+                                                style={{
+                                                    width: 16,
+                                                    height: 12,
+                                                    background: "#EAB308",
+                                                    borderRadius: 2,
+                                                    flexShrink: 0,
+                                                }}
+                                            />
+
+                                            <Text
+                                                style={{
+                                                    fontSize: 11,
+                                                    color: "#475569",
+                                                }}
+                                            >
+                                                ปานกลาง (25–49)
+                                            </Text>
+                                        </div>
+
+                                        {/* Low */}
+
+                                        <div
+                                            style={{
+                                                display: "flex",
+                                                alignItems: "center",
+                                                gap: 7,
+                                            }}
+                                        >
+                                            <div
+                                                style={{
+                                                    width: 16,
+                                                    height: 12,
+                                                    background: "#22C55E",
+                                                    borderRadius: 2,
+                                                    flexShrink: 0,
+                                                }}
+                                            />
+
+                                            <Text
+                                                style={{
+                                                    fontSize: 11,
+                                                    color: "#475569",
+                                                }}
+                                            >
+                                                ต่ำ (0–24)
+                                            </Text>
+                                        </div>
+
+                                        <Text
+                                            type="secondary"
+                                            style={{
+                                                fontSize: 10,
+                                                marginTop: 2,
+                                            }}
+                                        >
+                                            คลิก Grid เพื่อดูรายละเอียด
+                                        </Text>
+                                    </Space>
+                                </Card>
+                            )}
+                        </div>
+                    </Col>
+
+                    {/* =================================================
+              MAP
+          ================================================= */}
+
+                    <Col xs={24} lg={18} xl={19}>
+                        <Card
+                            bordered={false}
+                            style={{
+                                borderRadius: 8,
+                                overflow: "hidden",
+                                border: "1px solid #E5E7EB",
+                                background: "#FFFFFF",
+                                boxShadow: "none",
+                            }}
+                            styles={{
+                                body: {
+                                    padding: 0,
+                                },
+                            }}
+                        >
+                            {mapLoading ? (
+                                <div
+                                    style={{
+                                        height: 620,
+                                        display: "flex",
+                                        justifyContent: "center",
+                                        alignItems: "center",
+                                        background: "#FFFFFF",
+                                    }}
+                                >
+                                    <Space
+                                        direction="vertical"
+                                        align="center"
+                                        size={8}
+                                    >
+                                        <Spin size="large" />
+
+                                        <Text
+                                            type="secondary"
+                                            style={{
+                                                fontSize: 13,
+                                            }}
+                                        >
+                                            กำลังโหลดข้อมูลแผนที่...
+                                        </Text>
+                                    </Space>
+                                </div>
+                            ) : (
+                                <GISMap
+                                    setSelectedRoad={setSelectedRoad}
+                                    layers={layers}
+                                    filters={filters}
+                                    gridDays={7}
+                                    mapPoints={mapPoints}
+                                    segmentData={segmentData}
+                                />
+                            )}
+                        </Card>
+                    </Col>
+                </Row>
+
+                {/* =================================================
+            INFORMATION
+        ================================================= */}
+
+                {/* <Row
+                    gutter={16}
+                    style={{
+                        marginTop: 16,
+                    }}
+                >
+                    <Col xs={24} lg={6}>
+                        <Legend />
+                    </Col>
+
+                    <Col xs={24} lg={18}>
+                        <RoadInfoCard road={selectedRoad} />
+                    </Col>
+                </Row> */}
+            </div>
+        </div>
+    );
 }

@@ -16,7 +16,7 @@ const getDotIcon = (status) => {
     case "completed":
       return <CheckCircleOutlined style={{ fontSize: 16, color: "#52c41a" }} />;
     case "processing":
-      return <SyncOutlined spin style={{ fontSize: 16, color: "#1677ff" }} />;
+      return <SyncOutlined style={{ fontSize: 16, color: "#1677ff" }} />;
     case "rejected":
       return <CloseCircleOutlined style={{ fontSize: 16, color: "#ff4d4f" }} />;
     case "pending":
