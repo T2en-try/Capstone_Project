@@ -1,5 +1,4 @@
 import {
-  Button,
   Card,
   Col,
   DatePicker,
@@ -10,17 +9,23 @@ import {
 } from "antd";
 
 import {
-  ReloadOutlined,
   SearchOutlined,
 } from "@ant-design/icons";
 
 const { RangePicker } = DatePicker;
 
+const COLORS = {
+  text: "#1F2937",
+  secondary: "#64748B",
+  border: "#E5E7EB",
+  primary: "#2563EB",
+  background: "#FFFFFF",
+};
+
 export default function VerificationFilter({
   filters,
   setFilters,
 }) {
-
   const handleChange = (key, value) => {
     setFilters((prev) => ({
       ...prev,
@@ -28,113 +33,246 @@ export default function VerificationFilter({
     }));
   };
 
-  const handleReset = () => {
-    setFilters({
-      keyword: "",
-      decision: undefined,
-      status: undefined,
-      confidence: [0, 100],
-      dateRange: null,
-    });
-  };
-
   return (
-    <Card>
-      <Row gutter={[16, 16]} align="bottom">
+    
+      <Row
+        gutter={[12, 12]}
+        align="middle"
+      >
+        {/* ==========================================
+            Search
+        ========================================== */}
 
-        <Col xs={24} md={8} lg={6}>
+        <Col
+          xs={24}
+          sm={12}
+          md={8}
+          lg={6}
+          xl={6}
+        >
           <Input
-            placeholder="Search Report ID / Road"
+            allowClear
+            size="middle"
+            prefix={
+              <SearchOutlined
+                style={{
+                  color: COLORS.secondary,
+                }}
+              />
+            }
+            placeholder="ค้นหา Report ID / ชื่อถนน"
             value={filters.keyword}
             onChange={(e) =>
-              handleChange("keyword", e.target.value)
+              handleChange(
+                "keyword",
+                e.target.value
+              )
             }
+            style={{
+              width: "100%",
+              height: 38,
+              borderRadius: 6,
+              borderColor: COLORS.border,
+            }}
           />
         </Col>
 
-        <Col xs={12} md={6} lg={4}>
+        {/* ==========================================
+            AI Decision
+        ========================================== */}
+
+        <Col
+          xs={24}
+          sm={12}
+          md={6}
+          lg={4}
+          xl={4}
+        >
           <Select
-            style={{ width: "100%" }}
-            placeholder="AI Decision"
+            size="middle"
             allowClear
+            placeholder="ผลการวิเคราะห์ AI"
             value={filters.decision}
             onChange={(value) =>
-              handleChange("decision", value)
+              handleChange(
+                "decision",
+                value
+              )
             }
+            style={{
+              width: "100%",
+            }}
             options={[
-              { label: "Critical", value: "Critical (ต้องซ่อมแซมด่วน)" },
-              { label: "Warning", value: "Warning (ควรเฝ้าระวัง)" },
-              { label: "Good", value: "Good (สภาพปกติ)" },
+              {
+                label: "Critical",
+                value:
+                  "Critical (ต้องซ่อมแซมด่วน)",
+              },
+              {
+                label: "Warning",
+                value:
+                  "Warning (ควรเฝ้าระวัง)",
+              },
+              {
+                label: "Good",
+                value:
+                  "Good (สภาพปกติ)",
+              },
             ]}
           />
         </Col>
 
-        <Col xs={12} md={6} lg={4}>
+        {/* ==========================================
+            Status
+        ========================================== */}
+
+        <Col
+          xs={24}
+          sm={12}
+          md={6}
+          lg={4}
+          xl={4}
+        >
           <Select
-            style={{ width: "100%" }}
-            placeholder="Status"
+            size="middle"
             allowClear
+            placeholder="สถานะการตรวจสอบ"
             value={filters.status}
             onChange={(value) =>
-              handleChange("status", value)
+              handleChange(
+                "status",
+                value
+              )
             }
+            style={{
+              width: "100%",
+            }}
             options={[
-              { label: "Waiting", value: "WAITING" },
-              { label: "Verified", value: "VERIFIED" },
-              { label: "Rejected", value: "REJECTED" },
+              {
+                label: "รอตรวจสอบ",
+                value: "WAITING",
+              },
+              {
+                label: "ยืนยันแล้ว",
+                value: "VERIFIED",
+              },
+              {
+                label: "ปฏิเสธ",
+                value: "REJECTED",
+              },
             ]}
           />
         </Col>
 
-        <Col xs={24} md={12} lg={5}>
+        {/* ==========================================
+            Date
+        ========================================== */}
+
+        <Col
+          xs={24}
+          sm={12}
+          md={10}
+          lg={5}
+          xl={5}
+        >
           <RangePicker
-            style={{ width: "100%" }}
+            size="middle"
+            style={{
+              width: "100%",
+              height: 38,
+              borderRadius: 6,
+              borderColor: COLORS.border,
+            }}
             value={filters.dateRange}
             onChange={(value) =>
-              handleChange("dateRange", value)
+              handleChange(
+                "dateRange",
+                value
+              )
             }
+            placeholder={[
+              "วันที่เริ่มต้น",
+              "วันที่สิ้นสุด",
+            ]}
           />
         </Col>
 
-        <Col xs={24} lg={5}>
-          <div style={{ marginBottom: 8 }}>
-            Confidence (%)
-          </div>
+        {/* ==========================================
+            Confidence
+        ========================================== */}
 
-          <Slider
-            range
-            value={filters.confidence}
-            onChange={(value) =>
-              handleChange("confidence", value)
-            }
-          />
-        </Col>
-
-        <Col xs={24}>
+        <Col
+          xs={24}
+          md={14}
+          lg={5}
+          xl={5}
+        >
           <div
             style={{
-              display: "flex",
-              justifyContent: "flex-end",
-              gap: 8,
+              padding: "0 4px",
             }}
           >
-            <Button
-              icon={<ReloadOutlined />}
-              onClick={handleReset}
+            <div
+              style={{
+                display: "flex",
+                justifyContent:
+                  "space-between",
+                alignItems: "center",
+                marginBottom: 2,
+              }}
             >
-              Reset
-            </Button>
+              <span
+                style={{
+                  fontSize: 12,
+                  fontWeight: 500,
+                  color: COLORS.text,
+                }}
+              >
+                Confidence
+              </span>
 
-            <Button
-              type="primary"
-              icon={<SearchOutlined />}
-            >
-              Search
-            </Button>
+              <span
+                style={{
+                  fontSize: 11,
+                  color: COLORS.secondary,
+                }}
+              >
+                {filters.confidence?.[0] ??
+                  0}
+                % –{" "}
+                {filters.confidence?.[1] ??
+                  100}
+                %
+              </span>
+            </div>
+
+            <Slider
+              range
+              min={0}
+              max={100}
+              value={
+                filters.confidence || [
+                  0,
+                  100,
+                ]
+              }
+              onChange={(value) =>
+                handleChange(
+                  "confidence",
+                  value
+                )
+              }
+              tooltip={{
+                formatter: (value) =>
+                  `${value}%`,
+              }}
+              style={{
+                margin: "6px 4px 2px",
+              }}
+            />
           </div>
         </Col>
-
       </Row>
-    </Card>
+   
   );
 }

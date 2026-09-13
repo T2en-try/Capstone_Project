@@ -6,12 +6,7 @@ export default function FilterBar({
   setFilters,
 }) {
   return (
-    <Card
-      style={{
-        marginBottom: 16,
-        borderRadius: 12,
-      }}
-    >
+  
       <Space wrap>
         <Input
           placeholder="ค้นหาชื่อถนน..."
@@ -49,17 +44,13 @@ export default function FilterBar({
               label: "High",
             },
             {
-              value: "Medium",
-              label: "Medium",
-            },
-            {
               value: "Low",
               label: "Low",
             },
           ]}
         />
 
-        <Select
+        {/* <Select
           style={{ width: 180 }}
           value={filters.status}
           onChange={(value) =>
@@ -86,8 +77,8 @@ export default function FilterBar({
               label: "Completed",
             },
           ]}
-        />
+        /> */}
       </Space>
-    </Card>
+  
   );
 }
