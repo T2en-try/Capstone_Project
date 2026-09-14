@@ -15,6 +15,7 @@ os.environ.setdefault(
     "DATABASE_URL",
     "postgresql+asyncpg://postgres:postgres@127.0.0.1:5432/test_bootstrap",
 )
+os.environ.setdefault("JWT_SECRET_KEY", "pytest-jwt-secret-key")
 
 from app.core.database import Base, get_db
 from app.auth.utils import create_access_token, hash_password
