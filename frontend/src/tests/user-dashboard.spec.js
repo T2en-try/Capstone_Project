@@ -137,7 +137,7 @@ test.describe("user dashboard", () => {
     await mockDashboardApi(page);
   });
 
-  test("loads dashboard data and renders map points", async ({ page }) => {
+  test("loads dashboard data, renders map points, and filters reports", async ({ page }) => {
     await page.goto("/");
 
     await expect(page.getByText("Somchai")).toBeVisible();
@@ -146,10 +146,6 @@ test.describe("user dashboard", () => {
 
     await page.getByRole("button", { name: "Marker" }).click();
     await expect(page.locator(".leaflet-marker-icon")).toHaveCount(2);
-  });
-
-  test("filters reports by keyword and status", async ({ page }) => {
-    await page.goto("/");
 
     await page.locator('input[type="text"]').fill("Sukhumvit");
     await page.keyboard.press("Enter");
@@ -170,11 +166,77 @@ test.describe("user dashboard", () => {
 
     const modal = page.locator(".fixed.inset-0");
     await expect(modal.getByText("Large pothole near the school entrance")).toBeVisible();
-    await expect(modal.getByText("Fusion Score")).toBeVisible();
-    await expect(modal.getByText("0.82")).toBeVisible();
+    await expect(modal.getByText("Model Version")).toBeVisible();
+    await expect(modal.getByText("test-model")).toBeVisible();
+    await expect(modal.getByText("Sukhumvit Road")).toBeVisible();
 
     await modal.locator("button").first().click();
-    await expect(modal.getByText("Fusion Score")).not.toBeVisible();
+    await expect(modal.getByText("Model Version")).not.toBeVisible();
+  });
+
+  test("submits a new report after manually confirming GPS coordinates", async ({
+    context,
+    page,
+  }) => {
+    const onePixelPng = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII=",
+      "base64"
+    );
+    let uploadPayload = "";
+
+    await context.grantPermissions(["geolocation"]);
+    await context.setGeolocation({ latitude: 13.7563, longitude: 100.5018 });
+
+    await page.route(/\/api\/reports\/upload$/, async (route) => {
+      uploadPayload = route.request().postData() || "";
+
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          status: "success",
+          report: { id: 201, status: "processing" },
+        }),
+      });
+    });
+
+    await page.route(/\/api\/reports\/201$/, async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          ...mockReports[0],
+          id: 201,
+          status: "completed",
+          ai_result: mockReports[0].ai_analysis,
+        }),
+      });
+    });
+
+    await page.goto("/report");
+    await page.locator("aside input[type='text']").fill("Nida Reporter");
+    await page
+      .locator("aside textarea")
+      .fill("Manual upload pothole near bus stop");
+    await page.locator("aside input[type='file']").setInputFiles({
+      name: "road-damage.png",
+      mimeType: "image/png",
+      buffer: onePixelPng,
+    });
+
+    const pinModal = page.locator(".fixed.inset-0");
+    await expect(pinModal).toBeVisible();
+    await expect(pinModal.getByText("13.7563000, 100.5018000")).toBeVisible();
+
+    await pinModal.locator("button").last().click();
+
+    await expect.poll(() => uploadPayload).toContain(
+      "Manual upload pothole near bus stop"
+    );
+    expect(uploadPayload).toContain("Nida Reporter");
+    expect(uploadPayload).toMatch(/13\.75629/);
+    expect(uploadPayload).toMatch(/100\.50179/);
+    await expect(pinModal).not.toBeVisible();
   });
 });
 

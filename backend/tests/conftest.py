@@ -17,9 +17,21 @@ os.environ.setdefault(
 )
 
 from app.core.database import Base, get_db
-from app.auth.models import AdminUser
-from app.auth.utils import hash_password
-from app.reports.models import AIAnalysis, ReportStatus, RoadReport
+from app.auth.utils import create_access_token, hash_password
+from app.reports.models import (
+    AIAnalysis,
+    AiCrowdsourceContext,
+    AiCvFeatures,
+    AiGeeContext,
+    AiGisContext,
+    AiLegacyScores,
+    AiPoiContext,
+    AiPriorityDecision,
+    ReportStatus,
+    RoadReport,
+    User,
+    UserRole,
+)
 
 
 @compiles(JSONB, "sqlite")
@@ -143,37 +155,88 @@ def create_ai_analysis(db_session_factory, event_loop):
         payload = {
             "report_id": report_id,
             "model_version": "pytest-model",
+        }
+        cv_features = {
             "cv_defect_count": 1,
             "cv_damage_ratio_percent": 12.5,
             "cv_max_severity_score": 2,
             "cv_details_json": {"D00": 1},
             "annotated_image_filename": "annotated-road.jpg",
+        }
+        gee_context = {
             "rainfall_last_12m_mm": 100.0,
             "soil_moisture_last_30d_mm": 0.1,
             "ndvi_index": 0.2,
             "estimated_surface_material": "Asphalt",
             "nightlight_radiance": 0.0,
             "slope": 0.0,
+        }
+        gis_context = {
             "road_name": "Test Road",
             "road_type": "Local",
             "osm_highway_type": "residential",
             "lanes": 2,
             "speed_limit": 50.0,
+        }
+        poi_context = {
             "community_impact_score_pi": 10,
             "nearest_poi_distance_m": 500.0,
+        }
+        crowdsource_context = {
             "crowdsource_report_count_30d": 0,
             "days_since_last_report": 999,
             "user_severity_score_avg": 0.0,
+        }
+        priority_decision = {
             "heuristic_score": 20.0,
             "fuzzy_score": 20.0,
             "ml_score": 20.0,
+            "priority_class": None,
+            "confidence_score": None,
+            "proba_normal": None,
+            "proba_warning": None,
+            "proba_critical": None,
+            "gps_anomaly_flagged": False,
+            "gps_anomaly_reason": None,
+        }
+        legacy_scores = {
             "final_fusion_score": 0.2,
             "final_decision": "Good",
         }
-        payload.update(overrides)
+
+        sections = {
+            "cv_features": cv_features,
+            "gee_context": gee_context,
+            "gis_context": gis_context,
+            "poi_context": poi_context,
+            "crowdsource_context": crowdsource_context,
+            "priority_decision": priority_decision,
+            "legacy_scores": legacy_scores,
+        }
+
+        for key, value in overrides.items():
+            if key in payload:
+                payload[key] = value
+                continue
+
+            for section in sections.values():
+                if key in section:
+                    section[key] = value
+                    break
+            else:
+                payload[key] = value
 
         async with db_session_factory() as session:
-            analysis = AIAnalysis(**payload)
+            analysis = AIAnalysis(
+                **payload,
+                cv_features=AiCvFeatures(**cv_features),
+                gee_context=AiGeeContext(**gee_context),
+                gis_context=AiGisContext(**gis_context),
+                poi_context=AiPoiContext(**poi_context),
+                crowdsource_context=AiCrowdsourceContext(**crowdsource_context),
+                priority_decision=AiPriorityDecision(**priority_decision),
+                legacy_scores=AiLegacyScores(**legacy_scores),
+            )
             session.add(analysis)
             await session.commit()
             await session.refresh(analysis)
@@ -192,12 +255,13 @@ def create_admin(db_session_factory, event_loop):
         is_active: bool = True,
     ) -> dict:
         async with db_session_factory() as session:
-            admin = AdminUser(
+            admin = User(
                 email=email,
                 hashed_password=hash_password(password),
-                full_name="Pytest Admin",
-                role="admin",
-                is_active=is_active,
+                first_name="Pytest",
+                last_name="Admin",
+                role=UserRole.ADMIN,
+                is_active=1 if is_active else 0,
             )
             session.add(admin)
             await session.commit()
@@ -205,3 +269,17 @@ def create_admin(db_session_factory, event_loop):
             return {"id": admin.id, "email": email, "password": password}
 
     return _create_admin
+
+
+@pytest_asyncio.fixture
+async def admin_auth_headers(create_admin):
+    """Create an admin user and return Authorization headers for protected APIs."""
+    admin = await create_admin()
+    token = create_access_token(
+        {
+            "sub": str(admin["id"]),
+            "email": admin["email"],
+            "role": UserRole.ADMIN.value,
+        }
+    )
+    return {"Authorization": f"Bearer {token}"}
