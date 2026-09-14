@@ -93,7 +93,7 @@ jobs:
         trap "kill $VITE_PID" EXIT
         for i in {1..30}; do
           if curl -fsS http://127.0.0.1:5173 > /dev/null; then
-            npm run test:e2e -- --reporter=line --workers=1
+            npm run test:e2e -- --workers=1
             exit $?
           fi
           sleep 1
