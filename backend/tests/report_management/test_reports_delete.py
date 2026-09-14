@@ -7,10 +7,13 @@ from app.reports.models import ReportStatus
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_delete_report_removes_existing_resource(client, create_report):
+async def test_delete_report_removes_existing_resource(client, create_report, admin_auth_headers):
     report_id = await create_report()
 
-    delete_response = await client.delete(f"/api/reports/{report_id}")
+    delete_response = await client.delete(
+        f"/api/reports/{report_id}",
+        headers=admin_auth_headers,
+    )
     fetch_response = await client.get(f"/api/reports/{report_id}")
 
     assert delete_response.status_code == 200
@@ -20,8 +23,8 @@ async def test_delete_report_removes_existing_resource(client, create_report):
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_delete_report_returns_404_when_missing(client):
-    response = await client.delete("/api/reports/999")
+async def test_delete_report_returns_404_when_missing(client, admin_auth_headers):
+    response = await client.delete("/api/reports/999", headers=admin_auth_headers)
 
     assert response.status_code == 404
 
@@ -29,12 +32,15 @@ async def test_delete_report_returns_404_when_missing(client):
 @pytest.mark.integration
 @pytest.mark.asyncio
 async def test_delete_report_removes_linked_ai_analysis(
-    client, create_report, create_ai_analysis
+    client, create_report, create_ai_analysis, admin_auth_headers
 ):
     report_id = await create_report(status=ReportStatus.COMPLETED)
     await create_ai_analysis(report_id)
 
-    delete_response = await client.delete(f"/api/reports/{report_id}")
+    delete_response = await client.delete(
+        f"/api/reports/{report_id}",
+        headers=admin_auth_headers,
+    )
     list_response = await client.get("/api/reports/")
 
     assert delete_response.status_code == 200

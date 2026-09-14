@@ -52,6 +52,7 @@ frontend/test-results/
 *.pbf
 backend/cache/
 backend/scratch/
+backend/experiments/
 *.csv
 
 # ML model artifacts

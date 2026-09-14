@@ -7,12 +7,13 @@ from app.reports.models import ReportStatus
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_update_report_status_changes_saved_value(client, create_report):
+async def test_update_report_status_changes_saved_value(client, create_report, admin_auth_headers):
     report_id = await create_report(status=ReportStatus.PENDING)
 
     response = await client.patch(
         f"/api/reports/{report_id}/status",
         json={"status": ReportStatus.COMPLETED.value},
+        headers=admin_auth_headers,
     )
 
     assert response.status_code == 200
@@ -22,12 +23,13 @@ async def test_update_report_status_changes_saved_value(client, create_report):
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_update_report_status_rejects_unknown_status(client, create_report):
+async def test_update_report_status_rejects_unknown_status(client, create_report, admin_auth_headers):
     report_id = await create_report()
 
     response = await client.patch(
         f"/api/reports/{report_id}/status",
         json={"status": "unknown"},
+        headers=admin_auth_headers,
     )
 
     assert response.status_code == 400
@@ -35,10 +37,11 @@ async def test_update_report_status_rejects_unknown_status(client, create_report
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_update_report_status_returns_404_when_report_is_missing(client):
+async def test_update_report_status_returns_404_when_report_is_missing(client, admin_auth_headers):
     response = await client.patch(
         "/api/reports/999/status",
         json={"status": ReportStatus.COMPLETED.value},
+        headers=admin_auth_headers,
     )
 
     assert response.status_code == 404

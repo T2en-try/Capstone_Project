@@ -2,7 +2,7 @@
 
 import pytest
 
-from app.reports.models import ReportStatus
+from app.reports.models import PriorityClass, ReportStatus
 
 
 @pytest.mark.integration
@@ -33,29 +33,24 @@ async def test_map_points_can_include_rejected_reports(client, create_report):
 @pytest.mark.integration
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    ("fusion_score", "severity_score", "decision", "expected_level"),
+    ("priority_class", "expected_level"),
     [
-        (0.75, 1, "Critical", "critical"),
-        (0.50, 1, "Warning", "warning"),
-        (0.30, 1, "Moderate", "moderate"),
-        (0.10, 0, "Good", "good"),
+        (PriorityClass.CRITICAL, "critical"),
+        (PriorityClass.WARNING, "warning"),
+        (PriorityClass.NORMAL, "good"),
     ],
 )
 async def test_map_points_classifies_damage_level_from_ai_scores(
     client,
     create_report,
     create_ai_analysis,
-    fusion_score,
-    severity_score,
-    decision,
+    priority_class,
     expected_level,
 ):
     report_id = await create_report(status=ReportStatus.COMPLETED)
     await create_ai_analysis(
         report_id,
-        final_fusion_score=fusion_score,
-        cv_max_severity_score=severity_score,
-        final_decision=decision,
+        priority_class=priority_class,
     )
 
     response = await client.get("/api/reports/map/points")
