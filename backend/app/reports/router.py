@@ -96,8 +96,13 @@ async def process_report_background(
                     print(f"ไม่สามารถดึงข้อมูล Cache ได้: {cache_err}")
 
             # 3. ดึงสถิติ Crowdsourcing
+            # หมายเหตุ: ค่านี้ต่างจาก CASP's grid c_score ใน analytics/router.py:
+            # - พื้นที่: รัศมี ~50m รอบพิกัดรายงานนี้ (ไม่ใช่ Grid Cell 100x100m)
+            # - เวลา: คำนวณครั้งเดียวตอนอัปโหลด แล้ว Freeze ถาวร (ไม่ Real-time)
+            # - Status: นับทุกสถานะ (ไม่กรองแค่ COMPLETED)
+            # ห้ามเข้าใจผิดว่าเป็นตัวเลขเดียวกัน แม้จะวัด "การแจ้งซ้ำ" คล้ายกัน
             real_crowd_data = {
-                "crowdsource_report_count_30d": 0,
+                "nearby_report_count_30d_snapshot": 0,
                 "days_since_last_report": 999,
                 "user_severity_score_avg": 0.0
             }
@@ -117,7 +122,7 @@ async def process_report_background(
                     recent_reports = crowd_result.scalars().all()
 
                     if recent_reports:
-                        real_crowd_data["crowdsource_report_count_30d"] = len(recent_reports)
+                        real_crowd_data["nearby_report_count_30d_snapshot"] = len(recent_reports)
                         real_crowd_data["days_since_last_report"] = (datetime.now(timezone.utc) - recent_reports[0].created_at).days
                         
                         total_sev, valid_sev = 0, 0
@@ -222,7 +227,7 @@ async def process_report_background(
                         community_impact_score_pi=cx_d.get("poi", {}).get("community_impact_score_pi", 0) if cx_d.get("poi") else 0,
                     ),
                     crowdsource_context=AiCrowdsourceContext(
-                        crowdsource_report_count_30d=real_crowd_data["crowdsource_report_count_30d"],
+                        nearby_report_count_30d_snapshot=real_crowd_data["nearby_report_count_30d_snapshot"],
                         days_since_last_report=real_crowd_data["days_since_last_report"],
                         user_severity_score_avg=real_crowd_data["user_severity_score_avg"],
                     ),
@@ -324,8 +329,13 @@ async def reprocess_report_location(report_id: int, new_lat: float, new_lon: flo
                 return
 
             # สถิติ Crowdsourcing รอบพิกัดใหม่ (เหมือนตอนอัปโหลดครั้งแรก)
+            # หมายเหตุ: ค่านี้ต่างจาก CASP's grid c_score ใน analytics/router.py:
+            # - พื้นที่: รัศมี ~50m รอบพิกัดรายงานนี้ (ไม่ใช่ Grid Cell 100x100m)
+            # - เวลา: คำนวณครั้งเดียวตอนอัปโหลด แล้ว Freeze ถาวร (ไม่ Real-time)
+            # - Status: นับทุกสถานะ (ไม่กรองแค่ COMPLETED)
+            # ห้ามเข้าใจผิดว่าเป็นตัวเลขเดียวกัน แม้จะวัด "การแจ้งซ้ำ" คล้ายกัน
             real_crowd_data = {
-                "crowdsource_report_count_30d": 0,
+                "nearby_report_count_30d_snapshot": 0,
                 "days_since_last_report": 999,
                 "user_severity_score_avg": 0.0
             }
@@ -340,7 +350,7 @@ async def reprocess_report_location(report_id: int, new_lat: float, new_lon: flo
                 crowd_result = await db.execute(crowd_query)
                 recent_reports = crowd_result.scalars().all()
                 if recent_reports:
-                    real_crowd_data["crowdsource_report_count_30d"] = len(recent_reports)
+                    real_crowd_data["nearby_report_count_30d_snapshot"] = len(recent_reports)
                     real_crowd_data["days_since_last_report"] = (datetime.now(timezone.utc) - recent_reports[0].created_at).days
                     total_sev, valid_sev = 0, 0
                     for r in recent_reports:
@@ -405,7 +415,7 @@ async def reprocess_report_location(report_id: int, new_lat: float, new_lon: flo
                 existing.admin_province = admin_d.get("province")
                 existing.admin_district = admin_d.get("district")
                 existing.admin_subdistrict = admin_d.get("subdistrict")
-                existing.crowdsource_report_count_30d = real_crowd_data["crowdsource_report_count_30d"]
+                existing.nearby_report_count_30d_snapshot = real_crowd_data["nearby_report_count_30d_snapshot"]
                 existing.days_since_last_report = real_crowd_data["days_since_last_report"]
                 existing.user_severity_score_avg = real_crowd_data["user_severity_score_avg"]
                 existing.heuristic_score = fusion_r.get("heuristic_score")

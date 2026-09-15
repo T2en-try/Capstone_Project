@@ -59,7 +59,7 @@ GEE_FIELDS = ["rainfall_last_12m_mm", "soil_moisture_last_30d_mm", "ndvi_index",
 GIS_FIELDS = ["road_name", "road_type", "osm_highway_type", "osm_way_id", "lanes",
               "speed_limit", "admin_province", "admin_district", "admin_subdistrict"]
 POI_FIELDS = ["community_impact_score_pi", "nearest_poi_distance_m"]
-CROWD_FIELDS = ["crowdsource_report_count_30d", "days_since_last_report", "user_severity_score_avg"]
+CROWD_FIELDS = ["nearby_report_count_30d_snapshot", "days_since_last_report", "user_severity_score_avg"]
 DECISION_FIELDS = ["heuristic_score", "fuzzy_score", "ml_score", "priority_class",
                     "confidence_score", "proba_normal", "proba_warning", "proba_critical",
                     "gps_anomaly_flagged", "gps_anomaly_reason"]
