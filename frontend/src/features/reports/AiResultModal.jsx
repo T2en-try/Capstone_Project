@@ -104,7 +104,7 @@ export default function AiResultModal({ aiResult, onClose }) {
                   </li>
                   <li className="col-span-2">
                     <span className="block text-xs text-asphalt/45">แจ้งซ้ำใน 30 วัน</span>
-                    {contextData?.crowdsource?.crowdsource_report_count_30d || 0} ครั้ง
+                    {contextData?.crowdsource?.nearby_report_count_30d_snapshot || 0} ครั้ง
                   </li>
                 </ul>
               </div>

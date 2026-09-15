@@ -236,7 +236,7 @@ export default function ReportDetailModal({ isOpen, report, onClose, onUpdateSta
                     </p>
                     <p>
                       <span className="font-semibold">ประวัติแจ้งซ้ำ:</span>{' '}
-                      {aiResult.contextData?.crowdsource?.crowdsource_report_count_30d || 0} ครั้ง
+                      {aiResult.contextData?.crowdsource?.nearby_report_count_30d_snapshot || 0} ครั้ง
                     </p>
                   </div>
                 )}

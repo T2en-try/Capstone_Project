@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
     MapPin,
     Clock3,
@@ -43,11 +43,12 @@ export default function SearchResults({
     onSelect,
 }) {
     const [visibleCount, setVisibleCount] = useState(3);
+    const [prevReports, setPrevReports] = useState(reports);
 
-    useEffect(() => {
-        // Reset limit when new search happens
+    if (reports !== prevReports) {
+        setPrevReports(reports);
         setVisibleCount(3);
-    }, [reports]);
+    }
 
     if (!active) {
         return null;

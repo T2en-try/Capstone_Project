@@ -22,7 +22,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }) {
   // ปิด Drawer เมื่อเปลี่ยนหน้า
   useEffect(() => {
     if (onMobileClose) onMobileClose();
-  }, [location.pathname]);
+  }, [location.pathname, onMobileClose]);
 
   /* =========================================================
      Menu

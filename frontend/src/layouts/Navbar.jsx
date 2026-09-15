@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { Link, NavLink, useLocation } from "react-router-dom";
+import React from "react";
+import { Link, NavLink } from "react-router-dom";
 import {
   BarChartOutlined,
   MessageOutlined,
@@ -19,8 +19,6 @@ export default function Navbar() {
     // { label: "ศูนย์ข้อมูล SmartRoad", href: "/info", icon: InfoCircleOutlined },
   ];
 
-  // ปิดเมนูเมื่อจำเป็น (สำหรับลิงก์)
-  const location = useLocation();
 
   return (
     <nav className="w-full bg-white border-b shadow-sm relative z-50">
