@@ -228,7 +228,7 @@ class AIAnalysis(Base):
     community_impact_score_pi = association_proxy("poi_context", "community_impact_score_pi")
     nearest_poi_distance_m = association_proxy("poi_context", "nearest_poi_distance_m")
 
-    crowdsource_report_count_30d = association_proxy("crowdsource_context", "crowdsource_report_count_30d")
+    nearby_report_count_30d_snapshot = association_proxy("crowdsource_context", "nearby_report_count_30d_snapshot")
     days_since_last_report = association_proxy("crowdsource_context", "days_since_last_report")
     user_severity_score_avg = association_proxy("crowdsource_context", "user_severity_score_avg")
 
@@ -330,7 +330,7 @@ class AiCrowdsourceContext(Base):
 
     analysis_id = Column(Integer, ForeignKey("ai_analyses.id", ondelete="CASCADE"), primary_key=True)
 
-    crowdsource_report_count_30d = Column(Integer, default=0, comment="จำนวนการรายงานในรัศมีรอบๆ 30 วันที่ผ่านมา")
+    nearby_report_count_30d_snapshot = Column(Integer, default=0, comment="จำนวนการรายงานในรัศมีรอบๆ 30 วันที่ผ่านมา")
     days_since_last_report = Column(Integer, default=999, comment="จำนวนวันนับตั้งแต่รายงานล่าสุดในรัศมี")
     user_severity_score_avg = Column(Float, default=0.0, comment="ระดับความรุนแรงเฉลี่ยจากการประเมินในบริเวณนั้น")
 

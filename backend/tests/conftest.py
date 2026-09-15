@@ -184,7 +184,7 @@ def create_ai_analysis(db_session_factory, event_loop):
             "nearest_poi_distance_m": 500.0,
         }
         crowdsource_context = {
-            "crowdsource_report_count_30d": 0,
+            "nearby_report_count_30d_snapshot": 0,
             "days_since_last_report": 999,
             "user_severity_score_avg": 0.0,
         }

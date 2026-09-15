@@ -76,7 +76,7 @@ class AIAnalysisResponse(BaseModel):
     admin_subdistrict: Optional[str] = None
 
     # Crowdsource Context
-    crowdsource_report_count_30d: int
+    nearby_report_count_30d_snapshot: int
     days_since_last_report: int
     user_severity_score_avg: float
 
@@ -192,7 +192,7 @@ class ReportResponse(BaseModel):
                     "nearest_poi_distance_m": ana.nearest_poi_distance_m
                 },
                 "crowdsource": {
-                    "crowdsource_report_count_30d": ana.crowdsource_report_count_30d,
+                    "nearby_report_count_30d_snapshot": ana.nearby_report_count_30d_snapshot,
                     "days_since_last_report": ana.days_since_last_report,
                     "user_severity_score_avg": ana.user_severity_score_avg
                 }

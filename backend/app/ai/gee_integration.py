@@ -466,7 +466,7 @@ def get_crowdsource_data(lat, lon, radius_meters=50):
         avg_severity_score = 0.0
 
     return {
-        "crowdsource_report_count_30d": report_count,
+        "nearby_report_count_30d_snapshot": report_count,
         "days_since_last_report": days_since_last_report,
         "user_severity_score_avg": avg_severity_score
     }
@@ -561,8 +561,8 @@ if __name__ == "__main__":
     print(f"[{'GEE':<12}] ความลาดชัน (Slope): {gee_data['slope_deg']} องศา")
     
     # แสดงข้อมูล Crowdsource
-    if crowd_data['crowdsource_report_count_30d'] > 0:
-        print(f"[{'Crowdsource':<12}] มีคนแจ้งเหตุ: {crowd_data['crowdsource_report_count_30d']} ครั้ง (ใน 30 วัน)")
+    if crowd_data['nearby_report_count_30d_snapshot'] > 0:
+        print(f"[{'Crowdsource':<12}] มีคนแจ้งเหตุ: {crowd_data['nearby_report_count_30d_snapshot']} ครั้ง (ใน 30 วัน)")
         print(f"[{'Crowdsource':<12}] แจ้งล่าสุดเมื่อ: {crowd_data['days_since_last_report']} วันที่แล้ว")
         print(f"[{'Crowdsource':<12}] ความรุนแรงจากผู้แจ้ง: {crowd_data['user_severity_score_avg']} / 5.0")
     else:

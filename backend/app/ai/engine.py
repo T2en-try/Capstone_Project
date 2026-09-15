@@ -153,7 +153,7 @@ class AIEngine:
             ndvi=gee.get("ndvi_index", 0.0),
             material=gee.get("estimated_material", "ไม่ระบุ"),
             road_type_enc=road_type_encoded,
-            crowd_30d=crowd.get("crowdsource_report_count_30d", 0),
+            crowd_30d=crowd.get("nearby_report_count_30d_snapshot", 0),
             comm_impact=poi.get("community_impact_score_pi", 0.0),
             slope=gee.get("slope_deg", 0.0),
             lanes=gis.get("lanes", 2),

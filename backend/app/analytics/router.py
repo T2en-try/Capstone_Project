@@ -9,6 +9,8 @@ Overall Priority = 0.8×PPI + 0.2×CUS
 """
 
 import math
+import os
+import pandas as pd
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
@@ -58,6 +60,21 @@ PRIORITY_LEVELS = [
     (25, "medium", "#fadb14"),
     (0, "low", "#52c41a"),
 ]
+
+# CASP Constants
+N_MAX_FIXED = 50.0
+D_MAX_FIXED = 20.0  # Reports per km
+
+# Load Grid Road Length Cache
+GRID_ROAD_LENGTH_CACHE = {}
+try:
+    cache_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "cached_grid_road_length.parquet")
+    if os.path.exists(cache_path):
+        df = pd.read_parquet(cache_path)
+        GRID_ROAD_LENGTH_CACHE = df.set_index("grid_key")["road_length_km"].to_dict()
+        print(f"Loaded {len(GRID_ROAD_LENGTH_CACHE)} grid road lengths.")
+except Exception as e:
+    print(f"Warning: Could not load road length cache: {e}")
 
 
 # ─── Pydantic Schemas ─────────────────────────────────────────────────────────
@@ -251,13 +268,10 @@ async def get_grid_priority(
         )
 
     # ─── 3. คำนวณ Count Score (normalize 0-100) ────────────────────────────────
-    all_counts = [len(v) for v in grid_map.values()]
-    max_count = max(all_counts) if all_counts else 1
-
+    # ใช้ N_MAX_FIXED เพื่อให้คะแนนเสถียร แทนที่จะแกว่งตาม max() ของข้อมูลปัจจุบัน
+    
     # ─── 4. คำนวณ Density Score (reports per unit area, normalize 0-100) ───────
-    # Grid area ≈ 100m × 100m = 10,000 m²
-    # Density = count / grid_area_ha → normalize
-    max_density_raw = max_count  # normalize เหมือน count (grid area คงที่)
+    # ใช้ความยาวถนนจริง (km) จาก cache แทนพื้นที่กริด
 
     # ─── 5. คำนวณ CUS และ Overall Priority ────────────────────────────────────
     grids_out: List[GridCellResponse] = []
@@ -266,13 +280,21 @@ async def get_grid_priority(
     for (row, col), items in grid_map.items():
         bounds = get_grid_bounds(row, col)
         n = len(items)
+        grid_key = f"{row}_{col}"
 
-        # Count Score (C): normalize to 0-100
-        c_score = (n / max_count) * 100.0
+        # Count Score (C): normalize to 0-100 using fixed denominator
+        c_score = min((n / N_MAX_FIXED) * 100.0, 100.0)
 
-        # Density Score (D): เหมือน C เนื่องจาก grid คงที่ขนาดเดียวกัน
-        # ในกรณีจริงอาจใช้พื้นที่จริงของถนนในกริด แต่ตอนนี้ normalize แบบเดียวกัน
-        d_score = (n / max_density_raw) * 100.0
+        # Density Score (D): Reports per km of road
+        road_length_km = GRID_ROAD_LENGTH_CACHE.get(grid_key, 0.0)
+        
+        if road_length_km > 0:
+            density_raw = n / road_length_km
+        else:
+            # ถ้าไม่มีถนนผ่านเลยใน cache (เช่น error) แต่มีคนแจ้งเหตุ ถือว่าหนาแน่นสูงมาก
+            density_raw = D_MAX_FIXED
+            
+        d_score = min((density_raw / D_MAX_FIXED) * 100.0, 100.0)
 
         # Recency Score (R): weighted avg ของ decay ทุก report → scale 0-100
         avg_recency_raw = sum(i["recency"] for i in items) / n
