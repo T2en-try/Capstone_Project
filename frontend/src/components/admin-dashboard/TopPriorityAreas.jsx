@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import {
     Spin,
+    Skeleton,
     Typography,
     Table,
     Tooltip,
@@ -450,45 +451,78 @@ export default function TopPriorityAreas({ topN = 5 }) {
                 }}
             >
                 {loading ? (
-                    <div
-                        style={{
-                            minHeight: 180,
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                        }}
-                    >
-                        <Space
-                            direction="vertical"
-                            align="center"
-                        >
-                            <Spin size="small" />
-
-                            <Text
-                                style={{
-                                    fontSize: 12,
-                                    color: COLORS.secondary,
-                                }}
-                            >
-                                กำลังคำนวณพื้นที่เร่งด่วน...
-                            </Text>
-                        </Space>
+                    <div className="py-4 px-2 space-y-4">
+                        <Skeleton active paragraph={{ rows: 1 }} />
+                        <Skeleton active paragraph={{ rows: 1 }} />
+                        <Skeleton active paragraph={{ rows: 1 }} />
                     </div>
                 ) : (
-                    <Table
-                        dataSource={topGrids}
-                        columns={columns}
-                        rowKey="grid_id"
-                        pagination={false}
-                        size="small"
-                        scroll={{
-                            x: 900,
-                        }}
-                        locale={{
-                            emptyText:
-                                "ไม่มีข้อมูลในพื้นที่ศึกษา",
-                        }}
-                    />
+                    <>
+                        {/* ── Desktop View (Table) ── */}
+                        <div className="hidden md:block">
+                            <Table
+                                dataSource={topGrids}
+                                columns={columns}
+                                rowKey="grid_id"
+                                pagination={false}
+                                size="small"
+                                scroll={{
+                                    x: 900,
+                                }}
+                                locale={{
+                                    emptyText:
+                                        "ไม่มีข้อมูลในพื้นที่ศึกษา",
+                                }}
+                            />
+                        </div>
+
+                        {/* ── Mobile View (Card List) ── */}
+                        <div className="block md:hidden space-y-4 pt-2">
+                            {topGrids.length === 0 ? (
+                                <div className="text-center text-asphalt/50 py-4">ไม่มีข้อมูลในพื้นที่ศึกษา</div>
+                            ) : (
+                                topGrids.map((grid, idx) => {
+                                    const lvlConf = LEVEL_CONFIG[grid.casp_priority_level || "low"];
+                                    
+                                    return (
+                                        <div key={grid.grid_id} className="border border-line rounded-xl p-4 bg-white flex flex-col gap-3 shadow-sm">
+                                            <div className="flex justify-between items-center">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="font-display text-xl font-bold" style={{ color: idx === 0 ? COLORS.critical : idx === 1 ? COLORS.high : COLORS.secondary }}>#{idx + 1}</span>
+                                                    <span className="font-semibold text-ink text-sm">Grid: {grid.grid_id}</span>
+                                                </div>
+                                                <Badge
+                                                    color={lvlConf.color}
+                                                    text={lvlConf.label}
+                                                    style={{ fontWeight: 600, color: lvlConf.color }}
+                                                />
+                                            </div>
+                                            
+                                            <div className="flex flex-col gap-1 text-sm">
+                                                <div className="flex justify-between">
+                                                    <span className="text-asphalt/70">รวมความเสียหาย:</span>
+                                                    <span className="font-semibold">{grid.total_reports} รายการ</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span className="text-asphalt/70">คะแนน CASP:</span>
+                                                    <span className="font-semibold">{Number(grid.casp_priority_score).toFixed(2)}</span>
+                                                </div>
+                                            </div>
+                                            
+                                            <div className="mt-1 pt-3 border-t border-line/50 flex justify-between items-center text-xs">
+                                                <span className="text-danger flex items-center gap-1">
+                                                    <FireOutlined /> เร่งด่วน ({grid.breakdown?.critical || 0})
+                                                </span>
+                                                <span className="text-high flex items-center gap-1">
+                                                    <WarningOutlined /> สูง ({grid.breakdown?.high || 0})
+                                                </span>
+                                            </div>
+                                        </div>
+                                    );
+                                })
+                            )}
+                        </div>
+                    </>
                 )}
             </div>
 

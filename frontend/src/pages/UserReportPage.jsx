@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
+import Swal from "sweetalert2";
 import imageCompression from "browser-image-compression";
 import "leaflet/dist/leaflet.css";
 
@@ -131,13 +132,20 @@ export default function UserReportPage() {
       if (reportId) {
         pollReportResult(reportId);
       } else {
-        alert("ส่งรายงานสำเร็จแล้ว");
+        Swal.fire({
+          title: "สำเร็จ!",
+          text: "ส่งรายงานสำเร็จแล้ว",
+          icon: "success",
+          confirmButtonColor: "#2D7A5F"
+        });
       }
     } catch (err) {
-      alert(
-        err.response?.data?.detail ||
-          "ไม่สามารถติดต่อเซิร์ฟเวอร์ได้ กรุณาลองใหม่"
-      );
+      Swal.fire({
+        title: "เกิดข้อผิดพลาด",
+        text: err.response?.data?.detail || "ไม่สามารถติดต่อเซิร์ฟเวอร์ได้ กรุณาลองใหม่",
+        icon: "error",
+        confirmButtonColor: "#C45C4A"
+      });
     } finally {
       setLoading(false);
     }
@@ -171,9 +179,12 @@ export default function UserReportPage() {
         await fetchData();
 
         if (!report.ai_result) {
-          alert(
-            "ส่งรายงานสำเร็จแล้ว แต่ยังไม่มีผล AI สำหรับรายงานนี้"
-          );
+          Swal.fire({
+            title: "สำเร็จ!",
+            text: "ส่งรายงานสำเร็จแล้ว แต่ยังไม่มีผล AI สำหรับรายงานนี้",
+            icon: "info",
+            confirmButtonColor: "#2F6F7E"
+          });
         }
 
         return;
@@ -188,11 +199,14 @@ export default function UserReportPage() {
           `รายงาน #${reportId} ไม่ผ่านการตรวจสอบ`
         );
 
-        alert(
-          report.rejection_reason === "not_a_road"
+        Swal.fire({
+          title: "ถูกปฏิเสธ",
+          text: report.rejection_reason === "not_a_road"
             ? "ภาพที่ส่งไม่ใช่ภาพถนน ระบบจึงปฏิเสธรายงาน"
-            : "ระบบไม่สามารถวิเคราะห์รายงานนี้ได้"
-        );
+            : "ระบบไม่สามารถวิเคราะห์รายงานนี้ได้",
+          icon: "warning",
+          confirmButtonColor: "#C4891A"
+        });
 
         await fetchData();
 
@@ -359,7 +373,12 @@ export default function UserReportPage() {
       setSelectedReport(res.data);
       setIsModalOpen(true);
     } catch {
-      alert("ไม่พบข้อมูลรายงาน");
+      Swal.fire({
+        title: "ผิดพลาด!",
+        text: "ไม่พบข้อมูลรายงาน",
+        icon: "error",
+        confirmButtonColor: "#C45C4A"
+      });
     }
   };
 
@@ -385,7 +404,12 @@ export default function UserReportPage() {
         }));
       }
     } catch {
-      alert("อัปเดตสถานะไม่สำเร็จ");
+      Swal.fire({
+        title: "ผิดพลาด!",
+        text: "อัปเดตสถานะไม่สำเร็จ",
+        icon: "error",
+        confirmButtonColor: "#C45C4A"
+      });
     }
   };
 
@@ -411,7 +435,12 @@ export default function UserReportPage() {
 
       await fetchData();
     } catch {
-      alert("อัปเดตพิกัดไม่สำเร็จ");
+      Swal.fire({
+        title: "ผิดพลาด!",
+        text: "อัปเดตพิกัดไม่สำเร็จ",
+        icon: "error",
+        confirmButtonColor: "#C45C4A"
+      });
     }
   };
 
@@ -420,11 +449,18 @@ export default function UserReportPage() {
   // ============================================================
 
   const deleteReport = async (id) => {
-    if (
-      !window.confirm(
-        "ต้องการลบรายงานนี้หรือไม่?"
-      )
-    ) {
+    const result = await Swal.fire({
+      title: "ยืนยันการลบ?",
+      text: "คุณต้องการลบรายงานนี้ใช่หรือไม่?",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#d33",
+      cancelButtonColor: "#3085d6",
+      confirmButtonText: "ลบ",
+      cancelButtonText: "ยกเลิก"
+    });
+
+    if (!result.isConfirmed) {
       return;
     }
 
@@ -436,8 +472,22 @@ export default function UserReportPage() {
       setIsModalOpen(false);
 
       await fetchData();
+      
+      Swal.fire({
+        title: "ลบสำเร็จ!",
+        text: "รายงานได้ถูกลบเรียบร้อยแล้ว",
+        icon: "success",
+        confirmButtonColor: "#2D7A5F",
+        timer: 1500,
+        showConfirmButton: false
+      });
     } catch {
-      alert("ลบไม่สำเร็จ");
+      Swal.fire({
+        title: "ผิดพลาด!",
+        text: "ลบไม่สำเร็จ",
+        icon: "error",
+        confirmButtonColor: "#C45C4A"
+      });
     }
   };
 

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Table, Tag, Progress, Button, Dropdown, Space, message, Modal, Input, Typography } from "antd";
+import { Table, Tag, Progress, Button, Dropdown, Space, message, Modal, Input, Typography, Skeleton } from "antd";
 import {
     MoreOutlined,
     EyeOutlined,
@@ -233,19 +233,102 @@ const ReportsTable = ({ reports = [], loading = false, onReportUpdated }) => {
 
     return (
         <>
-            <Table
-                rowKey="id"
-                columns={columns}
-                dataSource={tableData}
-                loading={loading}
-                scroll={{
-                    x: 1200,
-                }}
-                pagination={{
-                    pageSize: 8,
-                    showSizeChanger: false,
-                }}
-            />
+            {/* ── Desktop View (Table) ── */}
+            <div className="hidden md:block">
+                <Table
+                    rowKey="id"
+                    columns={columns}
+                    dataSource={tableData}
+                    loading={loading}
+                    scroll={{
+                        x: 1200,
+                    }}
+                    pagination={{
+                        pageSize: 8,
+                        showSizeChanger: false,
+                    }}
+                />
+            </div>
+
+            {/* ── Mobile View (Card List) ── */}
+            <div className="block md:hidden space-y-4">
+                {loading ? (
+                    <div className="space-y-4 py-2">
+                        <Skeleton active paragraph={{ rows: 2 }} />
+                        <Skeleton active paragraph={{ rows: 2 }} />
+                    </div>
+                ) : tableData.length === 0 ? (
+                    <div className="text-center text-asphalt/50 py-8">ไม่มีข้อมูล</div>
+                ) : (
+                    tableData.map((record) => (
+                        <div key={record.id} className="bg-white border border-line rounded-xl p-4 shadow-sm flex flex-col gap-3">
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <h3 className="font-semibold text-ink text-sm">#{record.reportId}</h3>
+                                    <p className="text-sm font-semibold text-ink mt-1 truncate max-w-[200px]">{record.roadName}</p>
+                                    <p className="text-xs text-asphalt/70">{record.reportDate}</p>
+                                </div>
+                                <Tag color={getStatusColor(record.priorityStatus)} style={{ margin: 0 }}>
+                                    {record.priorityStatus}
+                                </Tag>
+                            </div>
+
+                            <div className="flex flex-col gap-2 mt-2 text-sm">
+                                <div className="flex justify-between items-center">
+                                    <span className="text-asphalt/70">ระดับความเร่งด่วน:</span>
+                                    <Tag
+                                        style={{ margin: 0 }}
+                                        color={
+                                            record.priorityClass === 1
+                                                ? "green"
+                                                : record.priorityClass === 2
+                                                ? "orange"
+                                                : record.priorityClass === 3
+                                                ? "red"
+                                                : "default"
+                                        }
+                                    >
+                                        {record.damageType}
+                                    </Tag>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                    <span className="text-asphalt/70">ความมั่นใจ AI:</span>
+                                    <div className="flex items-center gap-2 w-1/2 justify-end">
+                                        <span className="font-semibold text-ink">{record.confidenceScore === null ? "-" : `${record.confidenceScore}%`}</span>
+                                        <Progress
+                                            percent={record.confidenceScore || 0}
+                                            showInfo={false}
+                                            strokeColor="#1677ff"
+                                            size="small"
+                                            style={{ width: 60, margin: 0 }}
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-2 mt-2 pt-3 border-t border-line/50">
+                                <Button
+                                    type="primary"
+                                    icon={<EyeOutlined />}
+                                    className="flex-1"
+                                    onClick={() => navigate(`/admin/reports/${record.id}`)}
+                                >
+                                    ดูรายละเอียด
+                                </Button>
+                                <Dropdown
+                                    menu={{ items: menuItems(record) }}
+                                    trigger={["click"]}
+                                >
+                                    <Button
+                                        icon={<MoreOutlined />}
+                                        loading={submitting && activeRecord?.id === record.id}
+                                    />
+                                </Dropdown>
+                            </div>
+                        </div>
+                    ))
+                )}
+            </div>
 
             {/* Modal สำหรับกรอก Note ในการอัปเดตสถานะ */}
             <Modal

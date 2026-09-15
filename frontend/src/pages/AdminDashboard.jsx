@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Alert, Col, Divider, Row, Space, Spin, Typography } from "antd";
+import { Alert, Col, Divider, Row, Space, Spin, Typography, Skeleton } from "antd";
 
 import SummaryCards from "../components/admin-dashboard/SummaryCards";
 import PriorityReports from "../components/admin-dashboard/PriorityReports";
@@ -164,7 +164,34 @@ export default function DashboardPage() {
   }, []);
 
   if (loading) {
-    return <Spin tip="กำลังโหลดข้อมูล Dashboard..." size="large" />;
+    return (
+      <div className="space-y-6">
+        {/* Skeleton for SummaryCards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <Skeleton.Button active style={{ height: 100, width: '100%' }} />
+          <Skeleton.Button active style={{ height: 100, width: '100%' }} />
+          <Skeleton.Button active style={{ height: 100, width: '100%' }} />
+          <Skeleton.Button active style={{ height: 100, width: '100%' }} />
+          <Skeleton.Button active style={{ height: 100, width: '100%' }} />
+        </div>
+
+        {/* Skeleton for Map + Priority */}
+        <div className="grid grid-cols-1 xl:grid-cols-12 gap-5">
+          <div className="xl:col-span-8">
+            <Skeleton.Button active style={{ height: 500, width: '100%' }} />
+          </div>
+          <div className="xl:col-span-4">
+            <Skeleton.Button active style={{ height: 500, width: '100%' }} />
+          </div>
+        </div>
+
+        {/* Skeleton for CASP Section */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+          <Skeleton.Button active style={{ height: 350, width: '100%' }} />
+          <Skeleton.Button active style={{ height: 350, width: '100%' }} />
+        </div>
+      </div>
+    );
   }
 
   if (error) {

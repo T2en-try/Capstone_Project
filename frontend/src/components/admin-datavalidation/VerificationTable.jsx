@@ -537,39 +537,99 @@ export default function VerificationTable({
             COLORS.white,
         }}
       >
-        <Table
-          rowKey="id"
-          columns={columns}
-          dataSource={reports}
-          locale={{
-            emptyText,
-          }}
-          scroll={{
-            x: 1050,
-          }}
-          pagination={{
-            pageSize: 8,
-            showSizeChanger: true,
-            pageSizeOptions: [
-              "8",
-              "16",
-              "32",
-              "50",
-            ],
-            showTotal: (
-              total,
-              range
-            ) =>
-              `แสดง ${range[0]}-${range[1]} จาก ${total} รายการ`,
-            position: [
-              "bottomRight",
-            ],
-          }}
-          size="middle"
-          rowClassName={() =>
-            "ai-verification-row"
-          }
-        />
+        {/* ── Desktop View ── */}
+        <div className="hidden md:block">
+          <Table
+            rowKey="id"
+            columns={columns}
+            dataSource={reports}
+            locale={{
+              emptyText,
+            }}
+            scroll={{
+              x: 1050,
+            }}
+            pagination={{
+              pageSize: 8,
+              showSizeChanger: true,
+              pageSizeOptions: [
+                "8",
+                "16",
+                "32",
+                "50",
+              ],
+              showTotal: (
+                total,
+                range
+              ) =>
+                `แสดง ${range[0]}-${range[1]} จาก ${total} รายการ`,
+              position: [
+                "bottomRight",
+              ],
+            }}
+            size="middle"
+            rowClassName={() =>
+              "ai-verification-row"
+            }
+          />
+        </div>
+
+        {/* ── Mobile View ── */}
+        <div className="block md:hidden p-4 space-y-4">
+          {reports.length === 0 ? (
+            emptyText
+          ) : (
+            reports.map((report) => {
+              const decisionConf = getDecisionConfig(report.aiDecision);
+              return (
+                <div 
+                  key={report.id} 
+                  className="border border-line rounded-xl p-4 bg-white shadow-sm flex flex-col gap-3"
+                  onClick={() => openDetail(report)}
+                >
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <span className="font-mono font-semibold text-ink text-sm">#{report.reportId}</span>
+                      <Text strong ellipsis={{ tooltip: report.roadName }} className="block text-ink text-sm mt-1">
+                        {report.roadName}
+                      </Text>
+                      <Text className="block text-asphalt/60 text-xs">
+                        {report.district}
+                      </Text>
+                    </div>
+                    <PriorityBadge value={report.aiPriorityClass} />
+                  </div>
+
+                  <div className="flex flex-col gap-2 mt-2">
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-asphalt/70">ผล AI:</span>
+                      <Tag style={{ margin: 0, background: decisionConf.background, color: decisionConf.color, border: 'none' }}>
+                        {report.aiDecision || "-"}
+                      </Tag>
+                    </div>
+                    
+                    <div className="flex justify-between items-center text-sm">
+                      <span className="text-asphalt/70">Confidence:</span>
+                      <div className="w-1/2 flex items-center gap-2">
+                        <Progress 
+                          percent={Number(report.aiConfidence).toFixed(0)} 
+                          size="small" 
+                          strokeColor={COLORS.mark} 
+                          trailColor="#E4EBE8"
+                          format={(p) => <span className="text-xs text-ink">{p}%</span>}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <Button type="default" size="small" block className="mt-2" onClick={(e) => { e.stopPropagation(); openDetail(report); }}>
+                    ตรวจสอบ
+                  </Button>
+                </div>
+              );
+            })
+          )}
+        </div>
       </div>
 
       {/* =================================================

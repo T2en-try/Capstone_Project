@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Skeleton } from "antd";
 
 import {
   Alert,
@@ -596,8 +597,23 @@ export default function AdminEmployees() {
               Mobile Employee List (Cards)
           ================================================= */}
           <div className="md:hidden flex flex-col gap-4 mt-4">
-            {filteredEmployees.slice(0, mobileVisibleCount).map((emp) => (
-              <Card
+            {loading ? (
+              <>
+                <Card bodyStyle={{ padding: "16px" }} className="rounded-xl shadow-sm border border-line">
+                  <Skeleton active avatar paragraph={{ rows: 2 }} />
+                </Card>
+                <Card bodyStyle={{ padding: "16px" }} className="rounded-xl shadow-sm border border-line">
+                  <Skeleton active avatar paragraph={{ rows: 2 }} />
+                </Card>
+                <Card bodyStyle={{ padding: "16px" }} className="rounded-xl shadow-sm border border-line">
+                  <Skeleton active avatar paragraph={{ rows: 2 }} />
+                </Card>
+              </>
+            ) : filteredEmployees.length === 0 ? (
+              <div className="text-center text-gray-500 py-8 bg-gray-50 rounded-xl">ไม่พบข้อมูลพนักงาน</div>
+            ) : (
+              filteredEmployees.slice(0, mobileVisibleCount).map((emp) => (
+                <Card
                 key={emp.id}
                 size="small"
                 styles={{ body: { padding: "14px" } }}
@@ -648,7 +664,8 @@ export default function AdminEmployees() {
                   </Button>
                 </div>
               </Card>
-            ))}
+            ))
+            )}
             
             {filteredEmployees.length > mobileVisibleCount && (
               <Button 

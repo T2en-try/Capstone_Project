@@ -191,25 +191,49 @@ export default function Sidebar({ formData, setFormData, handleFileChange, loadi
             />
           </div>
 
-          <label
-            className={`block w-full text-center py-3.5 rounded-xl font-display text-base cursor-pointer transition-all ${
-              loading
-                ? 'bg-asphalt/25 text-asphalt/50 cursor-wait'
-                : 'bg-ink text-paper hover:bg-ink-soft active:scale-[0.99]'
-            }`}
-          >
-            <span className="inline-flex items-center justify-center gap-2">
-              <Camera size={18} />
-              {loading ? 'กำลังส่งและวิเคราะห์...' : 'ถ่ายภาพ / เลือกรูปแล้วส่ง'}
-            </span>
-            <input
-              type="file"
-              hidden
-              onChange={handleFileChange}
-              accept="image/*"
-              disabled={loading}
-            />
-          </label>
+          <div className="flex flex-col gap-2">
+            <label
+              className={`block w-full text-center py-3.5 rounded-xl font-display text-base cursor-pointer transition-all ${
+                loading
+                  ? 'bg-asphalt/25 text-asphalt/50 cursor-wait'
+                  : 'bg-ink text-paper hover:bg-ink-soft active:scale-[0.99]'
+              }`}
+            >
+              <span className="inline-flex items-center justify-center gap-2">
+                <Camera size={18} />
+                {loading ? 'กำลังส่งและวิเคราะห์...' : 'ถ่ายภาพเดี๋ยวนี้'}
+              </span>
+              {/* capture="environment" บังคับเปิดกล้องหลังบนมือถือ */}
+              <input
+                type="file"
+                hidden
+                onChange={handleFileChange}
+                accept="image/*"
+                capture="environment"
+                disabled={loading}
+              />
+            </label>
+
+            <label
+              className={`block w-full text-center py-3.5 rounded-xl font-display text-base cursor-pointer transition-all ${
+                loading
+                  ? 'bg-mist text-asphalt/50 cursor-wait border border-line/50'
+                  : 'bg-white text-ink hover:bg-mist active:scale-[0.99] border border-line'
+              }`}
+            >
+              <span className="inline-flex items-center justify-center gap-2">
+                <ImageIcon size={18} />
+                เลือกจากอัลบั้ม
+              </span>
+              <input
+                type="file"
+                hidden
+                onChange={handleFileChange}
+                accept="image/*"
+                disabled={loading}
+              />
+            </label>
+          </div>
 
           <div className="flex items-start gap-2 text-xs text-asphalt/60 leading-relaxed">
             <MapPinned size={14} className="text-mark-deep shrink-0 mt-0.5" />
