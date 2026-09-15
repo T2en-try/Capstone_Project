@@ -317,11 +317,13 @@ const NewsSection = () => {
             {reports.length > 0 && (
                 <div
                     className="
-                        grid
-                        grid-cols-1
-                        md:grid-cols-2
-                        xl:grid-cols-4
+                        flex xl:grid
+                        flex-row xl:grid-cols-4
                         gap-5
+                        overflow-x-auto xl:overflow-visible
+                        snap-x snap-mandatory xl:snap-none
+                        pb-2 -mx-4 px-4 xl:mx-0 xl:px-0 xl:pb-0
+                        hide-scrollbar
                     "
                 >
                     {reports.map((report) => {
@@ -341,6 +343,9 @@ const NewsSection = () => {
                                     border-slate-200
                                     bg-white
                                     shadow-sm
+                                    min-w-[85%] sm:min-w-[320px] xl:min-w-0
+                                    shrink-0 xl:shrink
+                                    snap-center xl:snap-align-none
                                 "
                             >
                                 {/* =================================================
@@ -597,6 +602,16 @@ const NewsSection = () => {
                     })}
                 </div>
             )}
+            {/* Styles for scrollbar hiding */}
+            <style>{`
+                .hide-scrollbar::-webkit-scrollbar {
+                    display: none;
+                }
+                .hide-scrollbar {
+                    -ms-overflow-style: none;
+                    scrollbar-width: none;
+                }
+            `}</style>
         </section>
     );
 };

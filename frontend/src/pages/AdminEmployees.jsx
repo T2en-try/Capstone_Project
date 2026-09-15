@@ -12,6 +12,7 @@ import {
   Switch,
   Table,
   Tag,
+  Card,
   Typography,
   Row,
   Col,
@@ -43,6 +44,11 @@ const { Title, Text } = Typography;
 export default function AdminEmployees() {
   const [employees, setEmployees] = useState([]);
   const [search, setSearch] = useState("");
+  const [mobileVisibleCount, setMobileVisibleCount] = useState(10);
+
+  useEffect(() => {
+    setMobileVisibleCount(10);
+  }, [search]);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -537,7 +543,7 @@ export default function AdminEmployees() {
           ================================================= */}
 
           <section className="mb-4">
-            <span className="flex items-end justify-between gap-4">
+            <span className="flex flex-wrap items-end justify-between gap-4">
               <span>
                 <span className="block text-lg font-semibold text-slate-800">
                   รายชื่อพนักงาน
@@ -587,24 +593,96 @@ export default function AdminEmployees() {
           </section>
 
           {/* =================================================
-              Employee Table
+              Mobile Employee List (Cards)
+          ================================================= */}
+          <div className="md:hidden flex flex-col gap-4 mt-4">
+            {filteredEmployees.slice(0, mobileVisibleCount).map((emp) => (
+              <Card
+                key={emp.id}
+                size="small"
+                styles={{ body: { padding: "14px" } }}
+                className="shadow-sm border-gray-200"
+              >
+                <div className="flex justify-between items-start mb-3">
+                  <div>
+                    <div className="font-bold text-gray-800 text-base">
+                      {emp.first_name} {emp.last_name}
+                    </div>
+                    <div className="text-xs text-gray-500 mt-0.5">
+                      {emp.employee_code} • {emp.department || "-"}
+                    </div>
+                  </div>
+                  {emp.is_active ? (
+                    <Tag color="green">ทำงาน</Tag>
+                  ) : (
+                    <Tag color="default">ลาออก</Tag>
+                  )}
+                </div>
+
+                <div className="text-sm text-gray-600 mb-4 space-y-1">
+                  <div className="flex items-center gap-2">
+                    <MailOutlined className="text-gray-400" /> 
+                    <span className="truncate">{emp.email}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <PhoneOutlined className="text-gray-400" /> 
+                    <span>{emp.phone || "-"}</span>
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-2 border-t pt-3">
+                  <Button
+                    size="small"
+                    icon={<EditOutlined />}
+                    onClick={() => openEdit(emp)}
+                  >
+                    แก้ไข
+                  </Button>
+                  <Button
+                    size="small"
+                    danger
+                    icon={<DeleteOutlined />}
+                    onClick={() => handleDelete(emp.id)}
+                  >
+                    ลบ
+                  </Button>
+                </div>
+              </Card>
+            ))}
+            
+            {filteredEmployees.length > mobileVisibleCount && (
+              <Button 
+                type="dashed" 
+                block 
+                onClick={() => setMobileVisibleCount(prev => prev + 10)}
+                style={{ marginTop: 8 }}
+              >
+                ดูเพิ่มเติม ({filteredEmployees.length - mobileVisibleCount} รายการ)
+              </Button>
+            )}
+          </div>
+
+          {/* =================================================
+              Desktop Employee Table
           ================================================= */}
 
-          <Table
-            rowKey="id"
-            columns={columns}
-            dataSource={filteredEmployees}
-            loading={loading}
-            scroll={{
-              x: 1100,
-            }}
-            pagination={{
-              pageSize: 10,
-              showSizeChanger: true,
-              showTotal: (total) =>
-                `ทั้งหมด ${total} คน`,
-            }}
-          />
+          <div className="hidden md:block">
+            <Table
+              rowKey="id"
+              columns={columns}
+              dataSource={filteredEmployees}
+              loading={loading}
+              scroll={{
+                x: 1100,
+              }}
+              pagination={{
+                pageSize: 10,
+                showSizeChanger: true,
+                showTotal: (total) => `ทั้งหมด ${total} รายการ`,
+              }}
+              className="border border-gray-200 rounded-lg overflow-hidden"
+            />
+          </div>
         </section>
 
         {/* ===================================================

@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import {
     MapPin,
     Clock3,
@@ -41,6 +42,13 @@ export default function SearchResults({
     active = false,
     onSelect,
 }) {
+    const [visibleCount, setVisibleCount] = useState(3);
+
+    useEffect(() => {
+        // Reset limit when new search happens
+        setVisibleCount(3);
+    }, [reports]);
+
     if (!active) {
         return null;
     }
@@ -71,8 +79,8 @@ export default function SearchResults({
                     </p>
                 </div>
             ) : (
-                <div className="max-h-[320px] space-y-2 overflow-y-auto pr-1">
-                    {reports.map((report) => {
+                <div className="space-y-2">
+                    {reports.slice(0, visibleCount).map((report) => {
                         const currentStatus = getReportStatus(report);
                         const statusLabel =
                             STATUS_LABELS[currentStatus] ||
@@ -129,6 +137,16 @@ export default function SearchResults({
                             </button>
                         );
                     })}
+
+                    {reports.length > visibleCount && (
+                        <button
+                            type="button"
+                            onClick={() => setVisibleCount(prev => prev + 5)}
+                            className="w-full rounded-xl border border-line bg-slate-50 py-3 text-sm font-semibold text-asphalt hover:bg-slate-100 transition mt-2"
+                        >
+                            ดูเพิ่มเติม ({reports.length - visibleCount} รายการ)
+                        </button>
+                    )}
                 </div>
             )}
         </div>

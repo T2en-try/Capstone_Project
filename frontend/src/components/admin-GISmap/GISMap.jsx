@@ -163,7 +163,7 @@ export default function GISMap({
 
                 height: isFullscreen
                     ? "100vh"
-                    : "780px",
+                    : "clamp(400px, 60vh, 780px)",
 
                 zIndex: isFullscreen
                     ? 9999

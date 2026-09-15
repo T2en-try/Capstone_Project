@@ -30,6 +30,7 @@ import ReportDetailModal from "../features/reports/ReportDetailModal";
 import MainLayout from "../layouts/MainLayout";
 import Sidebar from "../layouts/Sidebar";
 import Navbar from "../layouts/Navbar";
+import MobileBottomNav from "../layouts/MobileBottomNav";
 
 export default function UserReportPage() {
   // ============================================================
@@ -46,6 +47,12 @@ export default function UserReportPage() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
+
+  const [visibleCount, setVisibleCount] = useState(10);
+
+  useEffect(() => {
+    setVisibleCount(10);
+  }, [searchQuery, filterStatus]);
 
   const [aiResult, setAiResult] = useState(null);
   const [processingMessage, setProcessingMessage] = useState("");
@@ -543,7 +550,7 @@ export default function UserReportPage() {
           MAIN CONTENT
       ======================================================== */}
 
-      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-5 lg:py-6">
+      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-5 pb-20 lg:pb-6 lg:py-6">
         <div className="flex flex-col xl:flex-row gap-6">
           
           {/* ====================================================
@@ -587,10 +594,11 @@ export default function UserReportPage() {
                     (item, index) => (
                       <div
                         key={item.label}
-                        className={`
-                          px-4 sm:px-5 py-4
-                          ${index !== 0 ? "border-l border-line" : ""}
-                        `}
+                          className={`
+                            px-4 sm:px-5 py-4
+                            ${index !== 0 ? "border-l border-line" : ""}
+                            ${index === 2 ? "max-[639px]:border-l-0" : ""}
+                          `}
                       >
                         <div className="flex items-center gap-2 text-asphalt/50">
                           <span className={item.accent}>
@@ -777,7 +785,7 @@ export default function UserReportPage() {
               <div className="border-y border-line divide-y divide-line bg-paper/70">
                 
                 {filteredReports.length > 0 ? (
-                  filteredReports.map(
+                  filteredReports.slice(0, visibleCount).map(
                     (r) => (
                       <article
                         key={r.id}
@@ -991,6 +999,36 @@ export default function UserReportPage() {
                   </div>
                 )}
               </div>
+
+              {filteredReports.length > visibleCount && (
+                <div className="p-4 text-center">
+                  <button
+                    type="button"
+                    onClick={() => setVisibleCount((prev) => prev + 10)}
+                    className="
+                      inline-flex
+                      items-center
+                      justify-center
+                      px-5
+                      py-2.5
+                      rounded-xl
+                      bg-white
+                      border
+                      border-line
+                      text-sm
+                      font-semibold
+                      text-ink-soft
+                      hover:text-ink
+                      hover:bg-slate-50
+                      hover:border-ink/20
+                      active:scale-[0.98]
+                      transition-all
+                    "
+                  >
+                    โหลดเพิ่มเติม ({filteredReports.length - visibleCount} รายการ)
+                  </button>
+                </div>
+              )}
             </section>
 
             {/* ==================================================
@@ -1050,6 +1088,8 @@ export default function UserReportPage() {
           confirmLocation
         }
       />
+
+      <MobileBottomNav />
     </MainLayout>
   );
 }

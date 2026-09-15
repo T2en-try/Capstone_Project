@@ -79,6 +79,13 @@
   color: var(--color-ink) !important;
 }
 
+/* =================================================
+   iOS Safe Area Utility
+================================================= */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
 .admin-sidebar-menu .ant-menu-item-selected {
   background: #fef3c7 !important;
   color: var(--color-ink) !important;

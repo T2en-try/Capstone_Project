@@ -53,18 +53,13 @@ const SummaryCards = ({ data }) => {
     return (
         <section
             aria-label="สรุปสถานะรายงาน"
-            style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(5, minmax(0, 1fr))",
-                gap: 14,
-                width: "100%",
-            }}
+            className="flex sm:grid sm:grid-cols-3 md:grid-cols-5 gap-3.5 overflow-x-auto snap-x snap-mandatory pb-2 w-full hide-scrollbar"
         >
             {cards.map((card) => (
                 <article
                     key={card.title}
+                    className="min-w-[80%] sm:min-w-0 shrink-0 snap-center"
                     style={{
-                        minWidth: 0,
                         background: "#FFFFFF",
                         border: "1px solid #D9E3DF",
                         borderRadius: 12,
@@ -151,6 +146,15 @@ const SummaryCards = ({ data }) => {
                     </p>
                 </article>
             ))}
+            <style>{`
+              .hide-scrollbar::-webkit-scrollbar {
+                display: none;
+              }
+              .hide-scrollbar {
+                -ms-overflow-style: none;
+                scrollbar-width: none;
+              }
+            `}</style>
         </section>
     );
 };

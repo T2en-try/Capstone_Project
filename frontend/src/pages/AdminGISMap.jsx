@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { Row, Col, Card, Typography, Space, Spin, Alert } from "antd";
-import { EnvironmentOutlined } from "@ant-design/icons";
+import { Row, Col, Card, Typography, Space, Spin, Alert, Drawer, Button } from "antd";
+import { EnvironmentOutlined, SettingOutlined } from "@ant-design/icons";
 
 import FilterBar from "../components/admin-GISmap/FilterPanel";
 import LayerPanel from "../components/admin-GISmap/LayerControl";
@@ -19,6 +19,7 @@ const { Title, Text } = Typography;
 
 export default function AdminGISMap() {
     const [, setSelectedRoad] = useState(null);
+    const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
 
     const [mapPoints, setMapPoints] = useState([]);
 
@@ -105,7 +106,7 @@ export default function AdminGISMap() {
 
             <div
                 style={{
-                    padding: "28px 36px 18px",
+                    padding: "20px 16px 14px",
                 }}
             >
                 <Space size={14} align="center">
@@ -168,7 +169,7 @@ export default function AdminGISMap() {
 
             <div
                 style={{
-                    padding: "0 24px 28px",
+                    padding: "0 12px 28px",
                 }}
             >
                 {/* =================================================
@@ -209,7 +210,7 @@ export default function AdminGISMap() {
               SIDEBAR
           ================================================= */}
 
-                    <Col xs={24} lg={6} xl={5}>
+                    <Col xs={0} lg={6} xl={5} className="hidden lg:block">
                         <div
                             style={{
                                 position: "sticky",
@@ -394,6 +395,77 @@ export default function AdminGISMap() {
                     </Col>
 
                     {/* =================================================
+                        MOBILE DRAWER & FAB
+                    ================================================= */}
+                    
+                    <Button
+                        type="primary"
+                        shape="circle"
+                        icon={<SettingOutlined />}
+                        size="large"
+                        className="lg:hidden"
+                        style={{
+                            position: "fixed",
+                            bottom: 24,
+                            right: 24,
+                            zIndex: 1000,
+                            width: 54,
+                            height: 54,
+                            boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                            backgroundColor: "#111827",
+                            borderColor: "#111827"
+                        }}
+                        onClick={() => setMobileDrawerOpen(true)}
+                    />
+
+                    <Drawer
+                        title="ตั้งค่าแผนที่และเลเยอร์"
+                        placement="bottom"
+                        height="85vh"
+                        onClose={() => setMobileDrawerOpen(false)}
+                        open={mobileDrawerOpen}
+                        className="lg:hidden"
+                        styles={{ body: { padding: '16px' } }}
+                    >
+                        <LayerPanel
+                            layers={layers}
+                            toggleLayer={toggleLayer}
+                        />
+
+                        {layers.grid && (
+                            <Card
+                                size="small"
+                                style={{
+                                    marginTop: 10,
+                                    borderRadius: 8,
+                                    borderColor: "#E5E7EB",
+                                    boxShadow: "none",
+                                }}
+                                styles={{
+                                    header: { minHeight: 42, padding: "0 12px" },
+                                    body: { padding: "10px 12px" },
+                                }}
+                                title={<span style={{ fontSize: 12, fontWeight: 600, color: "#1F2937" }}>Grid Priority Legend</span>}
+                            >
+                                <Space direction="vertical" size={5} style={{ width: "100%" }}>
+                                    <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                                        <div style={{ width: 16, height: 12, background: "#DC2626", borderRadius: 2, flexShrink: 0 }} />
+                                        <Text style={{ fontSize: 11, color: "#475569" }}>เร่งด่วน (80–100)</Text>
+                                    </div>
+                                    <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                                        <div style={{ width: 16, height: 12, background: "#F59E0B", borderRadius: 2, flexShrink: 0 }} />
+                                        <Text style={{ fontSize: 11, color: "#475569" }}>ปานกลาง (50–79)</Text>
+                                    </div>
+                                    <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                                        <div style={{ width: 16, height: 12, background: "#10B981", borderRadius: 2, flexShrink: 0 }} />
+                                        <Text style={{ fontSize: 11, color: "#475569" }}>ปกติ (0–49)</Text>
+                                    </div>
+                                </Space>
+                            </Card>
+                        )}
+                    </Drawer>
+
+                    {/* =================================================
               MAP
           ================================================= */}
 
@@ -416,7 +488,7 @@ export default function AdminGISMap() {
                             {mapLoading ? (
                                 <div
                                     style={{
-                                        height: 620,
+                                        height: "clamp(400px, 60vh, 620px)",
                                         display: "flex",
                                         justifyContent: "center",
                                         alignItems: "center",

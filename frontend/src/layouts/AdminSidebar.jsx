@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Menu, Tooltip } from "antd";
 import {
   DashboardOutlined,
@@ -11,12 +11,18 @@ import {
   RightOutlined,
 } from "@ant-design/icons";
 import { useLocation, useNavigate } from "react-router-dom";
+import { CloseOutlined } from "@ant-design/icons";
 
-export default function Sidebar() {
+export default function Sidebar({ mobileOpen = false, onMobileClose }) {
   const location = useLocation();
   const navigate = useNavigate();
 
   const [collapsed, setCollapsed] = useState(false);
+
+  // ปิด Drawer เมื่อเปลี่ยนหน้า
+  useEffect(() => {
+    if (onMobileClose) onMobileClose();
+  }, [location.pathname]);
 
   /* =========================================================
      Menu
@@ -102,16 +108,12 @@ export default function Sidebar() {
     }));
 
   /* =========================================================
-     Render
+     Sidebar Content (reusable between desktop & mobile drawer)
   ========================================================= */
 
-  return (
-    <aside
-      className={`
-        admin-sidebar
-        ${collapsed ? "admin-sidebar-collapsed" : ""}
-      `}
-    >
+  const sidebarContent = (
+    <>
+
       {/* =====================================================
           Brand
       ===================================================== */}
@@ -755,8 +757,170 @@ export default function Sidebar() {
               display: none;
             }
           }
+
+          /* =================================================
+             Mobile: hide desktop sidebar completely
+          ================================================= */
+
+          @media (max-width: 767px) {
+            .admin-sidebar-desktop {
+              display: none;
+            }
+          }
+
+          /* =================================================
+             Mobile Drawer
+          ================================================= */
+
+          .admin-sidebar-backdrop {
+            display: none;
+          }
+
+          @media (max-width: 767px) {
+            .admin-sidebar-backdrop {
+              display: block;
+              position: fixed;
+              inset: 0;
+              z-index: 1040;
+              background: rgba(0, 0, 0, 0.45);
+              animation: fadeIn 0.2s ease;
+            }
+
+            .admin-sidebar-drawer {
+              position: fixed !important;
+              top: 0;
+              left: 0;
+              bottom: 0;
+              width: 260px !important;
+              min-width: 260px !important;
+              z-index: 1050;
+              animation: slideInLeft 0.25s ease;
+              overflow-y: auto;
+            }
+
+            .admin-drawer-close {
+              position: absolute;
+              top: 22px;
+              right: 14px;
+              width: 30px;
+              height: 30px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              border-radius: 8px;
+              border: none;
+              background: transparent;
+              color: #66736F;
+              font-size: 14px;
+              cursor: pointer;
+              transition: all 0.15s ease;
+              z-index: 1060;
+            }
+
+            .admin-drawer-close:hover {
+              background: #F5F7F6;
+              color: #14352F;
+            }
+
+            /* Show all content in drawer (not collapsed) */
+            .admin-sidebar-drawer .sidebar-brand-text,
+            .admin-sidebar-drawer .sidebar-section-label,
+            .admin-sidebar-drawer .sidebar-bottom {
+              display: block !important;
+            }
+
+            .admin-sidebar-drawer .admin-sidebar-menu .ant-menu-item {
+              width: auto !important;
+              margin: 3px 0 !important;
+              padding: 0 12px !important;
+              justify-content: flex-start !important;
+            }
+
+            .admin-sidebar-drawer .admin-sidebar-menu .ant-menu-item .ant-menu-item-icon {
+              margin-right: 10px !important;
+              font-size: 16px !important;
+            }
+
+            .admin-sidebar-drawer .admin-sidebar-menu .ant-menu-title-content {
+              display: inline !important;
+            }
+
+            .admin-sidebar-drawer .sidebar-collapse-button {
+              display: none;
+            }
+
+            .admin-sidebar-drawer .sidebar-brand-inner {
+              justify-content: flex-start;
+            }
+          }
+
+          /* Show hamburger only on mobile */
+          .admin-mobile-menu-btn {
+            display: none;
+          }
+          @media (max-width: 767px) {
+            .admin-mobile-menu-btn {
+              display: flex;
+            }
+          }
+
+          /* =================================================
+             Animations
+          ================================================= */
+
+          @keyframes fadeIn {
+            from { opacity: 0; }
+            to   { opacity: 1; }
+          }
+
+          @keyframes slideInLeft {
+            from { transform: translateX(-100%); }
+            to   { transform: translateX(0); }
+          }
         `}
       </style>
-    </aside>
+    </>
+  );
+
+  /* =========================================================
+     Render
+  ========================================================= */
+
+  return (
+    <>
+      {/* Desktop / Tablet Sidebar */}
+      <aside
+        className={`
+          admin-sidebar admin-sidebar-desktop
+          ${collapsed ? "admin-sidebar-collapsed" : ""}
+        `}
+      >
+        {sidebarContent}
+      </aside>
+
+      {/* Mobile Drawer Overlay */}
+      {mobileOpen && (
+        <div
+          className="admin-sidebar-backdrop"
+          onClick={onMobileClose}
+        >
+          <aside
+            className="admin-sidebar admin-sidebar-drawer"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close Button */}
+            <button
+              type="button"
+              className="admin-drawer-close"
+              onClick={onMobileClose}
+              aria-label="ปิดเมนู"
+            >
+              <CloseOutlined />
+            </button>
+            {sidebarContent}
+          </aside>
+        </div>
+      )}
+    </>
   );
 }

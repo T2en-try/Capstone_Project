@@ -1,11 +1,13 @@
-import React from "react";
-import { Link, NavLink } from "react-router-dom";
+import React, { useState } from "react";
+import { Link, NavLink, useLocation } from "react-router-dom";
 import {
   BarChartOutlined,
   MessageOutlined,
   WarningOutlined,
   InfoCircleOutlined,
   UserOutlined,
+  MenuOutlined,
+  CloseOutlined,
 } from "@ant-design/icons";
 
 export default function Navbar() {
@@ -17,9 +19,12 @@ export default function Navbar() {
     // { label: "ศูนย์ข้อมูล SmartRoad", href: "/info", icon: InfoCircleOutlined },
   ];
 
+  // ปิดเมนูเมื่อจำเป็น (สำหรับลิงก์)
+  const location = useLocation();
+
   return (
-    <nav className="w-full bg-white border-b shadow-sm">
-      <div className="mx-auto flex h-16 items-center justify-between px-8">
+    <nav className="w-full bg-white border-b shadow-sm relative z-50">
+      <div className="mx-auto flex h-16 items-center justify-between px-4 sm:px-8">
 
         {/* Logo - คลิกแล้วกลับหน้าหลัก */}
         <Link
@@ -29,7 +34,7 @@ export default function Navbar() {
           Road<span className="text-gray-800">Monitor</span>
         </Link>
 
-        {/* Menu Items */}
+        {/* Menu Items — Desktop (เหมือนเดิม 100%) */}
         <div className="hidden md:flex items-center gap-8 text-sm font-medium">
           {menus.map((menu) => {
             const Icon = menu.icon;
@@ -53,16 +58,20 @@ export default function Navbar() {
           })}
         </div>
 
-        {/* Login Button */}
-        <Link
-          to="/login"
-          className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-blue-700 hover:bg-blue-200 transition"
-          title="เข้าสู่ระบบ"
-        >
-          <UserOutlined className="text-lg" />
-        </Link>
+        <div className="flex items-center gap-3">
+          {/* Login Button - ซ่อนบนมือถือเพราะย้ายไปอยู่ Bottom Nav แล้ว */}
+          <Link
+            to="/login"
+            className="hidden md:flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-blue-700 hover:bg-blue-200 transition"
+            title="เข้าสู่ระบบ"
+          >
+            <UserOutlined className="text-lg" />
+          </Link>
+        </div>
 
       </div>
+
+
     </nav>
   );
 }

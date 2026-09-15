@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 
 import Navbar from "../layouts/Navbar";
+import MobileBottomNav from "../layouts/MobileBottomNav";
 
 import NewsSection from "../components/user-dashboard/NewSection";
 import MapView from "../components/user-dashboard/Mapview";
@@ -202,7 +203,7 @@ export default function UserDashboard() {
 
       <Navbar />
 
-      <main className="flex-1 p-4 md:p-6 space-y-6 max-w-[1600px] mx-auto w-full">
+      <main className="flex-1 p-4 pb-20 md:p-6 space-y-6 max-w-[1600px] mx-auto w-full">
 
         <div className="bg-paper border border-line p-6 rounded-2xl shadow-sm">
           <NewsSection onReportClick={handleMarkerClick} />
@@ -228,7 +229,7 @@ export default function UserDashboard() {
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
 
-          <div className="lg:col-span-8 bg-paper rounded-2xl shadow-sm border border-line overflow-hidden h-[450px] lg:h-[600px] w-full">
+          <div className="lg:col-span-8 bg-paper rounded-2xl shadow-sm border border-line overflow-hidden h-[340px] sm:h-[420px] lg:h-[600px] w-full">
             <MapView
               mapPoints={mapPoints}
               loading={loading}
@@ -237,7 +238,7 @@ export default function UserDashboard() {
             />
           </div>
 
-          <div className="lg:col-span-4 bg-paper rounded-2xl shadow-sm border border-line p-5 min-h-[450px] lg:h-[600px] flex flex-col justify-between">
+          <div className="lg:col-span-4 bg-paper rounded-2xl shadow-sm border border-line p-5 min-h-0 sm:min-h-[450px] lg:h-[600px] flex flex-col justify-between">
             <StatusCard
               stats={stats}
               loading={loading}
@@ -256,6 +257,7 @@ export default function UserDashboard() {
         onClose={handleCloseReportDetail}
       />
 
+      <MobileBottomNav />
     </div>
 
   );

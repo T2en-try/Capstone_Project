@@ -196,7 +196,7 @@ export default function GpsPinModal({ pendingFile, onConfirm, onCancel }) {
         </div>
 
         {/* Map */}
-        <div className="relative" style={{ height: '480px' }}>
+        <div className="relative" style={{ height: 'clamp(340px, 55vh, 480px)' }}>
           {locating ? (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-100 gap-3">
               <LocateFixed size={32} className="text-blue-500 animate-pulse" />
@@ -236,7 +236,7 @@ export default function GpsPinModal({ pendingFile, onConfirm, onCancel }) {
               </MapContainer>
 
               {/* Search */}
-              <div className="absolute top-3 left-1/2 -translate-x-1/2 w-[90%] max-w-[360px] z-[1000]">
+              <div className="absolute top-3 left-3 right-16 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 sm:w-[90%] sm:max-w-[360px] z-[1000]">
                 <form onSubmit={handleSearch} className="relative">
                   <input
                     type="text"
@@ -272,7 +272,7 @@ export default function GpsPinModal({ pendingFile, onConfirm, onCancel }) {
               </div>
 
               {/* Layer switcher */}
-              <div className="absolute top-3 right-3 z-[1000] flex flex-col gap-1.5 bg-white/95 backdrop-blur-md rounded-2xl p-1.5 shadow-lg border border-slate-100">
+              <div className="absolute top-16 sm:top-3 right-3 z-[1000] flex flex-col gap-1.5 bg-white/95 backdrop-blur-md rounded-2xl p-1.5 shadow-lg border border-slate-100">
                 {Object.values(MAP_LAYERS).map((opt) => {
                   const Icon = opt.icon;
                   const active = activeLayer === opt.id;

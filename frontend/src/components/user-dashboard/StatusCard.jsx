@@ -1,8 +1,6 @@
 import React from "react";
 import {
     Card,
-    Col,
-    Row,
     Statistic,
     ConfigProvider,
 } from "antd";
@@ -105,13 +103,12 @@ export default function StatusCard({
                     </div>
                 </header>
 
-                {/* Status Cards */}
-                <Row gutter={[12, 12]}>
+                {/* Status Cards - Carousel on Mobile */}
+                <div className="flex sm:grid sm:grid-cols-2 gap-3 overflow-x-auto snap-x snap-mandatory pb-1 -mx-4 px-4 sm:mx-0 sm:px-0 hide-scrollbar">
                     {statusItems.map((item) => (
-                        <Col
+                        <div
                             key={item.key}
-                            xs={24}
-                            sm={12}
+                            className="min-w-[85%] sm:min-w-0 shrink-0 snap-center"
                         >
                             <Card
                                 size="small"
@@ -184,9 +181,19 @@ export default function StatusCard({
                                     />
                                 </div>
                             </Card>
-                        </Col>
+                        </div>
                     ))}
-                </Row>
+                </div>
+                
+                <style>{`
+                  .hide-scrollbar::-webkit-scrollbar {
+                    display: none;
+                  }
+                  .hide-scrollbar {
+                    -ms-overflow-style: none;
+                    scrollbar-width: none;
+                  }
+                `}</style>
 
                 {/* Total Reports */}
                 <Card

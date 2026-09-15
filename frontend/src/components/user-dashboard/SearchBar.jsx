@@ -109,7 +109,7 @@ export default function SearchBar({
                         onChange={handleStatusChange}
                         aria-label="กรองตามสถานะ"
                         disabled={searching || disabled}
-                        className="h-11 min-w-[210px] appearance-none rounded-xl border border-line bg-paper px-4 pr-10 text-sm text-asphalt outline-none transition hover:border-asphalt/30 focus:border-mark focus:ring-2 focus:ring-mark/10 disabled:opacity-60"
+                        className="h-11 w-full sm:w-auto sm:min-w-[210px] appearance-none rounded-xl border border-line bg-paper px-4 pr-10 text-sm text-asphalt outline-none transition hover:border-asphalt/30 focus:border-mark focus:ring-2 focus:ring-mark/10 disabled:opacity-60"
                     >
                         {STATUS_OPTIONS.map((option) => (
                             <option key={option.value} value={option.value}>

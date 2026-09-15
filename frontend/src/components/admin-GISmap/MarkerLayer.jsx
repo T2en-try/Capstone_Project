@@ -1,4 +1,5 @@
 import { Marker, Popup, useMap } from "react-leaflet";
+import MarkerClusterGroup from "react-leaflet-cluster";
 import { Button, Tag, Divider, Space } from "antd";
 import L from "leaflet";
 
@@ -222,7 +223,11 @@ export default function MarkerLayer({
     const map = useMap();
 
     return (
-        <>
+        <MarkerClusterGroup 
+            chunkedLoading 
+            maxClusterRadius={60} 
+            spiderfyOnMaxZoom={true}
+        >
             {reports.map((report) => {
                 // ========================================
                 // Validate coordinates
@@ -639,6 +644,6 @@ export default function MarkerLayer({
                     </Marker>
                 );
             })}
-        </>
+        </MarkerClusterGroup>
     );
 }

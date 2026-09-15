@@ -209,7 +209,7 @@ export default function GridPrioritySummary({ days = 7 }) {
                 style={{
                     display: "grid",
                     gridTemplateColumns:
-                        "repeat(3, minmax(0, 1fr))",
+                        "repeat(auto-fill, minmax(200px, 1fr))",
                     gap: 12,
                     paddingTop: 14,
                 }}
