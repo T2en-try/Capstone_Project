@@ -185,6 +185,7 @@ async def get_grid_priority(
     """
 
     # ─── 1. Query Reports ──────────────────────────────────────────────────────
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
     result = await db.execute(
         select(RoadReport)
         .options(joinedload(RoadReport.ai_analysis))
@@ -196,6 +197,7 @@ async def get_grid_priority(
             RoadReport.latitude <= STUDY_AREA["lat_max"],
             RoadReport.longitude >= STUDY_AREA["lon_min"],
             RoadReport.longitude <= STUDY_AREA["lon_max"],
+            RoadReport.created_at >= cutoff,
         )
         .order_by(RoadReport.created_at.desc())
     )
