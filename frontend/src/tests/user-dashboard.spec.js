@@ -218,7 +218,7 @@ test.describe("user dashboard", () => {
     await page
       .locator("aside textarea")
       .fill("Manual upload pothole near bus stop");
-    await page.locator("aside input[type='file']").setInputFiles({
+    await page.locator("aside input[type='file']:not([capture])").setInputFiles({
       name: "road-damage.png",
       mimeType: "image/png",
       buffer: onePixelPng,
