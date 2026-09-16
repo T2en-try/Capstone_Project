@@ -136,12 +136,12 @@ export default function Header({ onMenuClick }) {
 
       <div className="flex items-center gap-3 sm:gap-5">
 
-        {/* Hamburger — Mobile Only (< 900px) */}
+        {/* Hamburger — Mobile Only (< 768px) */}
         {onMenuClick && (
           <button
             type="button"
             onClick={onMenuClick}
-            className="admin-mobile-menu-btn flex h-10 w-10 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 transition"
+            className="md:hidden flex h-10 w-10 relative z-[60] items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 transition"
             aria-label="เปิดเมนู"
           >
             <MenuUnfoldOutlined style={{ fontSize: 20 }} />

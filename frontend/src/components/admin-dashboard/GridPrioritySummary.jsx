@@ -69,7 +69,15 @@ export default function GridPrioritySummary({ days = 7 }) {
         setLoading(true);
         setError(null);
 
-        fetchGridPriority(days)
+        let savedWeights = {};
+        try {
+            const saved = localStorage.getItem("casp_dss_weights");
+            if (saved) savedWeights = JSON.parse(saved);
+        } catch (err) {
+            // ignore
+        }
+
+        fetchGridPriority(days, savedWeights)
             .then((result) => {
                 if (mounted) {
                     setData(result);

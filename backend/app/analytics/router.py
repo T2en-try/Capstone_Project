@@ -23,7 +23,7 @@ from sqlalchemy.orm import joinedload
 from app.core.database import get_db
 from app.reports.models import RoadReport, AIAnalysis, ReportStatus
 from app.ai.feature_mapping import PRIORITY_ANCHORS
-from app.ai.gee_integration import get_cached_road_geometry
+from app.ai.gee_integration import get_cached_road_geometry, get_nearby_road_segment_density
 
 router = APIRouter(prefix="/api/analytics", tags=["Analytics"])
 
@@ -44,26 +44,34 @@ GRID_SIZE_DEG_LON = 0.0009  # ~100m ในแนวออก-ตก (ใกล�
 # Exponential decay τ = 30 วัน
 DECAY_TAU = 30.0
 
-# น้ำหนักสูตร CASP
-W_COUNT = 0.4
-W_DENSITY = 0.3
-W_RECENCY = 0.3
+# น้ำหนักสูตร CASP (4-Factor CUS Baseline Defaults)
+DEFAULT_W_COUNT = 0.30
+DEFAULT_W_DENSITY = 0.25
+DEFAULT_W_RECENCY = 0.25
+DEFAULT_W_SEGMENT_DENSITY = 0.20
 
-# น้ำหนัก Overall Priority
-W_PPI = 0.8
-W_CUS = 0.2
+# น้ำหนัก Overall Priority Baseline
+DEFAULT_W_PPI = 0.80
+DEFAULT_W_CUS = 0.20
+
+# Backward compatibility constants
+W_COUNT = DEFAULT_W_COUNT
+W_DENSITY = DEFAULT_W_DENSITY
+W_RECENCY = DEFAULT_W_RECENCY
+W_PPI = DEFAULT_W_PPI
+W_CUS = DEFAULT_W_CUS
 
 # ระดับ priority
 PRIORITY_LEVELS = [
     (75, "critical", "#ff4d4f"),
     (50, "high", "#fa8c16"),
-    (25, "medium", "#fadb14"),
     (0, "low", "#52c41a"),
 ]
 
 # CASP Constants
 N_MAX_FIXED = 50.0
 D_MAX_FIXED = 20.0  # Reports per km
+S_MAX_FIXED = 10.0  # Nearby road segments threshold (N_new)
 
 # Load Grid Road Length Cache
 GRID_ROAD_LENGTH_CACHE = {}
@@ -88,15 +96,17 @@ class GridCellResponse(BaseModel):
     lon_min: float
     lon_max: float
     report_count: int
-    count_score: float       # C: normalize 0-100
-    density_score: float     # D: normalize 0-100
-    recency_score: float     # R: 0-100 (weighted avg Exponential decay)
-    cus: float               # Community Urgency Score 0-100
-    avg_ppi: float           # PPI เฉลี่ยของ Report ใน Grid
-    overall_priority: float  # Overall = 0.8×PPI + 0.2×CUS
-    priority_level: str      # critical / high / medium / low
-    priority_color: str      # สีสำหรับแสดงผล
-    report_ids: List[int]    # ID ของ Report ที่อยู่ใน Grid
+    count_score: float             # C: normalize 0-100
+    density_score: float           # D: normalize 0-100
+    recency_score: float           # R: 0-100 (weighted avg Exponential decay)
+    segment_density_score: float   # N_new: 0-100 (Nearby Road Segment Density)
+    road_segment_count: int        # จำนวนเส้นถนนจริงในรัศมี 100m
+    cus: float                     # Community Urgency Score 0-100 (4-Factor CUS)
+    avg_ppi: float                 # PPI เฉลี่ยของ Report ใน Grid
+    overall_priority: float        # Overall = w_ppi×PPI + w_cus×CUS
+    priority_level: str            # critical / high / medium / low
+    priority_color: str            # สีสำหรับแสดงผล
+    report_ids: List[int]          # ID ของ Report ที่อยู่ใน Grid
 
 
 class GridPriorityResponse(BaseModel):
@@ -178,10 +188,11 @@ def classify_priority(overall: float) -> tuple:
 @router.get(
     "/grid-priority",
     response_model=GridPriorityResponse,
-    summary="คำนวณ Grid Priority (CASP)",
+    summary="คำนวณ Grid Priority (CASP DSS 4-Factor CUS)",
     description=(
         "ดึงข้อมูล Road Report ที่ COMPLETED แล้ว จัด Grid 100×100m "
-        "คำนวณ CUS = 0.4C + 0.3D + 0.3R และ Overall Priority = 0.8×PPI + 0.2×CUS"
+        "คำนวณ CUS แบบ 4-Factor = W_C×C + W_D×D + W_R×R + W_N×N_new "
+        "และคำนวณ Overall Priority = W_PPI×PPI + W_CUS×CUS รองรับ DSS Dynamic Weights"
     ),
 )
 async def get_grid_priority(
@@ -191,15 +202,79 @@ async def get_grid_priority(
         le=365,
         description="ช่วงเวลาย้อนหลัง (วัน) ที่ใช้กรอง Report",
     ),
+    w_ppi: Optional[float] = Query(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description="DSS Weight: AI Physical Damage (PPI)",
+    ),
+    w_cus: Optional[float] = Query(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description="DSS Weight: Community Urgency Score (CUS)",
+    ),
+    w_c: Optional[float] = Query(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description="DSS CUS Factor: Count Score (C)",
+    ),
+    w_d: Optional[float] = Query(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description="DSS CUS Factor: Road Density Score (D)",
+    ),
+    w_r: Optional[float] = Query(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description="DSS CUS Factor: Recency Score (R)",
+    ),
+    w_n: Optional[float] = Query(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description="DSS CUS Factor: Nearby Road Segment Density (N_new)",
+    ),
     db: AsyncSession = Depends(get_db),
 ):
     """
-    CASP Grid Priority Endpoint
+    CASP DSS Grid Priority Endpoint
     - ดึงเฉพาะ Report ที่ status = COMPLETED (มี PPI แล้ว)
     - กรองตาม study area bbox
     - Assign เข้า Fixed Grid 100×100m
-    - คำนวณ CUS และ Overall Priority
+    - คำนวณ 4-Factor CUS (C, D, R, N_new) และ Overall Priority ตามค่าน้ำหนัก DSS
     """
+
+    # ─── DSS Dynamic Weight Normalization ──────────────────────────────────────
+    raw_w_ppi = w_ppi if w_ppi is not None else DEFAULT_W_PPI
+    raw_w_cus = w_cus if w_cus is not None else DEFAULT_W_CUS
+    sum_overall = raw_w_ppi + raw_w_cus
+    if sum_overall > 0:
+        eff_w_ppi = raw_w_ppi / sum_overall
+        eff_w_cus = raw_w_cus / sum_overall
+    else:
+        eff_w_ppi, eff_w_cus = DEFAULT_W_PPI, DEFAULT_W_CUS
+
+    raw_w_c = w_c if w_c is not None else DEFAULT_W_COUNT
+    raw_w_d = w_d if w_d is not None else DEFAULT_W_DENSITY
+    raw_w_r = w_r if w_r is not None else DEFAULT_W_RECENCY
+    raw_w_n = w_n if w_n is not None else DEFAULT_W_SEGMENT_DENSITY
+    sum_cus = raw_w_c + raw_w_d + raw_w_r + raw_w_n
+    if sum_cus > 0:
+        eff_w_c = raw_w_c / sum_cus
+        eff_w_d = raw_w_d / sum_cus
+        eff_w_r = raw_w_r / sum_cus
+        eff_w_n = raw_w_n / sum_cus
+    else:
+        eff_w_c, eff_w_d, eff_w_r, eff_w_n = (
+            DEFAULT_W_COUNT,
+            DEFAULT_W_DENSITY,
+            DEFAULT_W_RECENCY,
+            DEFAULT_W_SEGMENT_DENSITY,
+        )
 
     # ─── 1. Query Reports ──────────────────────────────────────────────────────
     cutoff = datetime.now(timezone.utc) - timedelta(days=days)
@@ -252,6 +327,15 @@ async def get_grid_priority(
             "ppi": ppi,
         })
 
+    applied_weights = {
+        "w_ppi": round(eff_w_ppi, 4),
+        "w_cus": round(eff_w_cus, 4),
+        "w_c": round(eff_w_c, 4),
+        "w_d": round(eff_w_d, 4),
+        "w_r": round(eff_w_r, 4),
+        "w_n": round(eff_w_n, 4),
+    }
+
     if not grid_map:
         return GridPriorityResponse(
             generated_at=datetime.now(timezone.utc).isoformat(),
@@ -264,55 +348,56 @@ async def get_grid_priority(
                 "medium": 0,
                 "low": 0,
                 "total_reports_analyzed": 0,
+                "dss_weights_applied": applied_weights,
             },
         )
 
-    # ─── 3. คำนวณ Count Score (normalize 0-100) ────────────────────────────────
-    # ใช้ N_MAX_FIXED เพื่อให้คะแนนเสถียร แทนที่จะแกว่งตาม max() ของข้อมูลปัจจุบัน
-    
-    # ─── 4. คำนวณ Density Score (reports per unit area, normalize 0-100) ───────
-    # ใช้ความยาวถนนจริง (km) จาก cache แทนพื้นที่กริด
-
-    # ─── 5. คำนวณ CUS และ Overall Priority ────────────────────────────────────
+    # ─── 3. คำนวณ 4-Factor CUS และ Overall Priority ─────────────────────────────
     grids_out: List[GridCellResponse] = []
-    summary_count = {"critical": 0, "high": 0, "medium": 0, "low": 0}
+    summary_count = {"critical": 0, "high": 0, "low": 0}
 
     for (row, col), items in grid_map.items():
         bounds = get_grid_bounds(row, col)
         n = len(items)
         grid_key = f"{row}_{col}"
 
-        # Count Score (C): normalize to 0-100 using fixed denominator
+        # 1) Count Score (C): normalize to 0-100 using fixed denominator
         c_score = min((n / N_MAX_FIXED) * 100.0, 100.0)
 
-        # Density Score (D): Reports per km of road
+        # 2) Density Score (D): Reports per km of road
         road_length_km = GRID_ROAD_LENGTH_CACHE.get(grid_key, 0.0)
-        
         if road_length_km > 0:
             density_raw = n / road_length_km
         else:
             # ถ้าไม่มีถนนผ่านเลยใน cache (เช่น error) แต่มีคนแจ้งเหตุ ถือว่าหนาแน่นสูงมาก
             density_raw = D_MAX_FIXED
-            
         d_score = min((density_raw / D_MAX_FIXED) * 100.0, 100.0)
 
-        # Recency Score (R): weighted avg ของ decay ทุก report → scale 0-100
+        # 3) Recency Score (R): weighted avg ของ decay ทุก report → scale 0-100
         avg_recency_raw = sum(i["recency"] for i in items) / n
         r_score = avg_recency_raw * 100.0
 
-        # CUS
-        cus = W_COUNT * c_score + W_DENSITY * d_score + W_RECENCY * r_score
+        # 4) Nearby Road Segment Density (N_new): จำนวนเส้นถนนในรัศมี 100m
+        segment_count = get_nearby_road_segment_density(
+            bounds["lat_center"], bounds["lon_center"], radius_meters=100.0
+        )
+        n_score = min((segment_count / S_MAX_FIXED) * 100.0, 100.0)
 
-        # PPI เฉลี่ย -- averaged only over reports with a real prediction; a report
-        # with priority_class/proba_* still NULL (not yet backfilled / RF didn't
-        # run) is dropped from this mean, not counted as 0. Report volume signals
-        # (count_score/density_score/recency_score/report_count above) are
-        # unaffected -- they still reflect every report in the cell.
+        # 4-Factor CUS Calculation
+        cus = (
+            eff_w_c * c_score
+            + eff_w_d * d_score
+            + eff_w_r * r_score
+            + eff_w_n * n_score
+        )
+        cus = min(100.0, max(0.0, cus))
+
+        # PPI เฉลี่ย
         ppi_values = [i["ppi"] for i in items if i["ppi"] is not None]
         avg_ppi = sum(ppi_values) / len(ppi_values) if ppi_values else 0.0
 
-        # Overall Priority
-        overall = W_PPI * avg_ppi + W_CUS * cus
+        # Overall Priority: W_PPI×PPI + W_CUS×CUS
+        overall = eff_w_ppi * avg_ppi + eff_w_cus * cus
         overall = min(100.0, max(0.0, overall))
 
         level, color = classify_priority(overall)
@@ -331,6 +416,8 @@ async def get_grid_priority(
                 count_score=round(c_score, 2),
                 density_score=round(d_score, 2),
                 recency_score=round(r_score, 2),
+                segment_density_score=round(n_score, 2),
+                road_segment_count=segment_count,
                 cus=round(cus, 2),
                 avg_ppi=round(avg_ppi, 2),
                 overall_priority=round(overall, 2),
@@ -351,6 +438,7 @@ async def get_grid_priority(
         summary={
             **summary_count,
             "total_reports_analyzed": len(reports),
+            "dss_weights_applied": applied_weights,
         },
     )
 

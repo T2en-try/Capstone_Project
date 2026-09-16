@@ -1,6 +1,7 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
     Spin,
     Skeleton,
@@ -101,6 +102,7 @@ const DAY_OPTIONS = [
 ========================================================= */
 
 export default function TopPriorityAreas({ topN = 5 }) {
+    const navigate = useNavigate();
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [days, setDays] = useState(7);
@@ -112,7 +114,15 @@ export default function TopPriorityAreas({ topN = 5 }) {
     const load = () => {
         setLoading(true);
 
-        fetchGridPriority(days)
+        let savedWeights = {};
+        try {
+            const saved = localStorage.getItem("casp_dss_weights");
+            if (saved) savedWeights = JSON.parse(saved);
+        } catch (err) {
+            // ignore
+        }
+
+        fetchGridPriority(days, savedWeights)
             .then(setData)
             .catch(console.error)
             .finally(() => setLoading(false));
@@ -482,10 +492,14 @@ export default function TopPriorityAreas({ topN = 5 }) {
                                 <div className="text-center text-asphalt/50 py-4">ไม่มีข้อมูลในพื้นที่ศึกษา</div>
                             ) : (
                                 topGrids.map((grid, idx) => {
-                                    const lvlConf = LEVEL_CONFIG[grid.casp_priority_level || "low"];
+                                    const lvlConf = LEVEL_CONFIG[grid.priority_level || "low"];
+                                    const priority = Number(grid.overall_priority || 0);
                                     
                                     return (
-                                        <div key={grid.grid_id} className="border border-line rounded-xl p-4 bg-white flex flex-col gap-3 shadow-sm">
+                                        <div 
+                                            key={grid.grid_id} 
+                                            className="border border-line rounded-xl p-4 bg-white flex flex-col gap-3 shadow-sm"
+                                        >
                                             <div className="flex justify-between items-center">
                                                 <div className="flex items-center gap-2">
                                                     <span className="font-display text-xl font-bold" style={{ color: idx === 0 ? COLORS.critical : idx === 1 ? COLORS.high : COLORS.secondary }}>#{idx + 1}</span>
@@ -498,23 +512,39 @@ export default function TopPriorityAreas({ topN = 5 }) {
                                                 />
                                             </div>
                                             
-                                            <div className="flex flex-col gap-1 text-sm">
+                                            <div className="flex flex-col gap-2 text-sm mt-1">
                                                 <div className="flex justify-between">
                                                     <span className="text-asphalt/70">รวมความเสียหาย:</span>
-                                                    <span className="font-semibold">{grid.total_reports} รายการ</span>
+                                                    <span className="font-semibold">{grid.report_count} รายการ</span>
                                                 </div>
-                                                <div className="flex justify-between">
-                                                    <span className="text-asphalt/70">คะแนน CASP:</span>
-                                                    <span className="font-semibold">{Number(grid.casp_priority_score).toFixed(2)}</span>
+                                                
+                                                <div>
+                                                    <div className="flex justify-between mb-1">
+                                                        <span className="text-asphalt/70">Overall Priority:</span>
+                                                        <span className="font-semibold" style={{ color: lvlConf.color }}>{priority.toFixed(2)}</span>
+                                                    </div>
+                                                    <Progress
+                                                        percent={Math.min(Math.max(priority, 0), 100)}
+                                                        size="small"
+                                                        showInfo={false}
+                                                        strokeColor={lvlConf.color}
+                                                        trailColor="#E5E7EB"
+                                                        style={{ marginBottom: 4 }}
+                                                    />
+                                                    <div className="flex justify-between text-[10px] text-asphalt/50 px-1">
+                                                        <span>ต่ำ (0-49)</span>
+                                                        <span>สูง (50-74)</span>
+                                                        <span>วิกฤต (75-100)</span>
+                                                    </div>
                                                 </div>
                                             </div>
                                             
                                             <div className="mt-1 pt-3 border-t border-line/50 flex justify-between items-center text-xs">
-                                                <span className="text-danger flex items-center gap-1">
-                                                    <FireOutlined /> เร่งด่วน ({grid.breakdown?.critical || 0})
+                                                <span className="text-asphalt/70 flex items-center gap-1">
+                                                    AI: <span className="font-semibold text-ink">{Number(grid.avg_ppi || 0).toFixed(0)}</span>
                                                 </span>
-                                                <span className="text-high flex items-center gap-1">
-                                                    <WarningOutlined /> สูง ({grid.breakdown?.high || 0})
+                                                <span className="text-asphalt/70 flex items-center gap-1">
+                                                    CUS: <span className="font-semibold" style={{ color: "#7C3AED" }}>{Number(grid.cus || 0).toFixed(0)}</span>
                                                 </span>
                                             </div>
                                         </div>

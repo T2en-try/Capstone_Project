@@ -1,15 +1,20 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { MapContainer, TileLayer } from "react-leaflet";
 import {
     ExpandOutlined,
     CompressOutlined,
+    SlidersOutlined,
 } from "@ant-design/icons";
+import { Tooltip } from "antd";
 
 import MarkerLayer from "./MarkerLayer";
 import RoadLayer from "./RoadLayer";
 import HeatmapLayer from "./HeatmapLayer";
 import GridLayer from "./GridLayer";
 import SegmentLayer from "./SegmentLayer";
+import DSSWeightSettingsDrawer, {
+    DEFAULT_DSS_WEIGHTS,
+} from "./DSSWeightSettingsDrawer";
 
 import "leaflet/dist/leaflet.css";
 
@@ -20,12 +25,30 @@ export default function GISMap({
     gridDays = 7,
     mapPoints = [],
     segmentData = [],
+    centerToGrid = null,
 }) {
     // ========================================
     // Fullscreen State
     // ========================================
     const [isFullscreen, setIsFullscreen] =
         useState(false);
+
+    // ========================================
+    // DSS (Decision Support System) State
+    // ========================================
+    const [dssOpen, setDssOpen] = useState(false);
+    const [dssWeights, setDssWeights] = useState(() => {
+        try {
+            const saved = localStorage.getItem("casp_dss_weights");
+            return saved ? JSON.parse(saved) : DEFAULT_DSS_WEIGHTS;
+        } catch {
+            return DEFAULT_DSS_WEIGHTS;
+        }
+    });
+
+    useEffect(() => {
+        localStorage.setItem("casp_dss_weights", JSON.stringify(dssWeights));
+    }, [dssWeights]);
 
     // ========================================
     // Transform API data → Map data
@@ -187,6 +210,42 @@ export default function GISMap({
             }}
         >
             {/* ========================================
+                DSS Decision Support Button
+            ======================================== */}
+            <Tooltip
+                title="ระบบสนับสนุนการตัดสินใจ (DSS) — ปรับค่าน้ำหนักนโยบาย"
+                placement="left"
+            >
+                <button
+                    type="button"
+                    onClick={() => setDssOpen(true)}
+                    style={{
+                        position: "absolute",
+                        top: 14,
+                        right: 60,
+                        zIndex: 1000,
+                        padding: "0 10px",
+                        height: 38,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
+                        border: "1px solid #2563EB",
+                        borderRadius: 7,
+                        background: "#2563EB",
+                        color: "#FFFFFF",
+                        cursor: "pointer",
+                        boxShadow: "0 2px 6px rgba(37,99,235,0.3)",
+                        fontSize: 13,
+                        fontWeight: 600,
+                        transition: "all 0.2s ease",
+                    }}
+                >
+                    <SlidersOutlined style={{ fontSize: 14 }} />
+                    <span>DSS นโยบาย</span>
+                </button>
+            </Tooltip>
+
+            {/* ========================================
                 Fullscreen Button
             ======================================== */}
             <button
@@ -239,8 +298,8 @@ export default function GISMap({
                 Map
             ======================================== */}
             <MapContainer
-                center={[14.8781, 102.0156]}
-                zoom={13}
+                center={centerToGrid ? [centerToGrid.lat_center, centerToGrid.lon_center] : [14.8781, 102.0156]}
+                zoom={centerToGrid ? 16 : 13}
                 scrollWheelZoom={true}
                 style={{
                     height: "100%",
@@ -260,12 +319,13 @@ export default function GISMap({
                 />
 
                 {/* ========================================
-                    CASP Grid Priority
+                    CASP Grid Priority (4-Factor CUS + DSS)
                 ======================================== */}
                 {layers.grid && (
                     <GridLayer
                         visible={true}
                         days={gridDays}
+                        weights={dssWeights}
                     />
                 )}
 
@@ -312,6 +372,18 @@ export default function GISMap({
                     />
                 )}
             </MapContainer>
+
+            {/* ========================================
+                DSS Weight Settings Drawer
+            ======================================== */}
+            <DSSWeightSettingsDrawer
+                open={dssOpen}
+                onClose={() => setDssOpen(false)}
+                currentWeights={dssWeights}
+                onApplyWeights={(newWeights) =>
+                    setDssWeights(newWeights)
+                }
+            />
         </div>
     );
 }

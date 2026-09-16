@@ -178,13 +178,22 @@ _cached_road_geometry = {}
 def get_cached_driving_network():
     global _cached_driving_network
     if _cached_driving_network is None:
-        cache_path = 'cached_driving_network.parquet'
-        if os.path.exists(cache_path):
-            print("Loading driving network cache from Parquet...")
-            _cached_driving_network = gpd.read_parquet(cache_path)
-            if _cached_driving_network.crs != "EPSG:3857":
-                _cached_driving_network = _cached_driving_network.to_crs(epsg=3857)
-        else:
+        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+        for candidate in [
+            'cached_driving_network.parquet',
+            os.path.join(base_dir, 'cached_driving_network.parquet'),
+            os.path.join(base_dir, 'backend', 'cached_driving_network.parquet'),
+        ]:
+            if os.path.exists(candidate):
+                try:
+                    print(f"Loading driving network cache from {candidate}...")
+                    _cached_driving_network = gpd.read_parquet(candidate)
+                    if _cached_driving_network.crs != "EPSG:3857":
+                        _cached_driving_network = _cached_driving_network.to_crs(epsg=3857)
+                    break
+                except Exception as e:
+                    print(f"Error loading {candidate}: {e}")
+        if _cached_driving_network is None:
             print("WARNING: cached_driving_network.parquet not found!")
     return _cached_driving_network
 
@@ -524,6 +533,29 @@ def get_poi_data(lat, lon, radius_meters=1000):
         "community_impact_score_pi": pi_score,
         "nearest_poi_distance_m": round(nearest_poi_distance_m, 2)
     }
+
+def get_nearby_road_segment_density(lat: float, lon: float, radius_meters: float = 100.0) -> int:
+    """
+    ฟังก์ชันนับจำนวนเส้นถนน (Road Segments) ในรัศมีที่กำหนด (Nearby Road Segment Density)
+    ใช้สำหรับคำนวณปัจจัย N_new ในสูตร 4-Factor CUS ของระบบ CASP DSS
+    อ้างอิงจาก cached_driving_network.parquet โดยใช้ Spatial Index (R-tree)
+    """
+    try:
+        edges_proj = get_cached_driving_network()
+        if edges_proj is not None and not edges_proj.empty:
+            pt = Point(lon, lat)
+            pt_gdf = gpd.GeoDataFrame(geometry=[pt], crs="EPSG:4326").to_crs(epsg=3857)
+            pt_proj = pt_gdf.geometry.iloc[0]
+
+            buffer = pt_proj.buffer(radius_meters)
+            possible_matches_idx = list(edges_proj.sindex.intersection(buffer.bounds))
+            if possible_matches_idx:
+                possible_matches = edges_proj.iloc[possible_matches_idx]
+                precise_matches = possible_matches[possible_matches.geometry.intersects(buffer)]
+                return len(precise_matches)
+    except Exception as e:
+        print(f"เกิดข้อผิดพลาดในการคำนวณ Nearby Road Segment Density: {e}")
+    return 0
 
 # ==========================================
 # ทดสอบการเรียกใช้งานแบบครบวงจร (Full Pipeline)

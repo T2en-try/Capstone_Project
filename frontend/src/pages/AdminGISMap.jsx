@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { Row, Col, Card, Typography, Space, Spin, Alert, Drawer, Button } from "antd";
 import { EnvironmentOutlined, SettingOutlined } from "@ant-design/icons";
 
@@ -18,6 +19,9 @@ const { Title, Text } = Typography;
 // =====================================================
 
 export default function AdminGISMap() {
+    const location = useLocation();
+    const centerToGrid = location.state?.centerToGrid || null;
+
     const [, setSelectedRoad] = useState(null);
     const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
 
@@ -263,120 +267,19 @@ export default function AdminGISMap() {
                                             width: "100%",
                                         }}
                                     >
-                                        {/* Critical */}
-
-                                        <div
-                                            style={{
-                                                display: "flex",
-                                                alignItems: "center",
-                                                gap: 7,
-                                            }}
-                                        >
-                                            <div
-                                                style={{
-                                                    width: 16,
-                                                    height: 12,
-                                                    background: "#DC2626",
-                                                    borderRadius: 2,
-                                                    flexShrink: 0,
-                                                }}
-                                            />
-
-                                            <Text
-                                                style={{
-                                                    fontSize: 11,
-                                                    color: "#475569",
-                                                }}
-                                            >
-                                                เร่งด่วน (80–100)
-                                            </Text>
+                                        <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                                            <div style={{ width: 16, height: 12, background: "#DC2626", borderRadius: 2, flexShrink: 0 }} />
+                                            <Text style={{ fontSize: 11, color: "#475569" }}>วิกฤต (75–100)</Text>
                                         </div>
 
-                                        {/* High */}
-
-                                        <div
-                                            style={{
-                                                display: "flex",
-                                                alignItems: "center",
-                                                gap: 7,
-                                            }}
-                                        >
-                                            <div
-                                                style={{
-                                                    width: 16,
-                                                    height: 12,
-                                                    background: "#F97316",
-                                                    borderRadius: 2,
-                                                    flexShrink: 0,
-                                                }}
-                                            />
-
-                                            <Text
-                                                style={{
-                                                    fontSize: 11,
-                                                    color: "#475569",
-                                                }}
-                                            >
-                                                สูง (50–79)
-                                            </Text>
+                                        <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                                            <div style={{ width: 16, height: 12, background: "#F97316", borderRadius: 2, flexShrink: 0 }} />
+                                            <Text style={{ fontSize: 11, color: "#475569" }}>เร่งด่วนสูง (50–74)</Text>
                                         </div>
 
-                                        {/* Medium */}
-
-                                        <div
-                                            style={{
-                                                display: "flex",
-                                                alignItems: "center",
-                                                gap: 7,
-                                            }}
-                                        >
-                                            <div
-                                                style={{
-                                                    width: 16,
-                                                    height: 12,
-                                                    background: "#EAB308",
-                                                    borderRadius: 2,
-                                                    flexShrink: 0,
-                                                }}
-                                            />
-
-                                            <Text
-                                                style={{
-                                                    fontSize: 11,
-                                                    color: "#475569",
-                                                }}
-                                            >
-                                                ปานกลาง (25–49)
-                                            </Text>
-                                        </div>
-
-                                        {/* Low */}
-
-                                        <div
-                                            style={{
-                                                display: "flex",
-                                                alignItems: "center",
-                                                gap: 7,
-                                            }}
-                                        >
-                                            <div
-                                                style={{
-                                                    width: 16,
-                                                    height: 12,
-                                                    background: "#22C55E",
-                                                    borderRadius: 2,
-                                                    flexShrink: 0,
-                                                }}
-                                            />
-
-                                            <Text
-                                                style={{
-                                                    fontSize: 11,
-                                                    color: "#475569",
-                                                }}
-                                            >
-                                                ต่ำ (0–24)
-                                            </Text>
+                                        <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                                            <div style={{ width: 16, height: 12, background: "#22C55E", borderRadius: 2, flexShrink: 0 }} />
+                                            <Text style={{ fontSize: 11, color: "#475569" }}>ต่ำ/ปกติ (0–49)</Text>
                                         </div>
 
                                         <Text
@@ -450,15 +353,15 @@ export default function AdminGISMap() {
                                 <Space direction="vertical" size={5} style={{ width: "100%" }}>
                                     <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
                                         <div style={{ width: 16, height: 12, background: "#DC2626", borderRadius: 2, flexShrink: 0 }} />
-                                        <Text style={{ fontSize: 11, color: "#475569" }}>เร่งด่วน (80–100)</Text>
+                                        <Text style={{ fontSize: 11, color: "#475569" }}>วิกฤต (75–100)</Text>
                                     </div>
                                     <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                                        <div style={{ width: 16, height: 12, background: "#F59E0B", borderRadius: 2, flexShrink: 0 }} />
-                                        <Text style={{ fontSize: 11, color: "#475569" }}>ปานกลาง (50–79)</Text>
+                                        <div style={{ width: 16, height: 12, background: "#F97316", borderRadius: 2, flexShrink: 0 }} />
+                                        <Text style={{ fontSize: 11, color: "#475569" }}>เร่งด่วนสูง (50–74)</Text>
                                     </div>
                                     <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                                        <div style={{ width: 16, height: 12, background: "#10B981", borderRadius: 2, flexShrink: 0 }} />
-                                        <Text style={{ fontSize: 11, color: "#475569" }}>ปกติ (0–49)</Text>
+                                        <div style={{ width: 16, height: 12, background: "#22C55E", borderRadius: 2, flexShrink: 0 }} />
+                                        <Text style={{ fontSize: 11, color: "#475569" }}>ต่ำ/ปกติ (0–49)</Text>
                                     </div>
                                 </Space>
                             </Card>
@@ -520,6 +423,7 @@ export default function AdminGISMap() {
                                     gridDays={7}
                                     mapPoints={mapPoints}
                                     segmentData={segmentData}
+                                    centerToGrid={centerToGrid}
                                 />
                             )}
                         </Card>

@@ -6,7 +6,6 @@ import { fetchGridPriority } from "../../services/analyticsService";
 const LEVEL_CONFIG = {
   critical: { fillOpacity: 0.55, weight: 2 },
   high:     { fillOpacity: 0.42, weight: 1.5 },
-  medium:   { fillOpacity: 0.30, weight: 1 },
   low:      { fillOpacity: 0.20, weight: 1 },
 };
 
@@ -14,16 +13,16 @@ const LEVEL_CONFIG = {
  * GridLayer — วาด Rectangle บน Leaflet map แสดงระดับ Priority ของแต่ละ Grid
  * ใช้ใน GISMap.jsx
  */
-export default function GridLayer({ days = 7, visible = true }) {
+export default function GridLayer({ days = 7, visible = true, weights = null }) {
   const [grids, setGrids] = useState([]);
   const map = useMap();
 
   useEffect(() => {
     if (!visible) return;
-    fetchGridPriority(days)
+    fetchGridPriority(days, weights || {})
       .then((d) => setGrids(d.grids ?? []))
       .catch(console.error);
-  }, [days, visible]);
+  }, [days, visible, weights]);
 
   if (!visible) return null;
 
@@ -49,7 +48,7 @@ export default function GridLayer({ days = 7, visible = true }) {
               click: () => map.flyTo([g.lat_center, g.lon_center], 16, { animate: true }),
             }}
           >
-            <Popup minWidth={260}>
+            <Popup minWidth={270}>
               <div style={{ fontSize: 13 }}>
                 <b style={{ fontSize: 14 }}>📍 {g.grid_id}</b>
                 <Divider style={{ margin: "6px 0" }} />
@@ -59,8 +58,7 @@ export default function GridLayer({ days = 7, visible = true }) {
                     <span style={{ color: "#8c8c8c" }}>ระดับความเร่งด่วน: </span>
                     <Tag color={
                       g.priority_level === "critical" ? "red" :
-                      g.priority_level === "high" ? "orange" :
-                      g.priority_level === "medium" ? "gold" : "green"
+                      g.priority_level === "high" ? "orange" : "green"
                     }>
                       {g.priority_level.toUpperCase()}
                     </Tag>
@@ -80,12 +78,12 @@ export default function GridLayer({ days = 7, visible = true }) {
 
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 4 }}>
                     <div>
-                      <div style={{ fontSize: 11, color: "#8c8c8c" }}>PPI (AI)</div>
-                      <div style={{ fontWeight: 700 }}>{g.avg_ppi.toFixed(1)}</div>
+                      <div style={{ fontSize: 11, color: "#8c8c8c" }}>PPI (AI Damage)</div>
+                      <div style={{ fontWeight: 700 }}>{g.avg_ppi?.toFixed(1) ?? "-"}</div>
                     </div>
                     <div>
-                      <div style={{ fontSize: 11, color: "#8c8c8c" }}>CUS (ประชาชน)</div>
-                      <div style={{ fontWeight: 700, color: "#722ed1" }}>{g.cus.toFixed(1)}</div>
+                      <div style={{ fontSize: 11, color: "#8c8c8c" }}>CUS (4-Factor)</div>
+                      <div style={{ fontWeight: 700, color: "#722ed1" }}>{g.cus?.toFixed(1) ?? "-"}</div>
                     </div>
                     <div>
                       <div style={{ fontSize: 11, color: "#8c8c8c" }}>จำนวนรายงาน</div>
@@ -94,17 +92,20 @@ export default function GridLayer({ days = 7, visible = true }) {
                       </div>
                     </div>
                     <div>
-                      <div style={{ fontSize: 11, color: "#8c8c8c" }}>Recency Score</div>
-                      <div style={{ fontWeight: 700 }}>{g.recency_score.toFixed(1)}</div>
+                      <div style={{ fontSize: 11, color: "#8c8c8c" }}>Segment Density</div>
+                      <div style={{ fontWeight: 700, color: "#0284c7" }}>
+                        {g.segment_density_score?.toFixed(0) ?? "-"} ({g.road_segment_count ?? 0} เส้น)
+                      </div>
                     </div>
                   </div>
 
                   <Divider style={{ margin: "4px 0" }} />
 
-                  <div style={{ fontSize: 11, color: "#8c8c8c" }}>
-                    Count: {g.count_score.toFixed(0)} &nbsp;|&nbsp;
-                    Density: {g.density_score.toFixed(0)} &nbsp;|&nbsp;
-                    Recency: {g.recency_score.toFixed(0)}
+                  <div style={{ fontSize: 11, color: "#64748B", lineHeight: 1.4 }}>
+                    <b>C (Count):</b> {g.count_score?.toFixed(0) ?? "-"} &nbsp;|&nbsp;
+                    <b>D (Density):</b> {g.density_score?.toFixed(0) ?? "-"} &nbsp;|&nbsp;
+                    <b>R (Recency):</b> {g.recency_score?.toFixed(0) ?? "-"} &nbsp;|&nbsp;
+                    <b>N (Segments):</b> {g.segment_density_score?.toFixed(0) ?? "-"}
                   </div>
                 </Space>
               </div>

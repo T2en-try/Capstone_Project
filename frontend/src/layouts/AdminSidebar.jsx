@@ -22,7 +22,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }) {
   // ปิด Drawer เมื่อเปลี่ยนหน้า
   useEffect(() => {
     if (onMobileClose) onMobileClose();
-  }, [location.pathname, onMobileClose]);
+  }, [location.pathname]);
 
   /* =========================================================
      Menu
@@ -764,7 +764,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }) {
 
           @media (max-width: 767px) {
             .admin-sidebar-desktop {
-              display: none;
+              display: none !important;
             }
           }
 
@@ -854,15 +854,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }) {
             }
           }
 
-          /* Show hamburger only on mobile */
-          .admin-mobile-menu-btn {
-            display: none;
-          }
-          @media (max-width: 767px) {
-            .admin-mobile-menu-btn {
-              display: flex;
-            }
-          }
+
 
           /* =================================================
              Animations
