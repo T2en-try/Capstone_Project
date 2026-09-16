@@ -32,7 +32,52 @@ import { DSS_PRESETS, DEFAULT_DSS_WEIGHTS } from "./dssConfig";
 
 const { Text } = Typography;
 
+const SectionTitle = ({ title, icon, extra, style }) => (
+  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, ...style }}>
+    <Space size={8}>
+      {icon && <span style={{ color: "#64748B" }}>{icon}</span>}
+      <Text strong style={{ fontSize: 13, color: "#334155", letterSpacing: "0.5px", textTransform: "uppercase" }}>
+        {title}
+      </Text>
+    </Space>
+    {extra}
+  </div>
+);
 
+const SliderRow = ({ label, tooltip, value, onChange, color = "#3B82F6" }) => (
+  <div style={{ marginBottom: 18 }}>
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+      <Space size={4}>
+        <Text style={{ fontSize: 13, color: "#1E293B", fontWeight: 500 }}>{label}</Text>
+        {tooltip && (
+          <Tooltip title={tooltip}>
+            <InfoCircleOutlined style={{ fontSize: 12, color: "#94A3B8", cursor: "help" }} />
+          </Tooltip>
+        )}
+      </Space>
+      <InputNumber
+        min={0}
+        max={100}
+        value={value}
+        onChange={onChange}
+        size="small"
+        formatter={(val) => `${val}%`}
+        parser={(val) => val?.replace("%", "")}
+        style={{ width: 64, borderRadius: 6 }}
+      />
+    </div>
+    <Slider
+      min={0}
+      max={100}
+      value={value}
+      onChange={onChange}
+      trackStyle={{ backgroundColor: color, height: 6 }}
+      railStyle={{ backgroundColor: "#E2E8F0", height: 6 }}
+      handleStyle={{ height: 16, width: 16, marginTop: -5, borderColor: color }}
+      style={{ margin: "10px 0 0 0" }}
+    />
+  </div>
+);
 
 export default function DSSWeightSettingsDrawer({
   open,
@@ -95,53 +140,6 @@ export default function DSSWeightSettingsDrawer({
 
   const cusSumPercent = Math.round(
     ((localWeights.w_c || 0) + (localWeights.w_d || 0) + (localWeights.w_r || 0) + (localWeights.w_n || 0)) * 100
-  );
-
-  const SectionTitle = ({ title, icon, extra, style }) => (
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, ...style }}>
-      <Space size={8}>
-        {icon && <span style={{ color: "#64748B" }}>{icon}</span>}
-        <Text strong style={{ fontSize: 13, color: "#334155", letterSpacing: "0.5px", textTransform: "uppercase" }}>
-          {title}
-        </Text>
-      </Space>
-      {extra}
-    </div>
-  );
-
-  const SliderRow = ({ label, tooltip, value, onChange, color = "#3B82F6" }) => (
-    <div style={{ marginBottom: 18 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-        <Space size={4}>
-          <Text style={{ fontSize: 13, color: "#1E293B", fontWeight: 500 }}>{label}</Text>
-          {tooltip && (
-            <Tooltip title={tooltip}>
-              <InfoCircleOutlined style={{ fontSize: 12, color: "#94A3B8", cursor: "help" }} />
-            </Tooltip>
-          )}
-        </Space>
-        <InputNumber
-          min={0}
-          max={100}
-          value={value}
-          onChange={onChange}
-          size="small"
-          formatter={(val) => `${val}%`}
-          parser={(val) => val?.replace("%", "")}
-          style={{ width: 64, borderRadius: 6 }}
-        />
-      </div>
-      <Slider
-        min={0}
-        max={100}
-        value={value}
-        onChange={onChange}
-        trackStyle={{ backgroundColor: color, height: 6 }}
-        railStyle={{ backgroundColor: "#E2E8F0", height: 6 }}
-        handleStyle={{ height: 16, width: 16, marginTop: -5, borderColor: color }}
-        style={{ margin: "10px 0 0 0" }}
-      />
-    </div>
   );
 
   return (
