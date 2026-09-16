@@ -174,6 +174,26 @@ test.describe("user dashboard", () => {
     await expect(modal.getByText("Model Version")).not.toBeVisible();
   });
 
+  test("keeps core user pages usable on a mobile viewport", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+
+    await page.goto("/");
+
+    await expect(page.getByLabel("ค้นหารายงาน")).toBeVisible();
+    await expect(page.locator(".leaflet-container")).toBeVisible();
+    await expect(page.getByText("Somchai")).toBeVisible();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth))
+      .toBeLessThanOrEqual(392);
+
+    await page.goto("/report");
+
+    await expect(page.locator("aside input[type='text']")).toBeVisible();
+    await expect(page.locator("aside textarea")).toBeVisible();
+    await expect(page.locator("aside input[type='file']")).toHaveCount(2);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth))
+      .toBeLessThanOrEqual(392);
+  });
+
   test("submits a new report after manually confirming GPS coordinates", async ({
     context,
     page,

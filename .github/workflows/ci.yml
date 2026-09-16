@@ -3,6 +3,10 @@ name: Automation Tests
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   push:
     branches: [main, master]
@@ -108,3 +112,4 @@ jobs:
         name: playwright-report
         path: frontend/playwright-report/
         if-no-files-found: ignore
+        retention-days: 7
