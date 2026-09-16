@@ -73,7 +73,7 @@ export default function GridPrioritySummary({ days = 7 }) {
         try {
             const saved = localStorage.getItem("casp_dss_weights");
             if (saved) savedWeights = JSON.parse(saved);
-        } catch (_err) {
+        } catch {
             // ignore
         }
 
