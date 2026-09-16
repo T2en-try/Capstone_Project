@@ -12,9 +12,8 @@ import RoadLayer from "./RoadLayer";
 import HeatmapLayer from "./HeatmapLayer";
 import GridLayer from "./GridLayer";
 import SegmentLayer from "./SegmentLayer";
-import DSSWeightSettingsDrawer, {
-    DEFAULT_DSS_WEIGHTS,
-} from "./DSSWeightSettingsDrawer";
+import DSSWeightSettingsDrawer from "./DSSWeightSettingsDrawer";
+import { DEFAULT_DSS_WEIGHTS } from "./dssConfig";
 
 import "leaflet/dist/leaflet.css";
 

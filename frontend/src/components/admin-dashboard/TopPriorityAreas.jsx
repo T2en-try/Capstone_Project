@@ -1,7 +1,6 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import {
     Spin,
     Skeleton,
@@ -102,7 +101,6 @@ const DAY_OPTIONS = [
 ========================================================= */
 
 export default function TopPriorityAreas({ topN = 5 }) {
-    const navigate = useNavigate();
     const [data, setData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [days, setDays] = useState(7);
@@ -118,7 +116,7 @@ export default function TopPriorityAreas({ topN = 5 }) {
         try {
             const saved = localStorage.getItem("casp_dss_weights");
             if (saved) savedWeights = JSON.parse(saved);
-        } catch (err) {
+        } catch (_err) {
             // ignore
         }
 

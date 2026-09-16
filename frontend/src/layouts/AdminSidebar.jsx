@@ -22,6 +22,7 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }) {
   // ปิด Drawer เมื่อเปลี่ยนหน้า
   useEffect(() => {
     if (onMobileClose) onMobileClose();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.pathname]);
 
   /* =========================================================
