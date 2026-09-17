@@ -53,5 +53,13 @@ class Settings:
     CLOUD_SECRET_KEY: str = os.getenv("CLOUD_SECRET_KEY", "")
     BUCKET_NAME: str = os.getenv("BUCKET_NAME", "")
 
+    # Fallback Reverse-Geocoding API (Longdo Map) -- optional, graceful-degrade
+    # like CLOUD_* above. Only used when the local pyrosm cache can't resolve
+    # road_name/admin_subdistrict for a coordinate (see app/ai/gee_integration.py's
+    # _fetch_longdo_reverse_geocode). Empty by default so the app boots fine
+    # without it -- the affected fields just stay NULL as they do today.
+    FALLBACK_MAP_API_KEY: str = os.getenv("FALLBACK_MAP_API_KEY", "")
+    FALLBACK_MAP_PROVIDER: str = os.getenv("FALLBACK_MAP_PROVIDER", "longdo")
+
 
 settings = Settings()

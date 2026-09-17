@@ -80,8 +80,8 @@ async def process_report_background(
                         await db.commit()
                     return
 
-            # 2. จัดการแคชข้อมูล API ภายนอก (GEE & OSM)
-            cached_gee, cached_osm = None, None
+            # 2. จัดการแคชข้อมูล API ภายนอก (GEE & OSM & Admin Boundary)
+            cached_gee, cached_osm, cached_admin = None, None, None
             grid_key = None
 
             if final_lat is not None and final_lon is not None:
@@ -92,6 +92,7 @@ async def process_report_background(
                     for entry in cache_result.scalars().all():
                         if entry.source_api == "gee": cached_gee = entry.cached_response_json
                         elif entry.source_api == "osm": cached_osm = entry.cached_response_json
+                        elif entry.source_api == "admin": cached_admin = entry.cached_response_json
                 except Exception as cache_err:
                     print(f"ไม่สามารถดึงข้อมูล Cache ได้: {cache_err}")
 
@@ -144,9 +145,11 @@ async def process_report_background(
                         import app.ai.engine as ai_engine_mod
                         orig_get_env = ai_engine_mod.get_environment_data
                         orig_get_road = ai_engine_mod.get_road_type
+                        orig_get_admin = ai_engine_mod.get_admin_location
 
                         if cached_gee: ai_engine_mod.get_environment_data = lambda l, ln: cached_gee
                         if cached_osm: ai_engine_mod.get_road_type = lambda l, ln: cached_osm
+                        if cached_admin: ai_engine_mod.get_admin_location = lambda l, ln: cached_admin
 
                         try:
                             # รัน AI หนักๆ ใน thread
@@ -157,6 +160,7 @@ async def process_report_background(
                         finally:
                             ai_engine_mod.get_environment_data = orig_get_env
                             ai_engine_mod.get_road_type = orig_get_road
+                            ai_engine_mod.get_admin_location = orig_get_admin
                     else:
                         cv_result = await asyncio.to_thread(ai_engine.predict_damage, file_info["path"])
                         ai_analysis = {
@@ -176,6 +180,12 @@ async def process_report_background(
                         db.add(ApiCacheGeeOsm(coordinate_grid=grid_key, source_api="gee", cached_response_json=context["gee"]))
                     if not cached_osm and context.get("gis", {}).get("thai_road_type") != "ไม่ใช่ถนน/ไม่พบข้อมูล":
                         db.add(ApiCacheGeeOsm(coordinate_grid=grid_key, source_api="osm", cached_response_json=context["gis"]))
+                    # Only cache a genuine resolution (OSM or fallback_api) -- skip caching
+                    # "default_null" so a grid cell whose lookup failed (e.g. boundary cache
+                    # missing, fallback API key not yet configured) gets retried on the next
+                    # report instead of being permanently stuck empty in the cache.
+                    if not cached_admin and context.get("admin", {}).get("location_source") != "default_null":
+                        db.add(ApiCacheGeeOsm(coordinate_grid=grid_key, source_api="admin", cached_response_json=context["admin"]))
 
             # 6. บันทึก AI Analysis และอัปเดตสถานะ Report
             report = await db.get(RoadReport, report_id)

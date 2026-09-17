@@ -40,6 +40,8 @@ services:
       GEE_SERVICE_ACCOUNT: ${GEE_SERVICE_ACCOUNT}
       GEE_KEY_PATH: ${GEE_KEY_PATH}
       GEE_PROJECT_ID: ${GEE_PROJECT_ID}
+      FALLBACK_MAP_API_KEY: ${FALLBACK_MAP_API_KEY}
+      FALLBACK_MAP_PROVIDER: ${FALLBACK_MAP_PROVIDER}
     volumes:
       # Only the runtime-generated uploads directory is a real volume -- models,
       # GIS caches, and the GEE credential file are baked into the image at build

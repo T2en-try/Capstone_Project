@@ -392,7 +392,8 @@ class ApiCacheGeeOsm(Base):
     source_api = Column(
         String(20),
         primary_key=True,
-        comment="แหล่งที่มาของข้อมูล: 'gee' หรือ 'osm'"
+        comment="แหล่งที่มาของข้อมูล: 'gee', 'osm', หรือ 'admin' (admin boundary, "
+                "รวม Longdo fallback -- ดู location_source ใน cached_response_json)"
     )
     cached_response_json = Column(JSONB, nullable=False, comment="ข้อมูลดิบผลลัพธ์ API แบบ JSONB")
     fetched_at = Column(

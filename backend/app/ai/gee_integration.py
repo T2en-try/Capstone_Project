@@ -297,14 +297,41 @@ def get_cached_pois():
             print("WARNING: cached_pois.parquet not found!")
     return _cached_pois
 
+def _fetch_longdo_reverse_geocode(lat, lon):
+    """Longdo Map reverse-geocoding fallback -- used by get_road_type()/
+    get_admin_location() only when the local pyrosm cache has no data for a
+    coordinate. Returns the parsed JSON dict on success, or None on any
+    failure (missing key, timeout, non-2xx, bad JSON) -- callers treat None
+    as 'fallback unavailable', leaving their existing None values as-is.
+    Strict 3s timeout: this runs inside the per-report background task, so an
+    unbounded external call would directly extend report-processing latency.
+    """
+    if not settings.FALLBACK_MAP_API_KEY:
+        return None
+    try:
+        resp = requests.get(
+            "https://api.longdo.com/map/services/address",
+            params={"lat": lat, "lon": lon, "key": settings.FALLBACK_MAP_API_KEY},
+            timeout=3,
+        )
+        resp.raise_for_status()
+        return resp.json()
+    except Exception as e:
+        print(f"Longdo fallback geocoding request failed (non-fatal): {e}")
+        return None
+
+
 def get_road_type(lat, lon, radius_meters=50):
     """
     ฟังก์ชันดึงประเภทถนน เลน ความเร็วจำกัด จากพิกัด GPS โดยใช้ Pyrosm Cache
+    ถ้า Cache ในเครื่องไม่มีชื่อถนน (road_name) จะลอง fallback ไปเรียก Longdo Map API
+    (ดู _fetch_longdo_reverse_geocode) -- เติมเฉพาะช่องที่ยังว่าง ไม่ overwrite ค่าที่ได้จาก OSM แล้ว
     """
     print("กำลังตรวจสอบประเภทถนนจาก Pyrosm (Local Cache)...")
-    
+
     highway_type = 'unknown'
     road_name = None  # a real NULL, not a placeholder string -- same reasoning as surface_material's is_missing
+    road_name_source = "default_null"  # provenance: "osm" | "fallback_api" | "default_null"
     osm_way_id = None
     lanes = 2
     speed_limit = 50.0
@@ -344,6 +371,7 @@ def get_road_type(lat, lon, radius_meters=50):
                     nm = nm[0] if isinstance(nm, (list, tuple, np.ndarray)) else nm
                     if pd.notna(nm):
                         road_name = str(nm)
+                        road_name_source = "osm"
 
                 if "id" in nearest_edge and pd.notna(nearest_edge["id"]):
                     osm_way_id = int(nearest_edge["id"])
@@ -379,6 +407,20 @@ def get_road_type(lat, lon, radius_meters=50):
         # unrelated exception (e.g. a bad coordinate) silently inherit the "cache missing" label
         print(f"เกิดข้อผิดพลาดในการดึงข้อมูล Pyrosm (Road): {e}")
 
+    # Fallback: only fires when the local cache genuinely has no road_name for
+    # this coordinate. Never overrides a value OSM already resolved.
+    if road_name is None:
+        fallback_data = _fetch_longdo_reverse_geocode(lat, lon)
+        if fallback_data:
+            # Longdo only returns "road" when the point sits directly on a tagged
+            # road segment; near a named landmark/campus it returns "aoi" (area of
+            # interest) instead and omits "road" entirely. Prefer "road" when
+            # present; falling back to "aoi" beats leaving this null on the dashboard.
+            fallback_road = fallback_data.get("road") or fallback_data.get("aoi")
+            if fallback_road:
+                road_name = str(fallback_road)
+                road_name_source = "fallback_api"
+
     road_type_mapping = {
         'motorway': 'ทางด่วนพิเศษ',
         'trunk': 'ทางหลวงแผ่นดิน',
@@ -394,6 +436,7 @@ def get_road_type(lat, lon, radius_meters=50):
     
     return {
         "road_name": road_name,
+        "road_name_source": road_name_source,
         "osm_highway_type": highway_type,
         "thai_road_type": thai_road_type,
         "osm_way_id": osm_way_id,
@@ -421,10 +464,13 @@ def get_admin_location(lat, lon):
     """
     ค้นหาจังหวัด/อำเภอ/ตำบล จากพิกัด GPS โดยใช้ Boundary Cache (Point-in-Polygon)
     ใช้ cached_admin_boundaries.parquet ที่สร้างจาก pyrosm.get_boundaries()
+    ถ้า Cache ในเครื่องไม่มีตำบล (subdistrict) จะลอง fallback ไปเรียก Longdo Map API
+    (ดู _fetch_longdo_reverse_geocode) -- เติมเฉพาะช่องที่ยังว่าง ไม่ overwrite ค่าที่ได้จาก OSM แล้ว
     """
     province = None
     district = None
     subdistrict = None
+    location_source = "default_null"  # provenance: "osm" | "fallback_api" | "default_null"
 
     try:
         boundaries = get_cached_admin_boundaries()
@@ -450,11 +496,31 @@ def get_admin_location(lat, lon):
                     name = subdistrict_match.iloc[0].get('name')
                     if pd.notna(name):
                         subdistrict = str(name)
+                        location_source = "osm"
 
     except Exception as e:
         print(f"เกิดข้อผิดพลาดในการดึงข้อมูลเขตปกครอง: {e}")
 
-    return {"province": province, "district": district, "subdistrict": subdistrict}
+    # Fallback: only fires when the local boundary cache genuinely has no
+    # subdistrict for this coordinate. Only fills gaps -- never overrides a
+    # value OSM already resolved (province/district may already be partially
+    # filled even if subdistrict wasn't).
+    if subdistrict is None:
+        fallback_data = _fetch_longdo_reverse_geocode(lat, lon)
+        if fallback_data:
+            province = province or fallback_data.get("province")
+            district = district or fallback_data.get("district")
+            fallback_subdistrict = fallback_data.get("subdistrict")
+            if fallback_subdistrict:
+                subdistrict = str(fallback_subdistrict)
+                location_source = "fallback_api"
+
+    return {
+        "province": province,
+        "district": district,
+        "subdistrict": subdistrict,
+        "location_source": location_source,
+    }
 
 def get_crowdsource_data(lat, lon, radius_meters=50):
     """
