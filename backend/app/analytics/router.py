@@ -354,7 +354,7 @@ async def get_grid_priority(
 
     # ─── 3. คำนวณ 4-Factor CUS และ Overall Priority ─────────────────────────────
     grids_out: List[GridCellResponse] = []
-    summary_count = {"critical": 0, "high": 0, "low": 0}
+    summary_count = {"critical": 0, "high": 0, "medium": 0, "low": 0}
 
     for (row, col), items in grid_map.items():
         bounds = get_grid_bounds(row, col)
