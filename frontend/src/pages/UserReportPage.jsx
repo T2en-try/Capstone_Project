@@ -5,7 +5,6 @@ import imageCompression from "browser-image-compression";
 import "leaflet/dist/leaflet.css";
 
 import {
-  Trash2,
   Info,
   Clock,
   MapPin,
@@ -49,10 +48,12 @@ export default function UserReportPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
 
-  const [visibleCount, setVisibleCount] = useState(10);
+  // ข้อ 3: Pagination แทน visibleCount
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 8;
 
   useEffect(() => {
-    setVisibleCount(10);
+    setCurrentPage(1);
   }, [searchQuery, filterStatus]);
 
   const [aiResult, setAiResult] = useState(null);
@@ -63,6 +64,15 @@ export default function UserReportPage() {
   const [showPinModal, setShowPinModal] = useState(false);
   const [pendingFile, setPendingFile] = useState(null);
   const pendingFormRef = useRef(null);
+
+  // ข้อ 4: FAB + Mobile Form Modal
+  const [showMobileForm, setShowMobileForm] = useState(false);
+
+  // ข้อ 6: Filter bottom sheet on mobile
+  const [showMobileFilter, setShowMobileFilter] = useState(false);
+
+  // ข้อ 19: Image processing overlay
+  const [imageProcessing, setImageProcessing] = useState(false);
 
   const [formData, setFormData] = useState({
     description: "",
@@ -89,8 +99,9 @@ export default function UserReportPage() {
 
   const fetchData = async () => {
     try {
+      // ข้อ 14: ลดจำนวน fetch จาก 100 → 20 เพื่อประหยัด data บนมือถือ
       const [resList, resStats] = await Promise.all([
-        axios.get(`${API_REPORTS}/?per_page=100`),
+        axios.get(`${API_REPORTS}/?per_page=20`),
         axios.get(`${API_REPORTS}/stats/summary`),
       ]);
 
@@ -132,11 +143,14 @@ export default function UserReportPage() {
       if (reportId) {
         pollReportResult(reportId);
       } else {
+        // ข้อ 18: mobile-friendly toast from bottom
+        const isMobile = window.innerWidth < 768;
         Swal.fire({
           title: "สำเร็จ!",
           text: "ส่งรายงานสำเร็จแล้ว",
           icon: "success",
-          confirmButtonColor: "#2D7A5F"
+          confirmButtonColor: "#2D7A5F",
+          ...(isMobile && { toast: true, position: "bottom", timer: 3000, showConfirmButton: false })
         });
       }
     } catch (err) {
@@ -264,6 +278,8 @@ export default function UserReportPage() {
 
     if (!file) return;
 
+    // ข้อ 19: แสดง overlay ขณะบีบอัดรูป
+    setImageProcessing(true);
     setLoading(true);
 
     const hasGps = await readExifGpsClient(file);
@@ -283,6 +299,9 @@ export default function UserReportPage() {
         err
       );
     }
+
+    // ข้อ 19: ปิด overlay หลังบีบอัดเสร็จ
+    setImageProcessing(false);
 
     const base = new FormData();
 
@@ -308,6 +327,9 @@ export default function UserReportPage() {
       "reporter_name",
       formData.reporter_name
     );
+
+    // ข้อ 4: ปิด mobile form modal หลังเลือกรูปแล้ว
+    setShowMobileForm(false);
 
     // มี GPS จาก EXIF
     if (hasGps) {
@@ -557,32 +579,47 @@ export default function UserReportPage() {
   // Render
   // ============================================================
 
+  // ข้อ 3: Pagination logic
+  const totalPages = Math.ceil(filteredReports.length / PAGE_SIZE);
+  const paginatedReports = filteredReports.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE
+  );
+
   return (
     <MainLayout>
       <Navbar />
 
+      {/* ข้อ 19: Image Processing Overlay */}
+      {imageProcessing && (
+        <div className="image-processing-overlay">
+          <div className="spinner" />
+          <p className="text-paper text-sm font-semibold">กำลังเตรียมรูปภาพ...</p>
+          <p className="text-paper/60 text-xs">กรุณารอสักครู่</p>
+        </div>
+      )}
+
       {/* ========================================================
-          PAGE HEADER
+          PAGE HEADER — ข้อ 2: ลดขนาด padding บนมือถือ
       ======================================================== */}
 
       <header className="border-b border-line bg-paper">
-        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-5">
-          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+        <div className="max-w-[1400px] mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-5">
+          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2 sm:gap-4">
             <div>
-              <div className="flex items-center gap-2 mb-1.5">
+              <div className="flex items-center gap-2 mb-1">
                 <span className="inline-flex items-center gap-1.5 text-[11px] font-bold tracking-[0.12em] uppercase text-mark-deep">
                   <span className="w-1.5 h-1.5 rounded-full bg-mark" />
                   ROAD-PREDICT AI
                 </span>
               </div>
 
-              <h1 className="font-display text-2xl sm:text-3xl text-ink leading-tight">
+              <h1 className="font-display text-xl sm:text-3xl text-ink leading-tight">
                 แจ้งปัญหาถนน
               </h1>
 
-              <p className="mt-1.5 text-sm text-asphalt/60">
-                แจ้งปัญหาถนนพร้อมภาพถ่าย
-                ระบบจะช่วยวิเคราะห์สภาพถนนด้วย AI
+              <p className="mt-1 text-xs sm:text-sm text-asphalt/60">
+                แจ้งปัญหาถนนพร้อมภาพถ่าย — AI วิเคราะห์อัตโนมัติ
               </p>
             </div>
 
@@ -597,17 +634,17 @@ export default function UserReportPage() {
       </header>
 
       {/* ========================================================
-          MAIN CONTENT
+          MAIN CONTENT — ข้อ 2: ลด padding, ข้อ 10: เพิ่ม pb
       ======================================================== */}
 
-      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-5 pb-20 lg:pb-6 lg:py-6">
-        <div className="flex flex-col xl:flex-row gap-6">
+      <div className="max-w-[1400px] mx-auto px-3 sm:px-6 lg:px-8 py-3 pb-28 sm:pb-20 lg:pb-6 lg:py-6">
+        <div className="flex flex-col xl:flex-row gap-4 sm:gap-6">
           
           {/* ====================================================
-              LEFT — REPORT FORM
+              LEFT — REPORT FORM (ข้อ 4: ซ่อนบนมือถือ ใช้ FAB แทน)
           ==================================================== */}
 
-          <aside className="w-full xl:w-[340px] xl:shrink-0">
+          <aside className="hidden xl:block w-full xl:w-[340px] xl:shrink-0">
             <div className="xl:sticky xl:top-20">
               <Sidebar
                 formData={formData}
@@ -615,8 +652,6 @@ export default function UserReportPage() {
                 handleFileChange={handleFileChange}
                 loading={loading}
               />
-
-              {/* Small information note */}
 
               <div className="mt-3 px-1">
                 <p className="text-[11px] leading-relaxed text-asphalt/45">
@@ -637,17 +672,18 @@ export default function UserReportPage() {
                 SUMMARY STRIP
             ================================================== */}
 
+            {/* ข้อ 4: สถิติแบบ horizontal scroll บนมือถือ */}
             {stats && (
               <section className="border-y border-line bg-paper">
-                <div className="grid grid-cols-2 lg:grid-cols-4">
+                <div className="flex sm:grid sm:grid-cols-4 overflow-x-auto snap-x snap-mandatory hide-scrollbar">
                   {statusItems.map(
                     (item, index) => (
                       <div
                         key={item.label}
                           className={`
-                            px-4 sm:px-5 py-4
+                            min-w-[45%] sm:min-w-0 shrink-0 snap-center
+                            px-3 sm:px-5 py-3 sm:py-4
                             ${index !== 0 ? "border-l border-line" : ""}
-                            ${index === 2 ? "max-[639px]:border-l-0" : ""}
                           `}
                       >
                         <div className="flex items-center gap-2 text-asphalt/50">
@@ -664,7 +700,7 @@ export default function UserReportPage() {
                           className={`
                             mt-1
                             font-display
-                            text-2xl
+                            text-xl sm:text-2xl
                             ${item.accent}
                           `}
                         >
@@ -674,6 +710,7 @@ export default function UserReportPage() {
                     )
                   )}
                 </div>
+                <style>{`.hide-scrollbar::-webkit-scrollbar{display:none}.hide-scrollbar{-ms-overflow-style:none;scrollbar-width:none}`}</style>
               </section>
             )}
 
@@ -706,11 +743,11 @@ export default function UserReportPage() {
                 LIST HEADER
             ================================================== */}
 
-            <section className="mt-6">
-              <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
+            <section className="mt-4 sm:mt-6">
+              <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-3 sm:gap-4">
                 <div>
                   <div className="flex items-center gap-2">
-                    <h2 className="font-display text-xl text-ink">
+                    <h2 className="font-display text-lg sm:text-xl text-ink">
                       รายการแจ้งซ่อม
                     </h2>
 
@@ -719,111 +756,100 @@ export default function UserReportPage() {
                     </span>
                   </div>
 
-                  <p className="text-sm text-asphalt/55 mt-1">
+                  <p className="text-xs sm:text-sm text-asphalt/55 mt-0.5 sm:mt-1">
                     ติดตามสถานะและรายละเอียดของรายงานที่แจ้งเข้ามา
                   </p>
                 </div>
 
                 {/* ==================================================
-                    SEARCH + FILTER
+                    SEARCH + FILTER — ข้อ 6: Desktop shows inline, Mobile shows filter button
                 ================================================== */}
 
-                <div className="flex flex-col sm:flex-row gap-2 w-full lg:w-auto">
+                {/* Desktop Filter (hidden on mobile) */}
+                <div className="hidden sm:flex flex-col sm:flex-row gap-2 w-full lg:w-auto">
                   <label className="relative sm:w-64">
                     <Search
                       size={16}
                       className="absolute left-3 top-1/2 -translate-y-1/2 text-asphalt/40 pointer-events-none"
                     />
-
                     <input
                       type="text"
                       placeholder="ค้นหารายงาน..."
                       value={searchQuery}
-                      onChange={(e) =>
-                        setSearchQuery(
-                          e.target.value
-                        )
-                      }
-                      className="
-                        w-full
-                        pl-9 pr-3
-                        py-2.5
-                        bg-paper
-                        border border-line
-                        rounded-xl
-                        text-sm
-                        text-ink
-                        placeholder:text-asphalt/40
-                        outline-none
-                        transition
-                        focus:border-ink-soft
-                        focus:ring-2
-                        focus:ring-ink/10
-                      "
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full pl-9 pr-3 py-2.5 bg-paper border border-line rounded-xl text-sm text-ink placeholder:text-asphalt/40 outline-none transition focus:border-ink-soft focus:ring-2 focus:ring-ink/10"
                     />
                   </label>
 
                   <div className="relative">
-                    <Filter
-                      size={15}
-                      className="
-                        absolute
-                        left-3
-                        top-1/2
-                        -translate-y-1/2
-                        text-asphalt/40
-                        pointer-events-none
-                      "
-                    />
-
+                    <Filter size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-asphalt/40 pointer-events-none" />
                     <select
                       value={filterStatus}
-                      onChange={(e) =>
-                        setFilterStatus(
-                          e.target.value
-                        )
-                      }
-                      className="
-                        appearance-none
-                        w-full
-                        sm:w-44
-                        pl-9 pr-8
-                        py-2.5
-                        bg-paper
-                        border border-line
-                        rounded-xl
-                        text-sm
-                        font-medium
-                        text-ink
-                        outline-none
-                        cursor-pointer
-                        focus:border-ink-soft
-                        focus:ring-2
-                        focus:ring-ink/10
-                      "
+                      onChange={(e) => setFilterStatus(e.target.value)}
+                      className="appearance-none w-full sm:w-44 pl-9 pr-8 py-2.5 bg-paper border border-line rounded-xl text-sm font-medium text-ink outline-none cursor-pointer focus:border-ink-soft focus:ring-2 focus:ring-ink/10"
                     >
-                      <option value="all">
-                        ทุกสถานะ
-                      </option>
-
-                      <option value="pending">
-                        รอรับเรื่อง
-                      </option>
-
-                      <option value="processing">
-                        กำลังดำเนินการ
-                      </option>
-
-                      <option value="completed">
-                        เสร็จสิ้น
-                      </option>
-
-                      <option value="rejected">
-                        ไม่ผ่านการตรวจ
-                      </option>
+                      <option value="all">ทุกสถานะ</option>
+                      <option value="pending">รอรับเรื่อง</option>
+                      <option value="processing">กำลังดำเนินการ</option>
+                      <option value="completed">เสร็จสิ้น</option>
+                      <option value="rejected">ไม่ผ่านการตรวจ</option>
                     </select>
                   </div>
                 </div>
+
+                {/* ข้อ 6: Mobile Filter Button */}
+                <div className="flex sm:hidden gap-2">
+                  <label className="relative flex-1">
+                    <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-asphalt/40 pointer-events-none" />
+                    <input
+                      type="text"
+                      placeholder="ค้นหา..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full pl-9 pr-3 py-2.5 bg-paper border border-line rounded-xl text-sm text-ink placeholder:text-asphalt/40 outline-none transition focus:border-ink-soft"
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setShowMobileFilter(!showMobileFilter)}
+                    className={`flex items-center justify-center w-11 h-11 rounded-xl border transition-all ${
+                      filterStatus !== 'all'
+                        ? 'border-mark bg-mark/10 text-mark-deep'
+                        : 'border-line bg-paper text-asphalt/50'
+                    }`}
+                  >
+                    <Filter size={18} />
+                  </button>
+                </div>
+
+                {/* ข้อ 6: Mobile Filter Bottom Sheet */}
+                {showMobileFilter && (
+                  <div className="sm:hidden bg-paper border border-line rounded-xl p-3 space-y-2">
+                    <p className="text-xs font-semibold text-ink">กรองตามสถานะ</p>
+                    <div className="flex flex-wrap gap-2">
+                      {[
+                        { value: 'all', label: 'ทั้งหมด' },
+                        { value: 'pending', label: 'รอรับเรื่อง' },
+                        { value: 'processing', label: 'ดำเนินการ' },
+                        { value: 'completed', label: 'เสร็จสิ้น' },
+                        { value: 'rejected', label: 'ไม่ผ่าน' },
+                      ].map((opt) => (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => { setFilterStatus(opt.value); setShowMobileFilter(false); }}
+                          className={`px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
+                            filterStatus === opt.value
+                              ? 'bg-ink text-paper'
+                              : 'bg-mist text-ink-soft active:bg-ink/10'
+                          }`}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </section>
 
@@ -831,33 +857,31 @@ export default function UserReportPage() {
                 REPORT LIST
             ================================================== */}
 
-            <section className="mt-4">
+            {/* ข้อ 3: Pagination */}
+            <section className="mt-3 sm:mt-4">
               <div className="border-y border-line divide-y divide-line bg-paper/70">
                 
-                {filteredReports.length > 0 ? (
-                  filteredReports.slice(0, visibleCount).map(
+                {paginatedReports.length > 0 ? (
+                  paginatedReports.map(
                     (r) => (
                       <article
                         key={r.id}
                         className="
                           group
                           px-3 sm:px-5
-                          py-4 sm:py-5
-                          hover:bg-mist/60
+                          py-3 sm:py-5
+                          active:bg-mist/60
                           transition-colors
+                          cursor-pointer
                         "
+                        onClick={() => viewDetail(r.id)}
                       >
-                        <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+                        {/* ข้อ 4: Clickable Card แทนปุ่ม "ดูรายละเอียด" */}
+                        <div className="flex flex-col lg:flex-row lg:items-center gap-3 sm:gap-4">
                           
-                          {/* ----------------------------------
-                              Report Main Info
-                          ---------------------------------- */}
-
                           <div className="flex-1 min-w-0">
                             
-                            {/* ID + status */}
-
-                            <div className="flex flex-wrap items-center gap-2 mb-1.5">
+                            <div className="flex flex-wrap items-center gap-2 mb-1">
                               <span className="font-mono text-[11px] font-bold text-asphalt/45">
                                 #{r.id}
                               </span>
@@ -867,57 +891,29 @@ export default function UserReportPage() {
                               />
                             </div>
 
-                            {/* Reporter */}
-
-                            <h3 className="font-semibold text-ink truncate">
+                            <h3 className="font-semibold text-sm sm:text-base text-ink truncate">
                               {r.reporter_name ||
                                 "ไม่ระบุชื่อผู้แจ้ง"}
                             </h3>
 
-                            {/* Description */}
-
-                            <p className="mt-1 text-sm text-asphalt/65 line-clamp-2 leading-relaxed">
+                            <p className="mt-0.5 text-xs sm:text-sm text-asphalt/65 line-clamp-2 leading-relaxed">
                               {r.description ||
                                 "ไม่มีรายละเอียดเพิ่มเติม"}
                             </p>
 
-                            {/* Metadata */}
-
-                            <div className="mt-2.5 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] text-asphalt/50">
+                            <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-asphalt/50">
                               
                               <span className="inline-flex items-center gap-1">
                                 <Clock size={12} />
-
                                 {r.created_at
-                                  ? new Date(
-                                      r.created_at
-                                    ).toLocaleString(
-                                      "th-TH",
-                                      {
-                                        dateStyle:
-                                          "medium",
-                                        timeStyle:
-                                          "short",
-                                      }
-                                    )
+                                  ? new Date(r.created_at).toLocaleString("th-TH", { dateStyle: "medium", timeStyle: "short" })
                                   : "-"}
                               </span>
 
-                              {r.latitude != null &&
-                              r.longitude != null ? (
+                              {r.latitude != null && r.longitude != null ? (
                                 <span className="inline-flex items-center gap-1 font-mono">
-                                  <MapPin
-                                    size={12}
-                                    className="text-danger"
-                                  />
-
-                                  {Number(
-                                    r.latitude
-                                  ).toFixed(5)}
-                                  ,{" "}
-                                  {Number(
-                                    r.longitude
-                                  ).toFixed(5)}
+                                  <MapPin size={12} className="text-danger" />
+                                  {Number(r.latitude).toFixed(5)}, {Number(r.longitude).toFixed(5)}
                                 </span>
                               ) : (
                                 <span className="inline-flex items-center gap-1">
@@ -928,21 +924,17 @@ export default function UserReportPage() {
                             </div>
                           </div>
 
-                          {/* ----------------------------------
-                              Actions
-                          ---------------------------------- */}
-
-                          <div className="flex items-center justify-between lg:justify-end gap-2 shrink-0">
+                          {/* Actions — ข้อ 4: ซ่อนปุ่ม "ดูรายละเอียด" บนมือถือ (ใช้ clickable card แทน) */}
+                          <div className="flex items-center justify-end gap-2 shrink-0">
                             
                             <button
                               type="button"
-                              onClick={() =>
-                                viewDetail(
-                                  r.id
-                                )
-                              }
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                viewDetail(r.id);
+                              }}
                               className="
-                                inline-flex
+                                hidden sm:inline-flex
                                 items-center
                                 justify-center
                                 gap-1.5
@@ -953,43 +945,14 @@ export default function UserReportPage() {
                                 text-paper
                                 text-sm
                                 font-semibold
-                                hover:bg-ink-soft
                                 active:scale-[0.98]
                                 transition
                               "
                             >
                               <Eye size={15} />
-
-                              <span>
-                                ดูรายละเอียด
-                              </span>
+                              <span>ดูรายละเอียด</span>
                             </button>
 
-                            <button
-                              type="button"
-                              onClick={() =>
-                                deleteReport(
-                                  r.id
-                                )
-                              }
-                              className="
-                                inline-flex
-                                items-center
-                                justify-center
-                                w-10
-                                h-10
-                                rounded-xl
-                                text-asphalt/40
-                                hover:text-danger
-                                hover:bg-danger/10
-                                transition
-                              "
-                              title="ลบรายงาน"
-                            >
-                              <Trash2
-                                size={16}
-                              />
-                            </button>
                           </div>
                         </div>
                       </article>
@@ -1050,49 +1013,41 @@ export default function UserReportPage() {
                 )}
               </div>
 
-              {filteredReports.length > visibleCount && (
-                <div className="p-4 text-center">
+              {/* ข้อ 3: Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="p-3 sm:p-4 flex items-center justify-center gap-2">
                   <button
                     type="button"
-                    onClick={() => setVisibleCount((prev) => prev + 10)}
-                    className="
-                      inline-flex
-                      items-center
-                      justify-center
-                      px-5
-                      py-2.5
-                      rounded-xl
-                      bg-white
-                      border
-                      border-line
-                      text-sm
-                      font-semibold
-                      text-ink-soft
-                      hover:text-ink
-                      hover:bg-slate-50
-                      hover:border-ink/20
-                      active:scale-[0.98]
-                      transition-all
-                    "
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="px-3 py-2 rounded-lg text-sm font-semibold border border-line bg-white text-ink-soft disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98] transition-all"
                   >
-                    โหลดเพิ่มเติม ({filteredReports.length - visibleCount} รายการ)
+                    ← ก่อนหน้า
+                  </button>
+
+                  <span className="text-xs text-asphalt/60 tabular-nums">
+                    หน้า {currentPage} / {totalPages}
+                  </span>
+
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="px-3 py-2 rounded-lg text-sm font-semibold border border-line bg-white text-ink-soft disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98] transition-all"
+                  >
+                    ถัดไป →
                   </button>
                 </div>
               )}
             </section>
 
-            {/* ==================================================
-                FOOTER INFORMATION
-            ================================================== */}
-
             {filteredReports.length > 0 && (
-              <div className="flex items-center justify-between mt-3 px-1">
+              <div className="flex items-center justify-between mt-2 px-1">
                 <span className="text-[11px] text-asphalt/40">
-                  แสดง {filteredReports.length} รายการ
+                  แสดง {paginatedReports.length} จาก {filteredReports.length} รายการ
                 </span>
-
                 <span className="text-[11px] text-asphalt/40">
-                  Road Monitor · Smart Road Monitoring System
+                  Road Monitor
                 </span>
               </div>
             )}
@@ -1138,6 +1093,46 @@ export default function UserReportPage() {
           confirmLocation
         }
       />
+
+      {/* ข้อ 4: FAB (Floating Action Button) — แจ้งปัญหาบนมือถือ */}
+      <button
+        type="button"
+        onClick={() => setShowMobileForm(true)}
+        className="xl:hidden fixed bottom-20 right-4 z-40 w-14 h-14 rounded-full bg-ink text-paper shadow-lg flex items-center justify-center active:scale-95 transition-transform"
+        style={{ marginBottom: 'env(safe-area-inset-bottom, 0px)' }}
+        aria-label="แจ้งปัญหาถนน"
+      >
+        <FilePlus2 size={24} />
+      </button>
+
+      {/* ข้อ 4: Mobile Form Modal */}
+      {showMobileForm && (
+        <div className="xl:hidden fixed inset-0 bg-ink/55 backdrop-blur-sm z-[60] flex items-end justify-center">
+          <div
+            className="bg-paper w-full max-h-[85vh] rounded-t-2xl overflow-y-auto"
+            style={{ paddingBottom: 'env(safe-area-inset-bottom, 16px)' }}
+          >
+            <div className="flex items-center justify-between p-4 border-b border-line sticky top-0 bg-paper z-10">
+              <h3 className="font-display text-lg text-ink">แจ้งปัญหาถนน</h3>
+              <button
+                type="button"
+                onClick={() => setShowMobileForm(false)}
+                className="w-9 h-9 flex items-center justify-center rounded-full bg-mist text-asphalt/60 active:bg-danger active:text-paper transition-colors"
+              >
+                <span className="text-lg">✕</span>
+              </button>
+            </div>
+            <div className="p-4">
+              <Sidebar
+                formData={formData}
+                setFormData={setFormData}
+                handleFileChange={handleFileChange}
+                loading={loading}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       <MobileBottomNav />
     </MainLayout>

@@ -119,3 +119,227 @@
   transform-origin: left;
   animation: brand-underline 0.6s ease-out 0.2s both;
 }
+
+/* =================================================
+   ข้อ 12: Safe Area Utilities
+================================================= */
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+.pl-safe {
+  padding-left: env(safe-area-inset-left, 0px);
+}
+.pr-safe {
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+/* =================================================
+   ข้อ 16: Sticky Hover Fix — hover ทำงานเฉพาะ Desktop
+================================================= */
+@media (hover: none) {
+  /* ปิด hover effects ทั้งหมดบนมือถือ ใช้ active แทน */
+  .hover-desktop:hover {
+    background: inherit !important;
+    color: inherit !important;
+  }
+}
+
+/* =================================================
+   ข้อ 5: Map Scroll Trap Overlay
+================================================= */
+.map-scroll-trap {
+  position: relative;
+  touch-action: pan-y;
+}
+
+.map-scroll-trap::after {
+  content: "ใช้ 2 นิ้วเพื่อเลื่อนแผนที่";
+  position: absolute;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(20, 53, 47, 0.55);
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: var(--font-body);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.map-scroll-trap.show-trap-overlay::after {
+  opacity: 1;
+}
+
+/* Desktop ไม่ต้องแสดง overlay */
+@media (hover: hover) and (pointer: fine) {
+  .map-scroll-trap::after {
+    display: none;
+  }
+}
+
+/* =================================================
+   ข้อ 11: Minimum Touch Targets
+================================================= */
+@media (pointer: coarse) {
+  button, a, [role="button"], .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* ไม่ override ปุ่มที่ไม่ใช่ interactive หลัก */
+  .ant-pagination-item,
+  .ant-pagination-prev,
+  .ant-pagination-next {
+    min-height: 44px !important;
+    min-width: 44px !important;
+  }
+}
+
+/* =================================================
+   ข้อ 13: Pull-to-Refresh Styles
+================================================= */
+.pull-indicator {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: white;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.15);
+  transition: all 0.3s ease;
+}
+
+.pull-indicator.active {
+  top: 12px;
+}
+
+@keyframes spin-smooth {
+  to { transform: translateX(-50%) rotate(360deg); }
+}
+
+/* =================================================
+   ข้อ 19: Image Upload Overlay
+================================================= */
+.image-processing-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(20, 53, 47, 0.75);
+  backdrop-filter: blur(4px);
+  gap: 16px;
+}
+
+.image-processing-overlay .spinner {
+  width: 48px;
+  height: 48px;
+  border: 4px solid rgba(255, 255, 255, 0.2);
+  border-top-color: var(--color-mark);
+  border-radius: 50%;
+  animation: spin-smooth 0.8s linear infinite;
+}
+
+/* =================================================
+   ข้อ 17: Table Swipe Hint
+================================================= */
+.table-swipe-hint {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .table-swipe-hint {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px;
+    font-size: 12px;
+    color: #6B7773;
+    background: #F7FAF8;
+    border-bottom: 1px solid #D9E3DF;
+  }
+}
+
+/* =================================================
+   ข้อ 18: SweetAlert2 Mobile Position Override
+================================================= */
+@media (max-width: 768px) {
+  .swal2-popup.swal2-toast {
+    width: calc(100vw - 32px) !important;
+    max-width: 400px;
+  }
+  
+  .swal2-container.swal2-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 16px) !important;
+  }
+}
+
+/* =================================================
+   Modern Dashboard Table Overrides
+================================================= */
+.modern-dashboard-table .ant-table {
+  background: transparent !important;
+}
+
+.modern-dashboard-table .ant-table-thead > tr > th {
+  background-color: transparent !important;
+  color: #6B7280 !important;
+  font-size: 11px !important;
+  text-transform: uppercase !important;
+  font-weight: 600 !important;
+  border-bottom: 1px solid #E5E7EB !important;
+  padding: 12px 16px !important;
+}
+
+.modern-dashboard-table .ant-table-thead > tr > th::before {
+  display: none !important; /* Hide column dividers */
+}
+
+.modern-dashboard-table .ant-table-tbody > tr > td {
+  border-bottom: 1px solid #F3F4F6 !important;
+  padding: 14px 16px !important;
+  color: #374151 !important;
+  font-size: 13px !important;
+  background: white;
+}
+
+.modern-dashboard-table .ant-table-tbody > tr:hover > td {
+  background-color: #F9FAFB !important;
+}
+
+.modern-dashboard-table .ant-pagination {
+  margin: 16px !important;
+  justify-content: center !important;
+}
+
+.modern-dashboard-table .ant-pagination-item {
+  border: none !important;
+  border-radius: 6px !important;
+  background: transparent !important;
+}
+
+.modern-dashboard-table .ant-pagination-item-active {
+  background: #3B82F6 !important;
+}
+.modern-dashboard-table .ant-pagination-item-active a {
+  color: white !important;
+}
+
+.modern-dashboard-table .ant-pagination-prev button,
+.modern-dashboard-table .ant-pagination-next button {
+  border: none !important;
+  background: transparent !important;
+}

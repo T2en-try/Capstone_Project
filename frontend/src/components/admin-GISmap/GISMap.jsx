@@ -214,6 +214,7 @@ export default function GISMap({
             <Tooltip
                 title="ระบบสนับสนุนการตัดสินใจ (DSS) — ปรับค่าน้ำหนักนโยบาย"
                 placement="left"
+                trigger={['hover', 'click']}
             >
                 <button
                     type="button"

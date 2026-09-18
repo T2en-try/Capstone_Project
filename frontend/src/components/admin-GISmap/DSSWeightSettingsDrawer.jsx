@@ -50,7 +50,7 @@ const SliderRow = ({ label, tooltip, value, onChange, color = "#3B82F6" }) => (
       <Space size={4}>
         <Text style={{ fontSize: 13, color: "#1E293B", fontWeight: 500 }}>{label}</Text>
         {tooltip && (
-          <Tooltip title={tooltip}>
+          <Tooltip title={tooltip} trigger={['hover', 'click']}>
             <InfoCircleOutlined style={{ fontSize: 12, color: "#94A3B8", cursor: "help" }} />
           </Tooltip>
         )}

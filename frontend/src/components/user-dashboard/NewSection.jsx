@@ -343,7 +343,7 @@ const NewsSection = () => {
                                     border-slate-200
                                     bg-white
                                     shadow-sm
-                                    min-w-[85%] sm:min-w-[320px] xl:min-w-0
+                                    min-w-[240px] sm:min-w-[320px] xl:min-w-0
                                     shrink-0 xl:shrink
                                     snap-center xl:snap-align-none
                                 "
@@ -355,7 +355,7 @@ const NewsSection = () => {
                                 <div
                                     className="
                                         relative
-                                        h-48
+                                        h-32 sm:h-48
                                         w-full
                                         overflow-hidden
                                         bg-slate-100

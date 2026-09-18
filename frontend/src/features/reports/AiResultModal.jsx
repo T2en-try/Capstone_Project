@@ -1,5 +1,5 @@
 import React from 'react';
-import { MapPin, AlertTriangle, Scan, Activity } from 'lucide-react';
+import { MapPin, AlertTriangle, Scan, Activity, X } from 'lucide-react';
 import { normalizeAiResult } from '../../utils/aiNormalization';
 import { BASE_URL } from '../../services/api';
 
@@ -11,7 +11,17 @@ export default function AiResultModal({ aiResult, onClose }) {
 
   return (
     <div className="fixed inset-0 bg-ink/55 backdrop-blur-sm flex items-center justify-center p-4 z-[60]">
-      <div className="bg-paper rounded-2xl max-w-4xl w-full overflow-hidden flex flex-col md:flex-row border border-line max-h-[90vh]">
+      <div className="bg-paper rounded-2xl max-w-4xl w-full overflow-hidden flex flex-col md:flex-row border border-line max-h-[90vh] relative">
+
+        {/* ข้อ 1: ปุ่มปิด X มุมขวาบน */}
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute top-3 right-3 z-[70] w-9 h-9 flex items-center justify-center rounded-full bg-ink/60 text-paper hover:bg-ink/80 active:scale-95 transition-all"
+          aria-label="ปิดหน้าต่าง"
+        >
+          <X size={18} />
+        </button>
         <div className="md:w-1/2 bg-asphalt relative flex items-center justify-center overflow-hidden min-h-[260px]">
           {annotatedImage ? (
             <img

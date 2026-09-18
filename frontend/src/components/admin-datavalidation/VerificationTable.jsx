@@ -6,6 +6,7 @@ import {
   Table,
   Tag,
   Typography,
+  Tooltip,
 } from "antd";
 
 import {
@@ -200,6 +201,10 @@ export default function VerificationTable({
     drawerOpen,
     setDrawerOpen,
   ] = useState(false);
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const PAGE_SIZE = 5;
 
   /* =======================================================
      Open Detail
@@ -441,26 +446,14 @@ export default function VerificationTable({
       width: 115,
       align: "right",
       fixed: "right",
-
       render: (_, record) => (
-        <Button
-          size="small"
-          icon={<EyeOutlined />}
-          onClick={() =>
-            openDetail(record)
-          }
-          style={{
-            height: 32,
-            borderRadius: 6,
-            borderColor: COLORS.line,
-            color: COLORS.ink,
-            background: COLORS.white,
-            fontFamily:
-              "Sarabun, sans-serif",
-          }}
-        >
-          ดูรายละเอียด
-        </Button>
+        <Tooltip title="ดูรายละเอียด">
+            <Button
+              type="text"
+              icon={<EyeOutlined className="text-gray-500" />}
+              onClick={() => openDetail(record)}
+            />
+        </Tooltip>
       ),
     },
   ];
@@ -527,109 +520,92 @@ export default function VerificationTable({
 
   return (
     <>
-      <div
-        style={{
-          borderTop:
-            `1px solid ${COLORS.line}`,
-          borderBottom:
-            `1px solid ${COLORS.line}`,
-          background:
-            COLORS.white,
-        }}
-      >
-        {/* ── Desktop View ── */}
-        <div className="hidden md:block">
-          <Table
-            rowKey="id"
-            columns={columns}
-            dataSource={reports}
-            locale={{
-              emptyText,
-            }}
-            scroll={{
-              x: 1050,
-            }}
-            pagination={{
-              pageSize: 8,
-              showSizeChanger: true,
-              pageSizeOptions: [
-                "8",
-                "16",
-                "32",
-                "50",
-              ],
-              showTotal: (
-                total,
-                range
-              ) =>
-                `แสดง ${range[0]}-${range[1]} จาก ${total} รายการ`,
-              position: [
-                "bottomRight",
-              ],
-            }}
-            size="middle"
-            rowClassName={() =>
-              "ai-verification-row"
-            }
-          />
-        </div>
+      {/* ── Desktop View ── */}
+      <div className="hidden md:block w-full bg-white rounded-xl shadow-sm border border-line overflow-hidden mt-4">
+        <Table
+          rowKey="id"
+          columns={columns}
+          dataSource={reports}
+          locale={{ emptyText }}
+          className="modern-dashboard-table"
+          scroll={{ x: 1050 }}
+          pagination={{
+            pageSize: 5,
+            showSizeChanger: false,
+            showTotal: (total, range) => `Showing ${range[0]}-${range[1]} of ${total}`,
+            position: ["bottomRight"],
+          }}
+          size="middle"
+          rowClassName={() => "ai-verification-row"}
+        />
+      </div>
 
-        {/* ── Mobile View ── */}
-        <div className="block md:hidden p-4 space-y-4">
+      {/* ── Mobile View (Compact List) ── */}
+      <div className="block md:hidden mt-4">
+        <div className="bg-white rounded-xl shadow-sm border border-line overflow-hidden">
           {reports.length === 0 ? (
             emptyText
           ) : (
-            reports.map((report) => {
-              const decisionConf = getDecisionConfig(report.aiDecision);
-              return (
-                <div 
-                  key={report.id} 
-                  className="border border-line rounded-xl p-4 bg-white shadow-sm flex flex-col gap-3"
-                  onClick={() => openDetail(report)}
-                >
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <span className="font-mono font-semibold text-ink text-sm">#{report.reportId}</span>
-                      <Text strong ellipsis={{ tooltip: report.roadName }} className="block text-ink text-sm mt-1">
-                        {report.roadName}
-                      </Text>
-                      <Text className="block text-asphalt/60 text-xs">
-                        {report.district}
-                      </Text>
-                    </div>
-                    <PriorityBadge value={report.aiPriorityClass} />
-                  </div>
-
-                  <div className="flex flex-col gap-2 mt-2">
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="text-asphalt/70">ผล AI:</span>
-                      <Tag style={{ margin: 0, background: decisionConf.background, color: decisionConf.color, border: 'none' }}>
-                        {report.aiDecision || "-"}
-                      </Tag>
-                    </div>
-                    
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="text-asphalt/70">Confidence:</span>
-                      <div className="w-1/2 flex items-center gap-2">
-                        <Progress 
-                          percent={Number(report.aiConfidence).toFixed(0)} 
-                          size="small" 
-                          strokeColor={COLORS.mark} 
-                          trailColor="#E4EBE8"
-                          format={(p) => <span className="text-xs text-ink">{p}%</span>}
+            <div>
+              {reports
+                .slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
+                .map((report) => {
+                  const decisionConf = getDecisionConfig(report.aiDecision);
+                  return (
+                    <div 
+                      key={report.id} 
+                      className="border-b border-line p-4 flex items-center justify-between gap-3 hover:bg-gray-50 transition-colors"
+                      onClick={() => openDetail(report)}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-semibold text-ink text-sm">#{report.reportId}</span>
+                          <PriorityBadge value={report.aiPriorityClass} />
+                        </div>
+                        <p className="text-sm font-semibold text-ink truncate">{report.roadName}</p>
+                        <div className="flex items-center gap-2 text-xs text-asphalt/60 mt-1">
+                          <span style={{ color: decisionConf.color }}>{report.aiDecision || "-"}</span>
+                          <span className="text-gray-300">•</span>
+                          <span>Conf: {Number(report.aiConfidence).toFixed(0)}%</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Button
+                          type="text"
+                          icon={<EyeOutlined className="text-gray-500" />}
+                          onClick={(e) => { e.stopPropagation(); openDetail(report); }}
+                          className="w-8 h-8 flex items-center justify-center p-0"
                         />
                       </div>
                     </div>
-                  </div>
-
-                  <Button type="default" size="small" block className="mt-2" onClick={(e) => { e.stopPropagation(); openDetail(report); }}>
-                    ตรวจสอบ
-                  </Button>
-                </div>
-              );
-            })
+                  );
+              })}
+            </div>
           )}
         </div>
+        
+        {/* Mobile Pagination */}
+        {reports.length > PAGE_SIZE && (
+            <div className="flex items-center justify-center gap-4 mt-4">
+                <button
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="w-8 h-8 rounded-lg border border-line text-sm text-ink disabled:opacity-30 disabled:cursor-not-allowed bg-white flex items-center justify-center"
+                >
+                    &lt;
+                </button>
+                <span className="text-sm text-asphalt/70 font-medium">
+                    {currentPage} / {Math.ceil(reports.length / PAGE_SIZE) || 1}
+                </span>
+                <button
+                    onClick={() => setCurrentPage((p) => Math.min(Math.ceil(reports.length / PAGE_SIZE) || 1, p + 1))}
+                    disabled={currentPage >= (Math.ceil(reports.length / PAGE_SIZE) || 1)}
+                    className="w-8 h-8 rounded-lg border border-line text-sm text-ink disabled:opacity-30 disabled:cursor-not-allowed bg-white flex items-center justify-center"
+                >
+                    &gt;
+                </button>
+            </div>
+        )}
       </div>
 
       {/* =================================================

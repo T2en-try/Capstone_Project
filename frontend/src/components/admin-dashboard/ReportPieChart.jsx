@@ -7,6 +7,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
+import { useState, useEffect } from "react";
 
 const COLORS = [
   "#faad14",
@@ -17,6 +18,15 @@ const COLORS = [
 
 export default function ReportPieChart({ data }) {
   const total = data.reduce((sum, item) => sum + item.value, 0);
+  
+  // ข้อ 8: Detect mobile for responsive layout
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 640);
+  
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 640);
+    window.addEventListener("resize", handler);
+    return () => window.removeEventListener("resize", handler);
+  }, []);
 
   return (
     <Card
@@ -25,16 +35,17 @@ export default function ReportPieChart({ data }) {
         borderRadius: 12,
       }}
     >
-      <Row align="middle">
-        <Col span={16}>
-          <ResponsiveContainer width="100%" height={300}>
+      {/* ข้อ 8: Mobile stacked layout, Desktop side-by-side */}
+      <Row align="middle" gutter={[0, 16]}>
+        <Col xs={24} sm={16}>
+          <ResponsiveContainer width="100%" height={isMobile ? 220 : 300}>
             <PieChart>
               <Pie
                 data={data}
                 cx="50%"
                 cy="50%"
-                innerRadius={55}
-                outerRadius={95}
+                innerRadius={isMobile ? 40 : 55}
+                outerRadius={isMobile ? 70 : 95}
                 paddingAngle={4}
                 dataKey="value"
               >
@@ -56,12 +67,13 @@ export default function ReportPieChart({ data }) {
               <Legend
                 verticalAlign="bottom"
                 iconType="circle"
+                wrapperStyle={{ fontSize: isMobile ? 11 : 14 }}
               />
             </PieChart>
           </ResponsiveContainer>
         </Col>
 
-        <Col span={8}>
+        <Col xs={24} sm={8}>
           <Statistic
             title="Total Reports"
             value={total}

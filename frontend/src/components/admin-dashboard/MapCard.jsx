@@ -494,9 +494,10 @@ function ReportPopup({ report }) {
         <div
             style={{
                 width: 320,
-                maxWidth: "100%",
+                maxWidth: "min(90vw, 320px)",
                 fontFamily: "Sarabun, sans-serif",
                 color: COLORS.ink,
+                overflow: "hidden",
             }}
         >
             {/* HEADER */}
@@ -950,12 +951,27 @@ function ReportPopup({ report }) {
 
 export default function MapView({ reports = [], onViewDetail }) {
     const mapRef = useRef(null);
+    const containerRef = useRef(null);
 
     const [keyword, setKeyword] = useState("");
 
     const [mapType, setMapType] = useState("map");
 
     const [showLive, setShowLive] = useState(true);
+
+    const [isFullscreen, setIsFullscreen] = useState(false);
+
+    useEffect(() => {
+        const handleFullscreenChange = () => {
+            setIsFullscreen(!!document.fullscreenElement);
+            setTimeout(() => {
+                mapRef.current?.invalidateSize();
+            }, 100);
+        };
+
+        document.addEventListener("fullscreenchange", handleFullscreenChange);
+        return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+    }, []);
 
     // ========================================================
     // Normalize Reports
@@ -1104,9 +1120,13 @@ export default function MapView({ reports = [], onViewDetail }) {
     // ========================================================
 
     const fullscreen = () => {
-        const mapElement = document.querySelector(".leaflet-container");
-
-        mapElement?.requestFullscreen?.();
+        if (!document.fullscreenElement) {
+            containerRef.current?.requestFullscreen?.().catch(err => {
+                console.error("Error attempting to enable fullscreen:", err);
+            });
+        } else {
+            document.exitFullscreen?.();
+        }
     };
 
     // ========================================================
@@ -1115,10 +1135,11 @@ export default function MapView({ reports = [], onViewDetail }) {
 
     return (
         <section
+            ref={containerRef}
             style={{
                 position: "relative",
                 width: "100%",
-                height: 620,
+                height: isFullscreen ? "100%" : 520,
                 overflow: "hidden",
                 borderRadius: 12,
                 border: `1px solid ${COLORS.line}`,
@@ -1137,6 +1158,7 @@ export default function MapView({ reports = [], onViewDetail }) {
                     right: 14,
                     zIndex: 999,
                     display: "flex",
+                    flexWrap: "wrap",
                     alignItems: "center",
                     gap: 8,
                     padding: 8,
@@ -1161,8 +1183,8 @@ export default function MapView({ reports = [], onViewDetail }) {
                     placeholder="ค้นหารายงาน / ถนน"
                     value={keyword}
                     onChange={(event) => setKeyword(event.target.value)}
+                    className="w-full sm:w-[230px]"
                     style={{
-                        width: 230,
                         height: 34,
                         borderRadius: 7,
                     }}
@@ -1200,7 +1222,7 @@ export default function MapView({ reports = [], onViewDetail }) {
                         color: COLORS.ink,
                     }}
                 >
-                    รีเซ็ต
+                    <span className="hidden sm:inline">รีเซ็ต</span>
                 </Button>
 
                 {/* Fullscreen */}
@@ -1214,7 +1236,7 @@ export default function MapView({ reports = [], onViewDetail }) {
                         color: COLORS.ink,
                     }}
                 >
-                    เต็มจอ
+                    <span className="hidden sm:inline">เต็มจอ</span>
                 </Button>
 
                 {/* Reports */}
@@ -1230,7 +1252,9 @@ export default function MapView({ reports = [], onViewDetail }) {
                         color: showLive ? "#FFFFFF" : COLORS.ink,
                     }}
                 >
-                    {showLive ? "ซ่อนข้อมูล" : "แสดงข้อมูล"}
+                    <span className="hidden sm:inline">
+                        {showLive ? "ซ่อนข้อมูล" : "แสดงข้อมูล"}
+                    </span>
                 </Button>
             </header>
 
@@ -1240,18 +1264,11 @@ export default function MapView({ reports = [], onViewDetail }) {
 
             {showLive && (
                 <aside
+                    className="absolute z-[998] left-[14px] top-[115px] sm:top-[72px] w-[200px] sm:w-[230px] rounded-[10px] shadow-[0_3px_12px_rgba(20,53,47,0.12)] backdrop-blur-[8px]"
                     style={{
-                        position: "absolute",
-                        top: 72,
-                        left: 14,
-                        zIndex: 998,
-                        width: 235,
                         background: "rgba(255,255,255,.96)",
                         border: `1px solid ${COLORS.line}`,
-                        borderRadius: 10,
-                        padding: 13,
-                        boxShadow: "0 3px 12px rgba(20,53,47,.12)",
-                        backdropFilter: "blur(8px)",
+                        padding: 10,
                     }}
                 >
                     {/* Header */}
@@ -1267,7 +1284,7 @@ export default function MapView({ reports = [], onViewDetail }) {
                         <div
                             style={{
                                 fontFamily: "Kanit, Sarabun, sans-serif",
-                                fontSize: 14,
+                                fontSize: 13,
                                 fontWeight: 600,
                                 color: COLORS.ink,
                             }}
@@ -1299,7 +1316,7 @@ export default function MapView({ reports = [], onViewDetail }) {
                         <span
                             style={{
                                 fontFamily: "Kanit, Sarabun, sans-serif",
-                                fontSize: 30,
+                                fontSize: 24,
                                 lineHeight: 1,
                                 fontWeight: 600,
                                 color: COLORS.ink,
@@ -1474,7 +1491,7 @@ export default function MapView({ reports = [], onViewDetail }) {
                             icon={createSeverityMarker(report)}
                             report={report}
                         >
-                            <Popup maxWidth={360} minWidth={320}>
+                            <Popup maxWidth={320} minWidth={Math.min(280, window.innerWidth * 0.85)}>
                                 <ReportPopup report={report} />
                             </Popup>
                         </Marker>
