@@ -187,9 +187,12 @@ test.describe("user dashboard", () => {
 
     await page.goto("/report");
 
-    await expect(page.locator("aside input[type='text']")).toBeVisible();
-    await expect(page.locator("aside textarea")).toBeVisible();
-    await expect(page.locator("aside input[type='file']")).toHaveCount(2);
+    // Click FAB to open mobile form
+    await page.getByLabel("แจ้งปัญหาถนน").click();
+
+    await expect(page.locator("aside input[type='text']").last()).toBeVisible();
+    await expect(page.locator("aside textarea").last()).toBeVisible();
+    await expect(page.locator("aside input[type='file']")).toHaveCount(4);
     expect(await page.evaluate(() => document.documentElement.scrollWidth))
       .toBeLessThanOrEqual(392);
   });
