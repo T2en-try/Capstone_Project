@@ -466,52 +466,7 @@ export default function UserReportPage() {
     }
   };
 
-  // ============================================================
-  // Delete Report
-  // ============================================================
 
-  const deleteReport = async (id) => {
-    const result = await Swal.fire({
-      title: "ยืนยันการลบ?",
-      text: "คุณต้องการลบรายงานนี้ใช่หรือไม่?",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonColor: "#d33",
-      cancelButtonColor: "#3085d6",
-      confirmButtonText: "ลบ",
-      cancelButtonText: "ยกเลิก"
-    });
-
-    if (!result.isConfirmed) {
-      return;
-    }
-
-    try {
-      await axios.delete(
-        `${API_REPORTS}/${id}`
-      );
-
-      setIsModalOpen(false);
-
-      await fetchData();
-      
-      Swal.fire({
-        title: "ลบสำเร็จ!",
-        text: "รายงานได้ถูกลบเรียบร้อยแล้ว",
-        icon: "success",
-        confirmButtonColor: "#2D7A5F",
-        timer: 1500,
-        showConfirmButton: false
-      });
-    } catch {
-      Swal.fire({
-        title: "ผิดพลาด!",
-        text: "ลบไม่สำเร็จ",
-        icon: "error",
-        confirmButtonColor: "#C45C4A"
-      });
-    }
-  };
 
   // ============================================================
   // Filter Reports
