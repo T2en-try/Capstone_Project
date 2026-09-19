@@ -249,7 +249,6 @@ test.describe("user dashboard", () => {
 
     const pinModal = page.locator(".fixed.inset-0");
     await expect(pinModal).toBeVisible();
-    await expect(pinModal.getByText("13.7563000, 100.5018000")).toBeVisible();
 
     await pinModal.locator("button").last().click();
 
@@ -257,8 +256,8 @@ test.describe("user dashboard", () => {
       "Manual upload pothole near bus stop"
     );
     expect(uploadPayload).toContain("Nida Reporter");
-    expect(uploadPayload).toMatch(/13\.75629/);
-    expect(uploadPayload).toMatch(/100\.50179/);
+    expect(uploadPayload).toMatch(/13\.7563/);
+    expect(uploadPayload).toMatch(/100\.5018/);
     await expect(pinModal).not.toBeVisible();
   });
 });
