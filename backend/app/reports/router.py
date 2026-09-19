@@ -32,10 +32,14 @@ from app.reports.schemas import (
     StatsResponse,
     UploadResponse,
     GPSData,
+    SnapToRoadRequest,
+    SnapToRoadResponse,
 )
 from app.core.file_utils import save_upload_file
 from app.services.gps_extractor import extract_gps_from_exif
 from app.auth.router import get_current_admin
+from app.services.snap_to_road import snap_to_road
+
 # -----------------------------------------------------
 
 router = APIRouter(prefix="/api/reports", tags=["Reports"])
@@ -710,6 +714,133 @@ async def get_map_points(
 
     return MapPointsResponse(total=len(points), points=points)
 
+# ─── POST: Snap GPS coordinate to nearest road ────────────────
+
+@router.post(
+    "/snap-to-road",
+    response_model=SnapToRoadResponse,
+    summary="ตรวจสอบและปรับพิกัด GPS ให้ตรงกับแนวถนน",
+)
+async def snap_report_location_to_road(
+    body: SnapToRoadRequest,
+):
+
+    try:
+
+        # ----------------------------------------------------
+        # GPS accuracy > 50m
+        # ----------------------------------------------------
+
+        if (
+            body.accuracy is not None
+            and body.accuracy > 50
+        ):
+
+            return SnapToRoadResponse(
+                original={
+                    "latitude": body.latitude,
+                    "longitude": body.longitude,
+                },
+
+                snapped=None,
+
+                distance_meters=None,
+
+                decision="gps_rejected",
+
+                accepted=False,
+
+                gps_accuracy=body.accuracy,
+
+                gps_accuracy_status="rejected",
+
+                osm_way_id=None,
+
+                road_name=None,
+
+                highway=None,
+            )
+
+        # ----------------------------------------------------
+        # Snap using local OSM cache
+        # ----------------------------------------------------
+
+        result = await snap_to_road(
+            latitude=body.latitude,
+            longitude=body.longitude,
+            accuracy=body.accuracy,
+        )
+
+        return SnapToRoadResponse(
+            original=result["original"],
+
+            snapped=result.get(
+                "snapped"
+            ),
+
+            distance_meters=result.get(
+                "distance_meters"
+            ),
+
+            decision=result["decision"],
+
+            accepted=result["accepted"],
+
+            gps_accuracy=result.get(
+                "gps_accuracy"
+            ),
+
+            gps_accuracy_status=result.get(
+                "gps_accuracy_status"
+            ),
+
+            osm_way_id=result.get(
+                "osm_way_id"
+            ),
+
+            road_name=result.get(
+                "road_name"
+            ),
+
+            highway=result.get(
+                "highway"
+            ),
+        )
+
+    except ValueError as exc:
+
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
+        )
+
+    except FileNotFoundError as exc:
+
+        raise HTTPException(
+            status_code=503,
+            detail=str(exc),
+        )
+
+    except RuntimeError as exc:
+
+        raise HTTPException(
+            status_code=503,
+            detail=str(exc),
+        )
+
+    except Exception as exc:
+
+        print(
+            "Snap-to-Road unexpected error:",
+            exc,
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail=(
+                "ไม่สามารถตรวจสอบตำแหน่งกับถนนได้"
+            ),
+        )
 
 # ─── GET: ดึงรายงานตาม ID (Join Table) ───────────────────────────
 @router.get(
@@ -732,6 +863,7 @@ async def get_report(report_id: int, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=404, detail=f"ไม่พบรายงาน ID: {report_id}")
 
     return ReportResponse.model_validate(report)
+
 
 
 # ─── PATCH: ยืนยัน/แก้ไขพิกัดของรายงาน (เช่น หลังถูก flag ว่า GPS อาจไม่ตรงกับภาพ) ──
@@ -909,3 +1041,5 @@ async def delete_report(report_id: int, db: AsyncSession = Depends(get_db), _adm
     await db.commit()
 
     return {"status": "success", "message": f"ลบรายงาน ID: {report_id} สำเร็จ"}
+
+    "/{report_id}",

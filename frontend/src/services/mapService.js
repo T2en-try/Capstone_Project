@@ -100,3 +100,31 @@ export const updateReportStatus = async (reportId, status) => {
     );
   }
 };
+export const snapToRoad = async (
+  latitude,
+  longitude,
+  accuracy = null
+) => {
+  try {
+    const response = await api.post(
+      "/api/reports/snap-to-road",
+      {
+        latitude,
+        longitude,
+        accuracy,
+      }
+    );
+
+    return response.data;
+  } catch (error) {
+    console.error(
+      "snapToRoad error:",
+      error
+    );
+
+    throw new Error(
+      error.response?.data?.detail ||
+        "ไม่สามารถตรวจสอบตำแหน่งกับถนนได้"
+    );
+  }
+};

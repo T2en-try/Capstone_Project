@@ -295,3 +295,49 @@ class MapPointsResponse(BaseModel):
     total: int
     points: list[MapPointItem]
 
+class SnapToRoadRequest(BaseModel):
+    latitude: float = Field(
+        ...,
+        ge=-90,
+        le=90,
+    )
+
+    longitude: float = Field(
+        ...,
+        ge=-180,
+        le=180,
+    )
+
+    accuracy: float | None = Field(
+        default=None,
+        ge=0,
+    )
+
+
+class SnapToRoadCoordinate(BaseModel):
+    latitude: float
+    longitude: float
+
+
+class SnapToRoadResponse(BaseModel):
+    original: SnapToRoadCoordinate
+
+    snapped: SnapToRoadCoordinate | None = None
+
+    distance_meters: float | None = None
+
+    decision: str
+
+    accepted: bool
+
+    gps_accuracy: float | None = None
+
+    gps_accuracy_status: str | None = None
+
+    osm_way_id: int | None = None
+
+    place_id: str | None = None
+
+    road_name: str | None = None
+
+    highway: str | None = None
