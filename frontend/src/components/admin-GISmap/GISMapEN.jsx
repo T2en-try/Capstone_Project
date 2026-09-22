@@ -29,24 +29,30 @@ export default function GISMap({
     // ========================================
     // Fullscreen State
     // ========================================
-    const [isFullscreen, setIsFullscreen] =
-        useState(false);
+    const [isFullscreen, setIsFullscreen] = useState(false);
 
     // ========================================
     // DSS (Decision Support System) State
     // ========================================
     const [dssOpen, setDssOpen] = useState(false);
+
     const [dssWeights, setDssWeights] = useState(() => {
         try {
             const saved = localStorage.getItem("casp_dss_weights");
-            return saved ? JSON.parse(saved) : DEFAULT_DSS_WEIGHTS;
+
+            return saved
+                ? JSON.parse(saved)
+                : DEFAULT_DSS_WEIGHTS;
         } catch {
             return DEFAULT_DSS_WEIGHTS;
         }
     });
 
     useEffect(() => {
-        localStorage.setItem("casp_dss_weights", JSON.stringify(dssWeights));
+        localStorage.setItem(
+            "casp_dss_weights",
+            JSON.stringify(dssWeights)
+        );
     }, [dssWeights]);
 
     // ========================================
@@ -114,12 +120,12 @@ export default function GISMap({
                 // ========================================
                 description:
                     point.decision ||
-                    "ไม่มีรายละเอียดความเสียหาย",
+                    "No damage details available",
             }));
     }, [mapPoints]);
 
     // ========================================
-    // Filter reports
+    // Filter Reports
     // ========================================
     const filteredReports = useMemo(() => {
         const keyword =
@@ -211,10 +217,11 @@ export default function GISMap({
             {/* ========================================
                 DSS Decision Support Button
             ======================================== */}
+
             <Tooltip
-                title="ระบบสนับสนุนการตัดสินใจ (DSS) — ปรับค่าน้ำหนักนโยบาย"
+                title="Decision Support System (DSS) — Adjust policy weights"
                 placement="left"
-                trigger={['hover', 'click']}
+                trigger={["hover", "click"]}
             >
                 <button
                     type="button"
@@ -234,27 +241,39 @@ export default function GISMap({
                         background: "#2563EB",
                         color: "#FFFFFF",
                         cursor: "pointer",
-                        boxShadow: "0 2px 6px rgba(37,99,235,0.3)",
+                        boxShadow:
+                            "0 2px 6px rgba(37,99,235,0.3)",
                         fontSize: 13,
                         fontWeight: 600,
                         transition: "all 0.2s ease",
                     }}
                 >
-                    <SlidersOutlined style={{ fontSize: 14 }} />
-                    <span>DSS นโยบาย</span>
+                    <SlidersOutlined
+                        style={{
+                            fontSize: 14,
+                        }}
+                    />
+
+                    <span>DSS Settings</span>
                 </button>
             </Tooltip>
 
             {/* ========================================
                 Fullscreen Button
             ======================================== */}
+
             <button
                 type="button"
                 onClick={toggleFullscreen}
                 title={
                     isFullscreen
-                        ? "ออกจากเต็มจอ"
-                        : "ดูแผนที่เต็มจอ"
+                        ? "Exit fullscreen"
+                        : "View map in fullscreen"
+                }
+                aria-label={
+                    isFullscreen
+                        ? "Exit fullscreen"
+                        : "View map in fullscreen"
                 }
                 style={{
                     position: "absolute",
@@ -297,8 +316,16 @@ export default function GISMap({
             {/* ========================================
                 Map
             ======================================== */}
+
             <MapContainer
-                center={centerToGrid ? [centerToGrid.lat_center, centerToGrid.lon_center] : [14.8781, 102.0156]}
+                center={
+                    centerToGrid
+                        ? [
+                              centerToGrid.lat_center,
+                              centerToGrid.lon_center,
+                          ]
+                        : [14.8781, 102.0156]
+                }
                 zoom={centerToGrid ? 16 : 13}
                 scrollWheelZoom={true}
                 style={{
@@ -309,6 +336,7 @@ export default function GISMap({
                 {/* ========================================
                     Base Map
                 ======================================== */}
+
                 <TileLayer
                     attribution="&copy; OpenStreetMap contributors"
                     url={
@@ -319,8 +347,10 @@ export default function GISMap({
                 />
 
                 {/* ========================================
-                    CASP Grid Priority (4-Factor CUS + DSS)
+                    CASP Grid Priority
+                    (4-Factor CUS + DSS)
                 ======================================== */}
+
                 {layers.grid && (
                     <GridLayer
                         visible={true}
@@ -332,6 +362,7 @@ export default function GISMap({
                 {/* ========================================
                     Road Segment Priority
                 ======================================== */}
+
                 {layers.segment && (
                     <SegmentLayer
                         reports={filteredReports}
@@ -342,18 +373,18 @@ export default function GISMap({
                 {/* ========================================
                     Road Layer
                 ======================================== */}
+
                 {layers.road && (
                     <RoadLayer
                         reports={filteredReports}
-                        onSelectRoad={
-                            setSelectedRoad
-                        }
+                        onSelectRoad={setSelectedRoad}
                     />
                 )}
 
                 {/* ========================================
                     Heatmap
                 ======================================== */}
+
                 {layers.heatmap && (
                     <HeatmapLayer
                         reports={filteredReports}
@@ -363,12 +394,11 @@ export default function GISMap({
                 {/* ========================================
                     Marker Layer
                 ======================================== */}
+
                 {layers.marker && (
                     <MarkerLayer
                         reports={filteredReports}
-                        onSelectRoad={
-                            setSelectedRoad
-                        }
+                        onSelectRoad={setSelectedRoad}
                     />
                 )}
             </MapContainer>
@@ -376,6 +406,7 @@ export default function GISMap({
             {/* ========================================
                 DSS Weight Settings Drawer
             ======================================== */}
+
             <DSSWeightSettingsDrawer
                 open={dssOpen}
                 onClose={() => setDssOpen(false)}

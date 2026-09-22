@@ -2,7 +2,6 @@ import { useState } from "react";
 import {
   Button,
   Progress,
-  Space,
   Table,
   Tag,
   Typography,
@@ -14,7 +13,7 @@ import {
   RobotOutlined,
 } from "@ant-design/icons";
 
-import VerificationDrawer from "./VerificationDetailDrawer";
+import VerificationDrawer from "./VerificationDetailDrawerEN";
 
 const { Text } = Typography;
 
@@ -53,7 +52,6 @@ const getPriorityConfig = (priorityClass) => {
     case 3:
       return {
         label: "Critical",
-        thaiLabel: "วิกฤต",
         color: COLORS.danger,
         background: "#FFF3F0",
       };
@@ -61,7 +59,6 @@ const getPriorityConfig = (priorityClass) => {
     case 2:
       return {
         label: "Warning",
-        thaiLabel: "ควรระวัง",
         color: COLORS.warn,
         background: "#FFF9E8",
       };
@@ -69,15 +66,13 @@ const getPriorityConfig = (priorityClass) => {
     case 1:
       return {
         label: "Good",
-        thaiLabel: "ปกติ",
         color: COLORS.ok,
         background: "#F1F8F5",
       };
 
     default:
       return {
-        label: "ยังไม่มีผล",
-        thaiLabel: "ยังไม่มีผล",
+        label: "No Result",
         color: COLORS.neutral,
         background: "#F5F7F6",
       };
@@ -92,28 +87,28 @@ const getStatusConfig = (status) => {
   switch (status) {
     case "VERIFIED":
       return {
-        label: "วิเคราะห์แล้ว",
+        label: "Verified",
         color: COLORS.ok,
         background: "#F1F8F5",
       };
 
     case "WAITING":
       return {
-        label: "รอตรวจสอบ",
+        label: "Waiting for Review",
         color: COLORS.warn,
         background: "#FFF9E8",
       };
 
     case "REJECTED":
       return {
-        label: "ปฏิเสธ",
+        label: "Rejected",
         color: COLORS.danger,
         background: "#FFF3F0",
       };
 
     default:
       return {
-        label: "ไม่ทราบสถานะ",
+        label: "Unknown Status",
         color: COLORS.neutral,
         background: "#F5F7F6",
       };
@@ -202,7 +197,7 @@ export default function VerificationTable({
     setDrawerOpen,
   ] = useState(false);
 
-  // Pagination State
+  // Mobile pagination
   const [currentPage, setCurrentPage] = useState(1);
   const PAGE_SIZE = 5;
 
@@ -242,7 +237,7 @@ export default function VerificationTable({
     },
 
     {
-      title: "ถนน / พื้นที่",
+      title: "Road / Area",
       key: "road",
       width: 240,
 
@@ -260,8 +255,7 @@ export default function VerificationTable({
             style={{
               display: "block",
               color: COLORS.ink,
-              fontFamily:
-                "Sarabun, sans-serif",
+              fontFamily: "Sarabun, sans-serif",
               fontSize: 14,
               fontWeight: 600,
             }}
@@ -276,8 +270,7 @@ export default function VerificationTable({
             style={{
               display: "block",
               color: COLORS.neutral,
-              fontFamily:
-                "Sarabun, sans-serif",
+              fontFamily: "Sarabun, sans-serif",
               fontSize: 12,
             }}
           >
@@ -288,7 +281,7 @@ export default function VerificationTable({
     },
 
     {
-      title: "ผล AI",
+      title: "AI Decision",
       dataIndex: "aiDecision",
       key: "aiDecision",
       width: 130,
@@ -306,13 +299,12 @@ export default function VerificationTable({
               borderColor: config.color,
               background: config.background,
               color: config.color,
-              fontFamily:
-                "Sarabun, sans-serif",
+              fontFamily: "Sarabun, sans-serif",
               fontSize: 12,
               fontWeight: 600,
             }}
           >
-            {value || "ยังไม่มีผล"}
+            {value || "No Result"}
           </Tag>
         );
       },
@@ -388,8 +380,9 @@ export default function VerificationTable({
         );
       },
     },
+
     {
-      title: "สถานะ",
+      title: "Status",
       dataIndex: "verificationStatus",
       key: "verificationStatus",
       width: 135,
@@ -420,7 +413,7 @@ export default function VerificationTable({
     },
 
     {
-      title: "วันที่รายงาน",
+      title: "Report Date",
       dataIndex: "createdAt",
       key: "createdAt",
       width: 165,
@@ -446,13 +439,22 @@ export default function VerificationTable({
       width: 115,
       align: "right",
       fixed: "right",
+
       render: (_, record) => (
-        <Tooltip title="ดูรายละเอียด">
-            <Button
-              type="text"
-              icon={<EyeOutlined className="text-gray-500" />}
-              onClick={() => openDetail(record)}
-            />
+        <Tooltip title="View Details">
+          <Button
+            type="text"
+            icon={
+              <EyeOutlined
+                style={{
+                  color: "#64748B",
+                }}
+              />
+            }
+            onClick={() =>
+              openDetail(record)
+            }
+          />
         </Tooltip>
       ),
     },
@@ -477,8 +479,7 @@ export default function VerificationTable({
           borderRadius: 9,
           display: "flex",
           alignItems: "center",
-          justifyContent:
-            "center",
+          justifyContent: "center",
           background: COLORS.paper,
           border: `1px solid ${COLORS.line}`,
           color: COLORS.markDeep,
@@ -493,12 +494,11 @@ export default function VerificationTable({
         style={{
           display: "block",
           color: COLORS.ink,
-          fontFamily:
-            "Kanit, sans-serif",
+          fontFamily: "Kanit, sans-serif",
           fontSize: 16,
         }}
       >
-        ไม่พบรายการตรวจสอบ
+        No verification reports found
       </Text>
 
       <Text
@@ -509,9 +509,23 @@ export default function VerificationTable({
           fontSize: 13,
         }}
       >
-        ลองเปลี่ยนเงื่อนไขตัวกรอง
+        Try changing the filter criteria
       </Text>
     </div>
+  );
+
+  /* =======================================================
+     Mobile Pagination
+  ======================================================= */
+
+  const totalPages =
+    Math.ceil(
+      reports.length / PAGE_SIZE
+    ) || 1;
+
+  const mobileReports = reports.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE
   );
 
   /* =======================================================
@@ -521,90 +535,176 @@ export default function VerificationTable({
   return (
     <>
       {/* ── Desktop View ── */}
+
       <div className="hidden md:block w-full bg-white rounded-xl shadow-sm border border-line overflow-hidden mt-4">
         <Table
           rowKey="id"
           columns={columns}
           dataSource={reports}
-          locale={{ emptyText }}
+          locale={{
+            emptyText,
+          }}
           className="modern-dashboard-table"
           scroll={{ x: 1050 }}
           pagination={{
             pageSize: 5,
             showSizeChanger: false,
-            showTotal: (total, range) => `Showing ${range[0]}-${range[1]} of ${total}`,
+            showTotal: (
+              total,
+              range
+            ) =>
+              `Showing ${range[0]}-${range[1]} of ${total}`,
             position: ["bottomRight"],
           }}
           size="middle"
-          rowClassName={() => "ai-verification-row"}
+          rowClassName={() =>
+            "ai-verification-row"
+          }
         />
       </div>
 
-      {/* ── Mobile View (Compact List) ── */}
+      {/* ── Mobile View ── */}
+
       <div className="block md:hidden mt-4">
         <div className="bg-white rounded-xl shadow-sm border border-line overflow-hidden">
           {reports.length === 0 ? (
             emptyText
           ) : (
             <div>
-              {reports
-                .slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
-                .map((report) => {
-                  const decisionConf = getDecisionConfig(report.aiDecision);
+              {mobileReports.map(
+                (report) => {
+                  const decisionConf =
+                    getDecisionConfig(
+                      report.aiDecision
+                    );
+
                   return (
-                    <div 
-                      key={report.id} 
+                    <div
+                      key={report.id}
                       className="border-b border-line p-4 flex items-center justify-between gap-3 hover:bg-gray-50 transition-colors"
-                      onClick={() => openDetail(report)}
+                      onClick={() =>
+                        openDetail(report)
+                      }
                     >
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="font-semibold text-ink text-sm">#{report.reportId}</span>
-                          <PriorityBadge value={report.aiPriorityClass} />
+                          <span className="font-semibold text-ink text-sm">
+                            #{report.reportId}
+                          </span>
+
+                          <PriorityBadge
+                            value={
+                              report.priorityClass
+                            }
+                          />
                         </div>
-                        <p className="text-sm font-semibold text-ink truncate">{report.roadName}</p>
+
+                        <p className="text-sm font-semibold text-ink truncate">
+                          {report.roadName}
+                        </p>
+
                         <div className="flex items-center gap-2 text-xs text-asphalt/60 mt-1">
-                          <span style={{ color: decisionConf.color }}>{report.aiDecision || "-"}</span>
-                          <span className="text-gray-300">•</span>
-                          <span>Conf: {Number(report.aiConfidence).toFixed(0)}%</span>
+                          <span
+                            style={{
+                              color:
+                                decisionConf.color,
+                            }}
+                          >
+                            {report.aiDecision ||
+                              "No Result"}
+                          </span>
+
+                          <span className="text-gray-300">
+                            •
+                          </span>
+
+                          <span>
+                            Conf:{" "}
+                            {report.confidence ==
+                            null
+                              ? "-"
+                              : `${Number(
+                                  report.confidence
+                                ).toFixed(
+                                  0
+                                )}%`}
+                          </span>
                         </div>
                       </div>
+
                       <div className="flex items-center gap-1 shrink-0">
                         <Button
                           type="text"
-                          icon={<EyeOutlined className="text-gray-500" />}
-                          onClick={(e) => { e.stopPropagation(); openDetail(report); }}
+                          icon={
+                            <EyeOutlined
+                              style={{
+                                color:
+                                  "#64748B",
+                              }}
+                            />
+                          }
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openDetail(
+                              report
+                            );
+                          }}
                           className="w-8 h-8 flex items-center justify-center p-0"
                         />
                       </div>
                     </div>
                   );
-              })}
+                }
+              )}
             </div>
           )}
         </div>
-        
+
         {/* Mobile Pagination */}
+
         {reports.length > PAGE_SIZE && (
-            <div className="flex items-center justify-center gap-4 mt-4">
-                <button
-                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                    disabled={currentPage === 1}
-                    className="w-8 h-8 rounded-lg border border-line text-sm text-ink disabled:opacity-30 disabled:cursor-not-allowed bg-white flex items-center justify-center"
-                >
-                    &lt;
-                </button>
-                <span className="text-sm text-asphalt/70 font-medium">
-                    {currentPage} / {Math.ceil(reports.length / PAGE_SIZE) || 1}
-                </span>
-                <button
-                    onClick={() => setCurrentPage((p) => Math.min(Math.ceil(reports.length / PAGE_SIZE) || 1, p + 1))}
-                    disabled={currentPage >= (Math.ceil(reports.length / PAGE_SIZE) || 1)}
-                    className="w-8 h-8 rounded-lg border border-line text-sm text-ink disabled:opacity-30 disabled:cursor-not-allowed bg-white flex items-center justify-center"
-                >
-                    &gt;
-                </button>
-            </div>
+          <div className="flex items-center justify-center gap-4 mt-4">
+            <button
+              onClick={() =>
+                setCurrentPage(
+                  (p) =>
+                    Math.max(
+                      1,
+                      p - 1
+                    )
+                )
+              }
+              disabled={
+                currentPage === 1
+              }
+              className="w-8 h-8 rounded-lg border border-line text-sm text-ink disabled:opacity-30 disabled:cursor-not-allowed bg-white flex items-center justify-center"
+            >
+              &lt;
+            </button>
+
+            <span className="text-sm text-asphalt/70 font-medium">
+              {currentPage} / {totalPages}
+            </span>
+
+            <button
+              onClick={() =>
+                setCurrentPage(
+                  (p) =>
+                    Math.min(
+                      totalPages,
+                      p + 1
+                    )
+                )
+              }
+              disabled={
+                currentPage >=
+                totalPages
+              }
+              className="w-8 h-8 rounded-lg border border-line text-sm text-ink disabled:opacity-30 disabled:cursor-not-allowed bg-white flex items-center justify-center"
+            >
+              &gt;
+            </button>
+          </div>
         )}
       </div>
 

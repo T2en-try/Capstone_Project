@@ -10,8 +10,18 @@ import {
     LabelList,
 } from "recharts";
 
+import { useState, useEffect } from "react";
 
 const ReportBarChart = ({ data, title = "Report By Type" }) => {
+
+    // ข้อ 8: Detect mobile for responsive chart
+    const [isMobile, setIsMobile] = useState(window.innerWidth < 640);
+    
+    useEffect(() => {
+        const handler = () => setIsMobile(window.innerWidth < 640);
+        window.addEventListener("resize", handler);
+        return () => window.removeEventListener("resize", handler);
+    }, []);
 
     return (
 
@@ -24,16 +34,16 @@ const ReportBarChart = ({ data, title = "Report By Type" }) => {
 
             <ResponsiveContainer
                 width="100%"
-                height={320}
+                height={isMobile ? 220 : 320}
             >
 
                 <BarChart
                     data={data}
                     margin={{
-                        top:20,
-                        right:20,
-                        left:0,
-                        bottom:20,
+                        top: isMobile ? 10 : 20,
+                        right: isMobile ? 5 : 20,
+                        left: 0,
+                        bottom: isMobile ? 5 : 20,
                     }}
                 >
 
@@ -86,7 +96,7 @@ const ReportBarChart = ({ data, title = "Report By Type" }) => {
                             0
                         ]}
 
-                        barSize={45}
+                        barSize={isMobile ? 28 : 45}
 
                     >
 

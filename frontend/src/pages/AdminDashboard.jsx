@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Alert, Col, Divider, Row, Space, Spin, Typography, Skeleton } from "antd";
 
 import SummaryCards from "../components/admin-dashboard/SummaryCards";
@@ -27,6 +28,7 @@ import { getReportStatus } from "../utils/statusHelper";
 const { Title, Text } = Typography;
 
 export default function DashboardPage() {
+  const navigate = useNavigate();
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -214,7 +216,10 @@ export default function DashboardPage() {
       {/* Map + Priority */}
       <Row gutter={20} align="stretch">
         <Col xs={24} xl={17}>
-          <MapCard reports={dashboardData.mapReports} />
+          <MapCard 
+            reports={dashboardData.mapReports} 
+            onViewDetail={(report) => navigate(`/admin/reports/${report.id}`)}
+          />
         </Col>
 
         <Col xs={24} xl={7}>
@@ -223,16 +228,15 @@ export default function DashboardPage() {
       </Row>
 
       {/* ─── CASP Section ─── */}
-      <Divider orientation="left">
-        <span style={{ fontSize: 16, fontWeight: 600 }}>
+      <div style={{ marginTop: 10 }}>
+        <div style={{ fontSize: 16, fontWeight: 600, color: '#14352F' }}>
           Community-Aware Spatial Priority (CASP)
-        </span>
-      </Divider>
-
-      <Text type="secondary" style={{ fontSize: 13 }}>
-        วิเคราะห์พื้นที่เร่งด่วนจากการแจ้งซ้ำของประชาชน รวมกับคะแนน AI 
-        — Overall Priority = 0.8 × PPI + 0.2 × CUS
-      </Text>
+        </div>
+        <Text type="secondary" style={{ fontSize: 13, marginTop: 4, display: 'block' }}>
+          วิเคราะห์พื้นที่เร่งด่วนจากการแจ้งซ้ำของประชาชน รวมกับคะแนน AI 
+          — Overall Priority = 0.8 × PPI + 0.2 × CUS
+        </Text>
+      </div>
 
       {/* Grid Priority Summary Cards */}
       <GridPrioritySummary days={7} />

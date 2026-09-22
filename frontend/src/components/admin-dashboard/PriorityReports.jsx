@@ -107,7 +107,7 @@ const PriorityReports = ({ reports = [] }) => {
                     (Number(b.priorityClass) || 0) -
                         (Number(a.priorityClass) || 0)
             )
-            .slice(0, 5);
+            .slice(0, 4);
     }, [reports]);
 
     // ========================================================
@@ -199,6 +199,9 @@ const PriorityReports = ({ reports = [] }) => {
                 width: "100%",
                 height: "100%",
                 fontFamily: "Sarabun, sans-serif",
+                display: "flex",
+                flexDirection: "column",
+                overflow: "hidden",
             }}
         >
             {/* ==================================================
@@ -291,6 +294,8 @@ const PriorityReports = ({ reports = [] }) => {
                     display: "flex",
                     flexDirection: "column",
                     gap: 6,
+                    flex: 1,
+                    overflow: "hidden",
                 }}
             >
                 {ranked.map((item, index) => {

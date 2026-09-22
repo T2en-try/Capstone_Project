@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Table, Tag, Progress, Button, Dropdown, Space, message, Modal, Input, Typography, Skeleton } from "antd";
+import { Table, Tag, Progress, Button, Dropdown, Space, message, Modal, Input, Typography, Skeleton, Tooltip } from "antd";
 import {
     MoreOutlined,
     EyeOutlined,
@@ -25,6 +25,10 @@ const ReportsTable = ({ reports = [], loading = false, onReportUpdated }) => {
     const [targetStatus, setTargetStatus] = useState("");
     const [actionNote, setActionNote] = useState("");
     const [submitting, setSubmitting] = useState(false);
+
+    // Pagination State
+    const [currentPage, setCurrentPage] = useState(1);
+    const PAGE_SIZE = 5;
 
     const tableData = reports.map((report) => ({
         ...report,
@@ -203,15 +207,15 @@ const ReportsTable = ({ reports = [], loading = false, onReportUpdated }) => {
                 <Space>
                     {/* View Detail */}
 
-                    <Button
-                        type="primary"
-                        icon={<EyeOutlined />}
-                        onClick={() => {
-                            navigate(`/admin/reports/${record.id}`);
-                        }}
-                    >
-                        View
-                    </Button>
+                    <Tooltip title="ดูรายละเอียด">
+                        <Button
+                            type="text"
+                            icon={<EyeOutlined className="text-gray-500" />}
+                            onClick={() => {
+                                navigate(`/admin/reports/${record.id}`);
+                            }}
+                        />
+                    </Tooltip>
 
                     {/* More Action */}
 
@@ -222,7 +226,8 @@ const ReportsTable = ({ reports = [], loading = false, onReportUpdated }) => {
                         trigger={["click"]}
                     >
                         <Button
-                            icon={<MoreOutlined />}
+                            type="text"
+                            icon={<MoreOutlined className="text-gray-500" />}
                             loading={submitting && activeRecord?.id === record.id}
                         />
                     </Dropdown>
@@ -230,103 +235,101 @@ const ReportsTable = ({ reports = [], loading = false, onReportUpdated }) => {
             ),
         },
     ];
-
     return (
         <>
             {/* ── Desktop View (Table) ── */}
-            <div className="hidden md:block">
+            <div className="hidden md:block w-full bg-white rounded-xl shadow-sm border border-line overflow-hidden">
                 <Table
                     rowKey="id"
                     columns={columns}
                     dataSource={tableData}
                     loading={loading}
+                    className="modern-dashboard-table"
                     scroll={{
                         x: 1200,
                     }}
                     pagination={{
-                        pageSize: 8,
+                        pageSize: 5,
                         showSizeChanger: false,
+                        showTotal: (total, range) => `Showing ${range[0]}-${range[1]} of ${total}`,
+                        position: ["bottomRight"],
                     }}
                 />
             </div>
 
-            {/* ── Mobile View (Card List) ── */}
-            <div className="block md:hidden space-y-4">
-                {loading ? (
-                    <div className="space-y-4 py-2">
-                        <Skeleton active paragraph={{ rows: 2 }} />
-                        <Skeleton active paragraph={{ rows: 2 }} />
-                    </div>
-                ) : tableData.length === 0 ? (
-                    <div className="text-center text-asphalt/50 py-8">ไม่มีข้อมูล</div>
-                ) : (
-                    tableData.map((record) => (
-                        <div key={record.id} className="bg-white border border-line rounded-xl p-4 shadow-sm flex flex-col gap-3">
-                            <div className="flex justify-between items-start">
-                                <div>
-                                    <h3 className="font-semibold text-ink text-sm">#{record.reportId}</h3>
-                                    <p className="text-sm font-semibold text-ink mt-1 truncate max-w-[200px]">{record.roadName}</p>
-                                    <p className="text-xs text-asphalt/70">{record.reportDate}</p>
-                                </div>
-                                <Tag color={getStatusColor(record.priorityStatus)} style={{ margin: 0 }}>
-                                    {record.priorityStatus}
-                                </Tag>
-                            </div>
-
-                            <div className="flex flex-col gap-2 mt-2 text-sm">
-                                <div className="flex justify-between items-center">
-                                    <span className="text-asphalt/70">ระดับความเร่งด่วน:</span>
-                                    <Tag
-                                        style={{ margin: 0 }}
-                                        color={
-                                            record.priorityClass === 1
-                                                ? "green"
-                                                : record.priorityClass === 2
-                                                ? "orange"
-                                                : record.priorityClass === 3
-                                                ? "red"
-                                                : "default"
-                                        }
-                                    >
-                                        {record.damageType}
-                                    </Tag>
-                                </div>
-                                <div className="flex justify-between items-center">
-                                    <span className="text-asphalt/70">ความมั่นใจ AI:</span>
-                                    <div className="flex items-center gap-2 w-1/2 justify-end">
-                                        <span className="font-semibold text-ink">{record.confidenceScore === null ? "-" : `${record.confidenceScore}%`}</span>
-                                        <Progress
-                                            percent={record.confidenceScore || 0}
-                                            showInfo={false}
-                                            strokeColor="#1677ff"
-                                            size="small"
-                                            style={{ width: 60, margin: 0 }}
-                                        />
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div className="flex gap-2 mt-2 pt-3 border-t border-line/50">
-                                <Button
-                                    type="primary"
-                                    icon={<EyeOutlined />}
-                                    className="flex-1"
-                                    onClick={() => navigate(`/admin/reports/${record.id}`)}
-                                >
-                                    ดูรายละเอียด
-                                </Button>
-                                <Dropdown
-                                    menu={{ items: menuItems(record) }}
-                                    trigger={["click"]}
-                                >
-                                    <Button
-                                        icon={<MoreOutlined />}
-                                        loading={submitting && activeRecord?.id === record.id}
-                                    />
-                                </Dropdown>
-                            </div>
+            {/* ── Mobile View (Compact List) ── */}
+            <div className="block md:hidden">
+                <div className="bg-white rounded-xl shadow-sm border border-line overflow-hidden">
+                    {loading ? (
+                        <div className="p-4 space-y-4">
+                            <Skeleton active paragraph={{ rows: 1 }} />
+                            <Skeleton active paragraph={{ rows: 1 }} />
                         </div>
-                    ))
+                    ) : tableData.length === 0 ? (
+                        <div className="text-center text-asphalt/50 py-8">ไม่มีข้อมูล</div>
+                    ) : (
+                        <div>
+                            {tableData
+                                .slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
+                                .map((record) => (
+                                    <div key={record.id} className="border-b border-line p-4 flex items-center justify-between gap-3 hover:bg-gray-50 transition-colors">
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-2 mb-1">
+                                                <span className="font-semibold text-ink text-sm">#{record.reportId}</span>
+                                                <Tag color={getStatusColor(record.priorityStatus)} style={{ margin: 0, fontSize: '10px', padding: '0 4px', lineHeight: '16px' }}>
+                                                    {record.priorityStatus}
+                                                </Tag>
+                                            </div>
+                                            <p className="text-sm font-semibold text-ink truncate">{record.roadName}</p>
+                                            <div className="flex items-center gap-2 text-xs text-asphalt/60 mt-1">
+                                                <span>{record.damageType}</span>
+                                                <span className="text-gray-300">•</span>
+                                                <span>AI Conf: {record.confidenceScore || 0}%</span>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-1 shrink-0">
+                                            <Button
+                                                type="text"
+                                                icon={<EyeOutlined className="text-gray-500" />}
+                                                onClick={() => navigate(`/admin/reports/${record.id}`)}
+                                                className="w-8 h-8 flex items-center justify-center p-0"
+                                            />
+                                            <Dropdown menu={{ items: menuItems(record) }} trigger={["click"]}>
+                                                <Button
+                                                    type="text"
+                                                    icon={<MoreOutlined className="text-gray-500" />}
+                                                    loading={submitting && activeRecord?.id === record.id}
+                                                    className="w-8 h-8 flex items-center justify-center p-0"
+                                                />
+                                            </Dropdown>
+                                        </div>
+                                    </div>
+                                ))}
+                        </div>
+                    )}
+                </div>
+                
+                {/* Mobile Pagination */}
+                {tableData.length > PAGE_SIZE && (
+                    <div className="flex items-center justify-center gap-4 mt-4">
+                        <button
+                            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                            disabled={currentPage === 1}
+                            className="w-8 h-8 rounded-lg border border-line text-sm text-ink disabled:opacity-30 disabled:cursor-not-allowed bg-white flex items-center justify-center"
+                        >
+                            &lt;
+                        </button>
+                        <span className="text-sm text-asphalt/70 font-medium">
+                            {currentPage} / {Math.ceil(tableData.length / PAGE_SIZE) || 1}
+                        </span>
+                        <button
+                            onClick={() => setCurrentPage((p) => Math.min(Math.ceil(tableData.length / PAGE_SIZE) || 1, p + 1))}
+                            disabled={currentPage >= (Math.ceil(tableData.length / PAGE_SIZE) || 1)}
+                            className="w-8 h-8 rounded-lg border border-line text-sm text-ink disabled:opacity-30 disabled:cursor-not-allowed bg-white flex items-center justify-center"
+                        >
+                            &gt;
+                        </button>
+                    </div>
                 )}
             </div>
 

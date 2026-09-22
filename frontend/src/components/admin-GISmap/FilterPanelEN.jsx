@@ -1,0 +1,82 @@
+import { Input, Select, Space } from "antd";
+import { SearchOutlined } from "@ant-design/icons";
+
+export default function FilterBar({
+  filters,
+  setFilters,
+}) {
+  return (
+    <Space wrap>
+      <Input
+        placeholder="Search road name..."
+        prefix={<SearchOutlined />}
+        style={{ width: 250 }}
+        value={filters.keyword}
+        onChange={(e) =>
+          setFilters({
+            ...filters,
+            keyword: e.target.value,
+          })
+        }
+      />
+
+      <Select
+        style={{ width: 180 }}
+        value={filters.severity}
+        onChange={(value) =>
+          setFilters({
+            ...filters,
+            severity: value,
+          })
+        }
+        options={[
+          {
+            value: "All",
+            label: "All Severity Levels",
+          },
+          {
+            value: "Critical",
+            label: "Critical",
+          },
+          {
+            value: "High",
+            label: "High",
+          },
+          {
+            value: "Low",
+            label: "Low",
+          },
+        ]}
+      />
+
+      {/* <Select
+        style={{ width: 180 }}
+        value={filters.status}
+        onChange={(value) =>
+          setFilters({
+            ...filters,
+            status: value,
+          })
+        }
+        options={[
+          {
+            value: "All",
+            label: "All Statuses",
+          },
+          {
+            value: "Pending",
+            label: "Pending",
+          },
+          {
+            value: "Processing",
+            label: "Processing",
+          },
+          {
+            value: "Completed",
+            label: "Completed",
+          },
+        ]}
+      /> */}
+    </Space>
+  );
+}

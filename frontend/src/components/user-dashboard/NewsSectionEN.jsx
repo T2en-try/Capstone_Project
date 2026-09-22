@@ -35,7 +35,7 @@ const NewsSection = () => {
                 setLoading(true);
                 setError(null);
 
-                // โหลดรายงานมากกว่า 4 รายการ
+                // Load more than 4 reports for horizontal scrolling
                 const result = await fetchLatestReports(20);
 
                 if (result.success) {
@@ -43,14 +43,15 @@ const NewsSection = () => {
                 } else {
                     setError(
                         result.error ||
-                            "ไม่สามารถโหลดข่าวแจ้งปัญหาได้"
+                            "Unable to load the latest road reports."
                     );
                 }
             } catch (err) {
                 console.error("❌ NewsSection:", err);
+
                 setError(
                     err?.message ||
-                        "ไม่สามารถโหลดข่าวแจ้งปัญหาได้"
+                        "Unable to load the latest road reports."
                 );
             } finally {
                 setLoading(false);
@@ -80,7 +81,7 @@ const NewsSection = () => {
 
         if (!container) return;
 
-        // Mouse wheel แนวตั้ง -> เลื่อนแนวนอน
+        // Convert vertical mouse wheel movement to horizontal scrolling
         if (
             Math.abs(event.deltaY) >
             Math.abs(event.deltaX)
@@ -98,25 +99,25 @@ const NewsSection = () => {
     const getStatus = (status) => {
         const statusMap = {
             pending: {
-                label: "รอดำเนินการ",
+                label: "Pending",
                 color: "bg-red-500",
                 Icon: AlertTriangle,
             },
 
             processing: {
-                label: "กำลังดำเนินการ",
+                label: "In Progress",
                 color: "bg-orange-500",
                 Icon: Wrench,
             },
 
             completed: {
-                label: "ซ่อมเสร็จแล้ว",
+                label: "Completed",
                 color: "bg-emerald-500",
                 Icon: CheckCircle2,
             },
 
             rejected: {
-                label: "ปฏิเสธ",
+                label: "Rejected",
                 color: "bg-slate-400",
                 Icon: XCircle,
             },
@@ -124,7 +125,7 @@ const NewsSection = () => {
 
         return (
             statusMap[status] || {
-                label: "ไม่ระบุสถานะ",
+                label: "Unknown Status",
                 color: "bg-slate-400",
                 Icon: AlertTriangle,
             }
@@ -138,7 +139,7 @@ const NewsSection = () => {
     const getTitle = (report) => {
         return (
             report?.reporter_name ||
-            `รายงานปัญหาถนน #${report?.id || "-"}`
+            `Road Report #${report?.id || "-"}`
         );
     };
 
@@ -225,22 +226,22 @@ const NewsSection = () => {
         const parts = [];
 
         if (gis.subdistrict) {
-            parts.push(`ต.${gis.subdistrict}`);
+            parts.push(gis.subdistrict);
         }
 
         if (gis.district) {
-            parts.push(`อ.${gis.district}`);
+            parts.push(gis.district);
         }
 
         if (gis.province) {
-            parts.push(`จ.${gis.province}`);
+            parts.push(gis.province);
         }
 
         if (parts.length === 0) {
-            return "ไม่ระบุพื้นที่";
+            return "Location not specified";
         }
 
-        return parts.join(" ");
+        return parts.join(", ");
     };
 
     // =========================================================
@@ -250,7 +251,7 @@ const NewsSection = () => {
     const getRoadType = (report) => {
         const gis = getGISInfo(report);
 
-        return gis.roadType || "ไม่ระบุ";
+        return gis.roadType || "Not specified";
     };
 
     // =========================================================
@@ -259,7 +260,7 @@ const NewsSection = () => {
 
     const formatDate = (date) => {
         if (!date) {
-            return "ไม่ระบุวันที่";
+            return "Date not specified";
         }
 
         try {
@@ -269,7 +270,7 @@ const NewsSection = () => {
                 return date;
             }
 
-            return parsedDate.toLocaleString("th-TH", {
+            return parsedDate.toLocaleString("en-US", {
                 year: "numeric",
                 month: "short",
                 day: "numeric",
@@ -356,7 +357,7 @@ const NewsSection = () => {
 
                     <div>
                         <p className="font-semibold">
-                            ไม่สามารถโหลดข่าวแจ้งปัญหาได้
+                            Unable to load the latest road reports
                         </p>
 
                         <p className="mt-0.5 text-sm text-red-500">
@@ -374,6 +375,7 @@ const NewsSection = () => {
 
     return (
         <section className="w-full">
+
             {/* =================================================
                 Header
             ================================================= */}
@@ -389,22 +391,22 @@ const NewsSection = () => {
                                 items-center
                                 justify-center
                                 rounded-xl
-                                bg-mark/10
+                                bg-blue-50
                             "
                         >
                             <AlertTriangle
                                 size={19}
-                                className="text-mark"
+                                className="text-blue-600"
                             />
                         </div>
 
                         <h2 className="text-xl font-bold text-slate-800">
-                            ข่าวแจ้งปัญหาถนนล่าสุด
+                            Latest Road Reports
                         </h2>
                     </div>
 
                     <p className="mt-2 ml-11 text-sm text-slate-500">
-                        สรุปเหตุการณ์ถนนชำรุดและรายงานพื้นที่ใกล้เคียง
+                        Recent road damage reports and nearby reported areas
                     </p>
                 </div>
             </div>
@@ -445,11 +447,11 @@ const NewsSection = () => {
                     </div>
 
                     <p className="mt-4 text-sm font-semibold text-slate-600">
-                        ยังไม่มีรายงานปัญหาถนน
+                        No road reports yet
                     </p>
 
                     <p className="mt-1 text-xs text-slate-400">
-                        เมื่อมีการแจ้งปัญหา รายงานจะแสดงที่นี่
+                        New road reports will appear here
                     </p>
                 </div>
             )}
@@ -460,6 +462,7 @@ const NewsSection = () => {
 
             {reports.length > 0 && (
                 <div className="relative w-full min-w-0">
+
                     {/* =================================================
                         Left Button
                     ================================================= */}
@@ -470,7 +473,7 @@ const NewsSection = () => {
                             onClick={() =>
                                 scrollReports("left")
                             }
-                            aria-label="เลื่อนรายงานไปทางซ้าย"
+                            aria-label="Scroll reports left"
                             className="
                                 absolute
                                 left-1
@@ -578,6 +581,7 @@ const NewsSection = () => {
                                         snap-start
                                     "
                                 >
+
                                     {/* =================================================
                                         Image
                                     ================================================= */}
@@ -672,7 +676,7 @@ const NewsSection = () => {
                                             </div>
 
                                             <span className="mt-2 text-xs font-medium">
-                                                ไม่มีรูปภาพ
+                                                No image available
                                             </span>
                                         </div>
 
@@ -739,6 +743,7 @@ const NewsSection = () => {
                                     ================================================= */}
 
                                     <div className="flex flex-1 flex-col p-5">
+
                                         {/* Title */}
 
                                         <h3
@@ -766,7 +771,7 @@ const NewsSection = () => {
                                             "
                                         >
                                             {report.description ||
-                                                "ไม่มีรายละเอียดรายงาน"}
+                                                "No report description available"}
                                         </p>
 
                                         {/* =================================================
@@ -783,6 +788,7 @@ const NewsSection = () => {
                                                 p-3
                                             "
                                         >
+
                                             {/* Location */}
 
                                             <div className="flex items-start gap-2">
@@ -807,7 +813,7 @@ const NewsSection = () => {
 
                                                 <div className="min-w-0 flex-1">
                                                     <p className="text-[10px] text-slate-400">
-                                                        พื้นที่รายงาน
+                                                        Report Area
                                                     </p>
 
                                                     <p
@@ -847,7 +853,7 @@ const NewsSection = () => {
                                                 "
                                             >
                                                 <span className="text-[10px] text-slate-400">
-                                                    ประเภทถนน
+                                                    Road Type
                                                 </span>
 
                                                 <span
@@ -891,7 +897,7 @@ const NewsSection = () => {
                                                 />
 
                                                 <span className="text-[10px] text-slate-400">
-                                                    รายงานเมื่อ
+                                                    Reported
                                                 </span>
 
                                                 <span className="ml-auto text-[10px] font-medium text-slate-500">
@@ -917,7 +923,7 @@ const NewsSection = () => {
                             onClick={() =>
                                 scrollReports("right")
                             }
-                            aria-label="เลื่อนรายงานไปทางขวา"
+                            aria-label="Scroll reports right"
                             className="
                                 absolute
                                 right-1
@@ -959,7 +965,7 @@ const NewsSection = () => {
                     {reports.length > 4 && (
                         <div className="mt-1 flex justify-center">
                             <span className="text-[10px] text-slate-400">
-                                เลื่อนซ้าย–ขวาเพื่อดูรายงานเพิ่มเติม
+                                Scroll left or right to view more reports
                             </span>
                         </div>
                     )}

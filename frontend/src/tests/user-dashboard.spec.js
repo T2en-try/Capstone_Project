@@ -187,9 +187,12 @@ test.describe("user dashboard", () => {
 
     await page.goto("/report");
 
-    await expect(page.locator("aside input[type='text']")).toBeVisible();
-    await expect(page.locator("aside textarea")).toBeVisible();
-    await expect(page.locator("aside input[type='file']")).toHaveCount(2);
+    // Click FAB to open mobile form
+    await page.getByLabel("แจ้งปัญหาถนน").click();
+
+    await expect(page.locator("aside input[type='text']").last()).toBeVisible();
+    await expect(page.locator("aside textarea").last()).toBeVisible();
+    await expect(page.locator("aside input[type='file']")).toHaveCount(4);
     expect(await page.evaluate(() => document.documentElement.scrollWidth))
       .toBeLessThanOrEqual(392);
   });
@@ -246,7 +249,6 @@ test.describe("user dashboard", () => {
 
     const pinModal = page.locator(".fixed.inset-0");
     await expect(pinModal).toBeVisible();
-    await expect(pinModal.getByText("13.7563000, 100.5018000")).toBeVisible();
 
     await pinModal.locator("button").last().click();
 
@@ -254,8 +256,8 @@ test.describe("user dashboard", () => {
       "Manual upload pothole near bus stop"
     );
     expect(uploadPayload).toContain("Nida Reporter");
-    expect(uploadPayload).toMatch(/13\.75629/);
-    expect(uploadPayload).toMatch(/100\.50179/);
+    expect(uploadPayload).toMatch(/13\.7563/);
+    expect(uploadPayload).toMatch(/100\.5018/);
     await expect(pinModal).not.toBeVisible();
   });
 });

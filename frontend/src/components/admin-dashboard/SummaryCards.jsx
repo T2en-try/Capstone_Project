@@ -53,45 +53,21 @@ const SummaryCards = ({ data }) => {
     return (
         <section
             aria-label="สรุปสถานะรายงาน"
-            className="flex sm:grid sm:grid-cols-3 md:grid-cols-5 gap-3.5 overflow-x-auto snap-x snap-mandatory pb-2 w-full hide-scrollbar"
+            className="grid grid-cols-3 md:grid-cols-5 gap-2 sm:gap-3.5 w-full"
         >
-            {cards.map((card) => (
+            {cards.map((card, index) => (
                 <article
                     key={card.title}
-                    className="min-w-[80%] sm:min-w-0 shrink-0 snap-center"
-                    style={{
-                        background: "#FFFFFF",
-                        border: "1px solid #D9E3DF",
-                        borderRadius: 12,
-                        padding: "15px 16px",
-                        minHeight: 118,
-                        boxSizing: "border-box",
-                        transition: "border-color 0.2s ease",
-                    }}
+                    className={`${index === 0 ? "col-span-2 sm:col-span-1" : "col-span-1"} bg-white border border-[#D9E3DF] rounded-xl p-2.5 sm:p-4 min-h-[85px] sm:min-h-[118px] transition-colors`}
                 >
                     {/* Top */}
-                    <header
-                        style={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                            gap: 8,
-                            marginBottom: 12,
-                        }}
-                    >
+                    <header className="flex items-center justify-between gap-2 mb-2 sm:mb-3">
                         {/* Icon */}
                         <span
+                            className="flex shrink-0 items-center justify-center rounded-lg w-8 h-8 sm:w-[38px] sm:h-[38px] text-base sm:text-lg"
                             style={{
-                                width: 38,
-                                height: 38,
-                                flexShrink: 0,
-                                display: "inline-flex",
-                                alignItems: "center",
-                                justifyContent: "center",
-                                borderRadius: 9,
                                 background: card.bg,
                                 color: card.color,
-                                fontSize: 18,
                             }}
                         >
                             {card.icon}
@@ -99,18 +75,11 @@ const SummaryCards = ({ data }) => {
 
                         {/* Status */}
                         <span
+                            className="inline-flex items-center rounded-md px-1.5 py-0.5 sm:px-2 sm:py-1 whitespace-nowrap text-[10px] sm:text-[11px] font-semibold leading-tight"
                             style={{
-                                display: "inline-flex",
-                                alignItems: "center",
-                                padding: "4px 8px",
-                                borderRadius: 6,
                                 background: card.bg,
                                 color: card.color,
                                 fontFamily: "Sarabun, sans-serif",
-                                fontSize: 11,
-                                fontWeight: 600,
-                                lineHeight: 1.2,
-                                whiteSpace: "nowrap",
                             }}
                         >
                             {card.status}
@@ -119,28 +88,15 @@ const SummaryCards = ({ data }) => {
 
                     {/* Content */}
                     <p
-                        style={{
-                            margin: 0,
-                            color: "#64756F",
-                            fontFamily: "Sarabun, sans-serif",
-                            fontSize: 13,
-                            lineHeight: 1.4,
-                        }}
+                        className="text-[#64756F] text-[11px] sm:text-[13px] leading-snug m-0"
+                        style={{ fontFamily: "Sarabun, sans-serif" }}
                     >
                         {card.title}
                     </p>
 
                     <p
-                        style={{
-                            margin: "3px 0 0",
-                            color: "#14352F",
-                            fontFamily:
-                                "Kanit, Sarabun, sans-serif",
-                            fontSize: 28,
-                            fontWeight: 600,
-                            lineHeight: 1.15,
-                            letterSpacing: "-0.5px",
-                        }}
+                        className="text-[#14352F] text-xl sm:text-[28px] font-semibold leading-none mt-1 sm:mt-1.5"
+                        style={{ fontFamily: "Kanit, Sarabun, sans-serif" }}
                     >
                         {card.value.toLocaleString()}
                     </p>

@@ -105,7 +105,7 @@ const SummaryCards = ({
             <Row gutter={[10, 10]}>
                 {cards.map((card) => (
                     <Col
-                        xs={24}
+                        xs={12}
                         sm={12}
                         lg={6}
                         key={card.key}
@@ -180,7 +180,7 @@ const SummaryCards = ({
         <Row gutter={[10, 10]}>
             {cards.map((card) => (
                 <Col
-                    xs={24}
+                    xs={12}
                     sm={12}
                     lg={6}
                     key={card.key}

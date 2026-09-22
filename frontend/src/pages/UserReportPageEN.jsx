@@ -5,7 +5,6 @@ import imageCompression from "browser-image-compression";
 import "leaflet/dist/leaflet.css";
 
 import {
-  Info,
   Clock,
   MapPin,
   Search,
@@ -19,7 +18,6 @@ import {
 
 import { API_REPORTS } from "../services/api";
 
-import StatCard from "../components/ui/StatCard";
 import StatusBadge from "../components/ui/StatusBadge";
 
 import GpsPinModal from "../features/reports/GpsPinModal";
@@ -27,8 +25,8 @@ import AiResultModal from "../features/reports/AiResultModal";
 import ReportDetailModal from "../features/reports/ReportDetailModal";
 
 import MainLayout from "../layouts/MainLayout";
-import Sidebar from "../layouts/Sidebar";
-import Navbar from "../layouts/Navbar";
+import Sidebar from "../layouts/Sidebaren";
+import Navbar from "../layouts/NavbarEN";
 import MobileBottomNav from "../layouts/MobileBottomNav";
 
 export default function UserReportPage() {
@@ -131,8 +129,8 @@ export default function UserReportPage() {
 
       setProcessingMessage(
         reportId
-          ? `ส่งรายงานแล้ว ระบบกำลังวิเคราะห์ภาพ #${reportId}...`
-          : "ส่งรายงานสำเร็จแล้ว ระบบกำลังประมวลผล..."
+          ? `Report submitted. The system is analyzing image #${reportId}...`
+          : "Report submitted successfully. Processing is in progress..."
       );
 
       setFormData({
@@ -148,8 +146,8 @@ export default function UserReportPage() {
         const isMobile = window.innerWidth < 768;
 
         Swal.fire({
-          title: "สำเร็จ!",
-          text: "ส่งรายงานสำเร็จแล้ว",
+          title: "Success!",
+          text: "Report submitted successfully.",
           icon: "success",
           confirmButtonColor: "#2D7A5F",
           ...(isMobile && {
@@ -162,10 +160,10 @@ export default function UserReportPage() {
       }
     } catch (err) {
       Swal.fire({
-        title: "เกิดข้อผิดพลาด",
+        title: "An error occurred",
         text:
           err.response?.data?.detail ||
-          "ไม่สามารถติดต่อเซิร์ฟเวอร์ได้ กรุณาลองใหม่",
+          "Unable to contact the server. Please try again.",
         icon: "error",
         confirmButtonColor: "#C45C4A",
       });
@@ -197,7 +195,7 @@ export default function UserReportPage() {
 
       if (report.status === "completed") {
         setProcessingMessage(
-          `วิเคราะห์รายงาน #${reportId} เสร็จแล้ว`
+          `Analysis for report #${reportId} is complete.`
         );
 
         setAiResult(
@@ -208,9 +206,9 @@ export default function UserReportPage() {
 
         if (!report.ai_result) {
           Swal.fire({
-            title: "สำเร็จ!",
+            title: "Success!",
             text:
-              "ส่งรายงานสำเร็จแล้ว แต่ยังไม่มีผล AI สำหรับรายงานนี้",
+              "Report submitted successfully, but no AI result is available for this report.",
             icon: "info",
             confirmButtonColor: "#2F6F7E",
           });
@@ -225,15 +223,15 @@ export default function UserReportPage() {
 
       if (report.status === "rejected") {
         setProcessingMessage(
-          `รายงาน #${reportId} ไม่ผ่านการตรวจสอบ`
+          `Report #${reportId} did not pass verification.`
         );
 
         Swal.fire({
-          title: "ถูกปฏิเสธ",
+          title: "Report Rejected",
           text:
             report.rejection_reason === "not_a_road"
-              ? "ภาพที่ส่งไม่ใช่ภาพถนน ระบบจึงปฏิเสธรายงาน"
-              : "ระบบไม่สามารถวิเคราะห์รายงานนี้ได้",
+              ? "The submitted image does not appear to show a road, so the report was rejected."
+              : "The system was unable to analyze this report.",
           icon: "warning",
           confirmButtonColor: "#C4891A",
         });
@@ -249,7 +247,7 @@ export default function UserReportPage() {
 
       if (attempt >= maxAttempts) {
         setProcessingMessage(
-          "ระบบยังประมวลผลไม่เสร็จ สามารถดูสถานะได้จากรายการรายงาน"
+          "Processing is still in progress. You can check the status in the report list."
         );
 
         await fetchData();
@@ -263,8 +261,8 @@ export default function UserReportPage() {
 
       setProcessingMessage(
         report.status === "processing"
-          ? `กำลังวิเคราะห์รายงาน #${reportId}...`
-          : `กำลังรอระบบรับรายงาน #${reportId}...`
+          ? `Analyzing report #${reportId}...`
+          : `Waiting for report #${reportId} to be processed...`
       );
 
       pollingRef.current = setTimeout(() => {
@@ -276,7 +274,7 @@ export default function UserReportPage() {
     } catch {
       if (attempt >= maxAttempts) {
         setProcessingMessage(
-          "ไม่สามารถตรวจสอบผล AI ได้ กรุณาเปิดรายละเอียดรายงานภายหลัง"
+          "Unable to check the AI analysis result. Please open the report details later."
         );
 
         return;
@@ -365,10 +363,7 @@ export default function UserReportPage() {
 
     // ----------------------------------------------------------
     // IMPORTANT:
-    // ทุกภาพต้องผ่าน GPS Pin Modal
-    //
-    // ไม่ว่าจะมี EXIF GPS หรือไม่
-    // จะไม่ submit ตรงจาก handleFileChange
+    // Every image must go through the GPS Pin Modal.
     // ----------------------------------------------------------
 
     setLoading(false);
@@ -379,7 +374,7 @@ export default function UserReportPage() {
 
     setShowPinModal(true);
 
-    // ให้สามารถเลือกไฟล์เดิมซ้ำได้
+    // Allow selecting the same file again
     e.target.value = "";
   };
 
@@ -399,9 +394,8 @@ export default function UserReportPage() {
 
     // ----------------------------------------------------------
     // IMPORTANT:
-    // ใช้ set() แทน append()
-    //
-    // เพื่อป้องกัน latitude / longitude ซ้ำ
+    // Use set() instead of append()
+    // to prevent duplicate latitude / longitude values.
     // ----------------------------------------------------------
 
     fd.set(
@@ -414,7 +408,7 @@ export default function UserReportPage() {
       String(lon)
     );
 
-    // ส่งรายงานหลังจากผ่าน Snap-to-Road แล้ว
+    // Submit report after Snap-to-Road
     await submitReport(fd);
 
     // Clear pending data
@@ -448,8 +442,8 @@ export default function UserReportPage() {
       setIsModalOpen(true);
     } catch {
       Swal.fire({
-        title: "ผิดพลาด!",
-        text: "ไม่พบข้อมูลรายงาน",
+        title: "Error!",
+        text: "Report data could not be found.",
         icon: "error",
         confirmButtonColor: "#C45C4A",
       });
@@ -482,8 +476,8 @@ export default function UserReportPage() {
       }
     } catch {
       Swal.fire({
-        title: "ผิดพลาด!",
-        text: "อัปเดตสถานะไม่สำเร็จ",
+        title: "Error!",
+        text: "Failed to update report status.",
         icon: "error",
         confirmButtonColor: "#C45C4A",
       });
@@ -513,8 +507,8 @@ export default function UserReportPage() {
       await fetchData();
     } catch {
       Swal.fire({
-        title: "ผิดพลาด!",
-        text: "อัปเดตพิกัดไม่สำเร็จ",
+        title: "Error!",
+        text: "Failed to update report coordinates.",
         icon: "error",
         confirmButtonColor: "#C45C4A",
       });
@@ -558,28 +552,28 @@ export default function UserReportPage() {
 
   const statusItems = [
     {
-      label: "รายงานทั้งหมด",
+      label: "Total Reports",
       value:
         stats?.total_reports ?? 0,
       icon: <ClipboardList size={17} />,
       accent: "text-ink",
     },
     {
-      label: "รอรับเรื่อง",
+      label: "Pending",
       value:
         stats?.pending_count ?? 0,
       icon: <Clock size={17} />,
       accent: "text-mark-deep",
     },
     {
-      label: "กำลังดำเนินการ",
+      label: "In Progress",
       value:
         stats?.processing_count ?? 0,
       icon: <LoaderCircle size={17} />,
       accent: "text-info",
     },
     {
-      label: "เสร็จสิ้น",
+      label: "Completed",
       value:
         stats?.completed_count ?? 0,
       icon: <CheckCircle2 size={17} />,
@@ -618,11 +612,11 @@ export default function UserReportPage() {
           <div className="spinner" />
 
           <p className="text-paper text-sm font-semibold">
-            กำลังเตรียมรูปภาพ...
+            Preparing image...
           </p>
 
           <p className="text-paper/60 text-xs">
-            กรุณารอสักครู่
+            Please wait a moment.
           </p>
         </div>
       )}
@@ -643,11 +637,11 @@ export default function UserReportPage() {
               </div>
 
               <h1 className="font-display text-xl sm:text-3xl text-ink leading-tight">
-                แจ้งปัญหาถนน
+                Report a Road Issue
               </h1>
 
               <p className="mt-1 text-xs sm:text-sm text-asphalt/60">
-                แจ้งปัญหาถนนพร้อมภาพถ่าย — AI วิเคราะห์อัตโนมัติ
+                Report road issues with photos — AI will automatically analyze the submitted image.
               </p>
             </div>
 
@@ -685,8 +679,7 @@ export default function UserReportPage() {
 
               <div className="mt-3 px-1">
                 <p className="text-[11px] leading-relaxed text-asphalt/45">
-                  ระบบจะตรวจสอบภาพและวิเคราะห์ระดับความเร่งด่วน
-                  ของปัญหาถนนโดยอัตโนมัติ
+                  The system automatically verifies the image and analyzes the priority level of the reported road issue.
                 </p>
               </div>
             </div>
@@ -776,7 +769,7 @@ export default function UserReportPage() {
 
                   <div>
                     <p className="text-sm font-semibold text-ink">
-                      กำลังประมวลผล
+                      Processing
                     </p>
 
                     <p className="text-xs text-asphalt/60 mt-0.5">
@@ -798,7 +791,7 @@ export default function UserReportPage() {
                   <div className="flex items-center gap-2">
 
                     <h2 className="font-display text-lg sm:text-xl text-ink">
-                      รายการแจ้งซ่อม
+                      Report List
                     </h2>
 
                     <span className="inline-flex items-center justify-center min-w-6 h-6 px-2 rounded-full bg-mist text-xs font-bold text-ink-soft">
@@ -808,7 +801,7 @@ export default function UserReportPage() {
                   </div>
 
                   <p className="text-xs sm:text-sm text-asphalt/55 mt-0.5 sm:mt-1">
-                    ติดตามสถานะและรายละเอียดของรายงานที่แจ้งเข้ามา
+                    Track the status and details of submitted road reports.
                   </p>
                 </div>
 
@@ -827,7 +820,7 @@ export default function UserReportPage() {
 
                     <input
                       type="text"
-                      placeholder="ค้นหารายงาน..."
+                      placeholder="Search reports..."
                       value={searchQuery}
                       onChange={(e) =>
                         setSearchQuery(
@@ -856,23 +849,23 @@ export default function UserReportPage() {
                       className="appearance-none w-full sm:w-44 pl-9 pr-8 py-2.5 bg-paper border border-line rounded-xl text-sm font-medium text-ink outline-none cursor-pointer focus:border-ink-soft focus:ring-2 focus:ring-ink/10"
                     >
                       <option value="all">
-                        ทุกสถานะ
+                        All Statuses
                       </option>
 
                       <option value="pending">
-                        รอรับเรื่อง
+                        Pending
                       </option>
 
                       <option value="processing">
-                        กำลังดำเนินการ
+                        In Progress
                       </option>
 
                       <option value="completed">
-                        เสร็จสิ้น
+                        Completed
                       </option>
 
                       <option value="rejected">
-                        ไม่ผ่านการตรวจ
+                        Rejected
                       </option>
                     </select>
 
@@ -894,7 +887,7 @@ export default function UserReportPage() {
 
                     <input
                       type="text"
-                      placeholder="ค้นหา..."
+                      placeholder="Search..."
                       value={searchQuery}
                       onChange={(e) =>
                         setSearchQuery(
@@ -937,7 +930,7 @@ export default function UserReportPage() {
                   <div className="sm:hidden bg-paper border border-line rounded-xl p-3 space-y-2">
 
                     <p className="text-xs font-semibold text-ink">
-                      กรองตามสถานะ
+                      Filter by Status
                     </p>
 
                     <div className="flex flex-wrap gap-2">
@@ -945,23 +938,23 @@ export default function UserReportPage() {
                       {[
                         {
                           value: "all",
-                          label: "ทั้งหมด",
+                          label: "All",
                         },
                         {
                           value: "pending",
-                          label: "รอรับเรื่อง",
+                          label: "Pending",
                         },
                         {
                           value: "processing",
-                          label: "ดำเนินการ",
+                          label: "In Progress",
                         },
                         {
                           value: "completed",
-                          label: "เสร็จสิ้น",
+                          label: "Completed",
                         },
                         {
                           value: "rejected",
-                          label: "ไม่ผ่าน",
+                          label: "Rejected",
                         },
                       ].map((opt) => (
                         <button
@@ -1043,12 +1036,12 @@ export default function UserReportPage() {
 
                             <h3 className="font-semibold text-sm sm:text-base text-ink truncate">
                               {r.reporter_name ||
-                                "ไม่ระบุชื่อผู้แจ้ง"}
+                                "Anonymous Reporter"}
                             </h3>
 
                             <p className="mt-0.5 text-xs sm:text-sm text-asphalt/65 line-clamp-2 leading-relaxed">
                               {r.description ||
-                                "ไม่มีรายละเอียดเพิ่มเติม"}
+                                "No additional details provided."}
                             </p>
 
                             <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-asphalt/50">
@@ -1061,7 +1054,7 @@ export default function UserReportPage() {
                                   ? new Date(
                                       r.created_at
                                     ).toLocaleString(
-                                      "th-TH",
+                                      "en-US",
                                       {
                                         dateStyle:
                                           "medium",
@@ -1099,7 +1092,7 @@ export default function UserReportPage() {
 
                                   <MapPin size={12} />
 
-                                  ไม่มีพิกัด
+                                  No coordinates
 
                                 </span>
 
@@ -1137,7 +1130,7 @@ export default function UserReportPage() {
                               <Eye size={15} />
 
                               <span>
-                                ดูรายละเอียด
+                                View Details
                               </span>
                             </button>
 
@@ -1168,8 +1161,8 @@ export default function UserReportPage() {
 
                       {searchQuery ||
                       filterStatus !== "all"
-                        ? "ไม่พบรายงานที่ตรงกับเงื่อนไข"
-                        : "ยังไม่มีรายการแจ้งซ่อม"}
+                        ? "No reports match your criteria"
+                        : "No reports yet"}
 
                     </h3>
 
@@ -1177,8 +1170,8 @@ export default function UserReportPage() {
 
                       {searchQuery ||
                       filterStatus !== "all"
-                        ? "ลองเปลี่ยนคำค้นหาหรือตัวกรอง"
-                        : "เมื่อมีการแจ้งปัญหาถนน รายการจะแสดงที่นี่"}
+                        ? "Try changing your search or filter criteria."
+                        : "Submitted road issue reports will appear here."}
 
                     </p>
 
@@ -1203,7 +1196,7 @@ export default function UserReportPage() {
                           underline-offset-4
                         "
                       >
-                        ล้างตัวกรอง
+                        Clear Filters
                       </button>
 
                     )}
@@ -1249,11 +1242,11 @@ export default function UserReportPage() {
                       transition-all
                     "
                   >
-                    ← ก่อนหน้า
+                    ← Previous
                   </button>
 
                   <span className="text-xs text-asphalt/60 tabular-nums">
-                    หน้า {currentPage} /{" "}
+                    Page {currentPage} /{" "}
                     {totalPages}
                   </span>
 
@@ -1286,7 +1279,7 @@ export default function UserReportPage() {
                       transition-all
                     "
                   >
-                    ถัดไป →
+                    Next →
                   </button>
 
                 </div>
@@ -1299,11 +1292,11 @@ export default function UserReportPage() {
               <div className="flex items-center justify-between mt-2 px-1">
 
                 <span className="text-[11px] text-asphalt/40">
-                  แสดง{" "}
+                  Showing{" "}
                   {paginatedReports.length}{" "}
-                  จาก{" "}
+                  of{" "}
                   {filteredReports.length}{" "}
-                  รายการ
+                  reports
                 </span>
 
                 <span className="text-[11px] text-asphalt/40">
@@ -1390,7 +1383,7 @@ export default function UserReportPage() {
           marginBottom:
             "env(safe-area-inset-bottom, 0px)",
         }}
-        aria-label="แจ้งปัญหาถนน"
+        aria-label="Report a road issue"
       >
         <FilePlus2 size={24} />
       </button>
@@ -1440,7 +1433,7 @@ export default function UserReportPage() {
             ">
 
               <h3 className="font-display text-lg text-ink">
-                แจ้งปัญหาถนน
+                Report a Road Issue
               </h3>
 
               <button

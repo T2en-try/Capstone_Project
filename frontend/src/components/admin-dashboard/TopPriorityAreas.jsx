@@ -219,7 +219,7 @@ export default function TopPriorityAreas({ topN = 5 }) {
 
         {
             title: (
-                <Tooltip title="คะแนนจากการวิเคราะห์ AI">
+                <Tooltip title="คะแนนจากการวิเคราะห์ AI" trigger={['hover', 'click']}>
                     <span>AI</span>
                 </Tooltip>
             ),
@@ -246,7 +246,7 @@ export default function TopPriorityAreas({ topN = 5 }) {
 
         {
             title: (
-                <Tooltip title="คะแนนความเร่งด่วนจากประชาชน">
+                <Tooltip title="คะแนนความเร่งด่วนจากประชาชน" trigger={['hover', 'click']}>
                     <span>CUS (ประชาชน)</span>
                 </Tooltip>
             ),

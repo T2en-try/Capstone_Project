@@ -190,6 +190,7 @@ export default function GridPrioritySummary({ days = 7 }) {
 
                     <Tooltip
                         title="จัดระดับความเร่งด่วนของพื้นที่จากคะแนน Overall Priority"
+                        trigger={['hover', 'click']}
                     >
                         <InfoCircleOutlined
                             style={{
@@ -217,7 +218,7 @@ export default function GridPrioritySummary({ days = 7 }) {
                 style={{
                     display: "grid",
                     gridTemplateColumns:
-                        "repeat(auto-fill, minmax(200px, 1fr))",
+                        "repeat(auto-fit, minmax(250px, 1fr))",
                     gap: 12,
                     paddingTop: 14,
                 }}

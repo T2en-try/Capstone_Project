@@ -141,7 +141,7 @@ export default function Header({ onMenuClick }) {
           <button
             type="button"
             onClick={onMenuClick}
-            className="md:hidden flex h-10 w-10 relative z-[60] items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 transition"
+            className="md:hidden flex h-11 w-11 relative z-[60] items-center justify-center rounded-lg text-slate-600 active:bg-slate-100 transition"
             aria-label="เปิดเมนู"
           >
             <MenuUnfoldOutlined style={{ fontSize: 20 }} />

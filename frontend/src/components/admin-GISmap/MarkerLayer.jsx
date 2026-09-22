@@ -283,12 +283,9 @@ export default function MarkerLayer({
                         icon={priorityIcon}
                         eventHandlers={{
                             click: () => {
-                                map.flyTo(
+                                map.panTo(
                                     [lat, lng],
-                                    16,
-                                    {
-                                        duration: 0.8,
-                                    }
+                                    { animate: true }
                                 );
                             },
                         }}
