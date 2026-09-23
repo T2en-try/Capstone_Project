@@ -25,6 +25,11 @@
   z-index: 1 !important;
 }
 
+/* ภายใน GpsPinModal (scrollable body) ยอมให้แผนที่ยุบเล็กลงได้ */
+.overflow-y-auto .leaflet-container {
+  min-height: 0 !important;
+}
+
 @layer base {
   html {
     font-family: var(--font-body);

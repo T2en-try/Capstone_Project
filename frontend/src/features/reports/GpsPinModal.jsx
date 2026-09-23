@@ -767,8 +767,8 @@ export default function GpsPinModal({
       <div
         className="
           w-full sm:max-w-2xl
-          h-full sm:h-auto
-          sm:max-h-[94vh]
+          h-[100dvh] sm:h-auto
+          sm:max-h-[90vh]
           bg-white
           sm:rounded-2xl
           overflow-hidden
@@ -832,6 +832,12 @@ export default function GpsPinModal({
         </div>
 
         {/* ====================================================
+            Scrollable Body (GPS notice + Map + Info)
+        ==================================================== */}
+
+        <div className="flex-1 min-h-0 overflow-y-auto" style={{ WebkitOverflowScrolling: 'touch' }}>
+
+        {/* ====================================================
             GPS notice
         ==================================================== */}
 
@@ -884,7 +890,9 @@ export default function GpsPinModal({
           className="relative shrink-0"
           style={{
             height:
-              "clamp(350px, 52vh, 470px)",
+              window.innerWidth >= 640
+                ? "clamp(300px, 45vh, 420px)"
+                : "clamp(240px, 35vh, 320px)",
           }}
         >
           {locating ? (
@@ -915,6 +923,7 @@ export default function GpsPinModal({
                 style={{
                   height: "100%",
                   width: "100%",
+                  minHeight: 0,
                 }}
                 zoomControl={false}
               >
@@ -1383,11 +1392,13 @@ export default function GpsPinModal({
           )}
         </div>
 
+        </div>{/* end scrollable body */}
+
         {/* ====================================================
-            Footer
+            Footer (sticky bottom)
         ==================================================== */}
 
-        <div className="p-4 sm:px-5 sm:pb-5">
+        <div className="shrink-0 border-t border-slate-100 bg-white p-3 sm:px-5 sm:pb-[max(1rem,env(safe-area-inset-bottom))]">
           {/* ==================================================
               Snap button
           ================================================== */}

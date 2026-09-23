@@ -706,10 +706,9 @@ export default function UserReportPage() {
                         className={`
                           min-w-[45%] sm:min-w-0 shrink-0 snap-center
                           px-3 sm:px-5 py-3 sm:py-4
-                          ${
-                            index !== 0
-                              ? "border-l border-line"
-                              : ""
+                          ${index !== 0
+                            ? "border-l border-line"
+                            : ""
                           }
                         `}
                       >
@@ -910,10 +909,9 @@ export default function UserReportPage() {
                       flex items-center justify-center
                       w-11 h-11 rounded-xl border
                       transition-all
-                      ${
-                        filterStatus !== "all"
-                          ? "border-mark bg-mark/10 text-mark-deep"
-                          : "border-line bg-paper text-asphalt/50"
+                      ${filterStatus !== "all"
+                        ? "border-mark bg-mark/10 text-mark-deep"
+                        : "border-line bg-paper text-asphalt/50"
                       }
                     `}
                   >
@@ -973,11 +971,10 @@ export default function UserReportPage() {
                             px-3 py-2 rounded-lg
                             text-xs font-semibold
                             transition-all
-                            ${
-                              filterStatus ===
+                            ${filterStatus ===
                               opt.value
-                                ? "bg-ink text-paper"
-                                : "bg-mist text-ink-soft active:bg-ink/10"
+                              ? "bg-ink text-paper"
+                              : "bg-mist text-ink-soft active:bg-ink/10"
                             }
                           `}
                         >
@@ -1052,22 +1049,22 @@ export default function UserReportPage() {
 
                                 {r.created_at
                                   ? new Date(
-                                      r.created_at
-                                    ).toLocaleString(
-                                      "en-US",
-                                      {
-                                        dateStyle:
-                                          "medium",
-                                        timeStyle:
-                                          "short",
-                                      }
-                                    )
+                                    r.created_at
+                                  ).toLocaleString(
+                                    "en-US",
+                                    {
+                                      dateStyle:
+                                        "medium",
+                                      timeStyle:
+                                        "short",
+                                    }
+                                  )
                                   : "-"}
 
                               </span>
 
                               {r.latitude != null &&
-                              r.longitude != null ? (
+                                r.longitude != null ? (
 
                                 <span className="inline-flex items-center gap-1 font-mono">
 
@@ -1160,7 +1157,7 @@ export default function UserReportPage() {
                     <h3 className="mt-4 font-display text-lg text-ink">
 
                       {searchQuery ||
-                      filterStatus !== "all"
+                        filterStatus !== "all"
                         ? "No reports match your criteria"
                         : "No reports yet"}
 
@@ -1169,7 +1166,7 @@ export default function UserReportPage() {
                     <p className="mt-1 text-sm text-asphalt/55">
 
                       {searchQuery ||
-                      filterStatus !== "all"
+                        filterStatus !== "all"
                         ? "Try changing your search or filter criteria."
                         : "Submitted road issue reports will appear here."}
 
@@ -1178,15 +1175,15 @@ export default function UserReportPage() {
                     {(searchQuery ||
                       filterStatus !== "all") && (
 
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setSearchQuery("");
-                          setFilterStatus(
-                            "all"
-                          );
-                        }}
-                        className="
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSearchQuery("");
+                            setFilterStatus(
+                              "all"
+                            );
+                          }}
+                          className="
                           mt-4
                           text-sm
                           font-semibold
@@ -1195,11 +1192,11 @@ export default function UserReportPage() {
                           underline
                           underline-offset-4
                         "
-                      >
-                        Clear Filters
-                      </button>
+                        >
+                          Clear Filters
+                        </button>
 
-                    )}
+                      )}
 
                   </div>
                 )}
